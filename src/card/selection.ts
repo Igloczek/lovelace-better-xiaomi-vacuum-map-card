@@ -49,6 +49,7 @@ export function createContext(card: XiaomiVacuumMapCard): Context {
         () => isActiveRoomRunShownLocked(card),
         () => dismissActiveRoomRun(card),
         () => card._getCurrentMode()?.showsRoomOrder() ?? false,
+        () => card.roomPillPalette,
     );
 }
 

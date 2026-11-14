@@ -54,6 +54,8 @@ import { HomeAssistantFixed } from "./types/fixes";
 import "./polyfills/objectEntries";
 import "./polyfills/objectFromEntries";
 import { IconsWrapper } from "./components/icons-wrapper";
+import { updateRoomPillPalette } from "./card/room-pill";
+import { resolveRoomPillPalette, RoomPillPalette } from "./model/room-pill-palette";
 import {
     advanceCardActiveRun,
     connectActiveRun,
@@ -188,6 +190,8 @@ export class XiaomiVacuumMapCard extends LitElement {
     @state() serviceCallInFlight = false;
     /** Re-checks `activeRoomRun` when it would change without a further state update. */
     activeRoomRunTimer?: number;
+    /** Colours of the selected-room pill, resolved from the theme on every render. */
+    roomPillPalette: RoomPillPalette = resolveRoomPillPalette({ background: "", text: "", badge: "" });
     selectedPredefinedPoints: PredefinedPoint[] = [];
     selectablePredefinedRectangles: PredefinedMultiRectangle[] = [];
     selectableRooms: Room[] = [];
@@ -505,6 +509,7 @@ export class XiaomiVacuumMapCard extends LitElement {
 
         const mapSrc = getMapSrc(this, preset);
         const validCalibration = !!this.coordinatesConverter && this.coordinatesConverter.calibrated;
+        updateRoomPillPalette(this);
         const mapControls = validCalibration ? createMapControls(this) : [];
         const staleRoomIds = getStaleRoomIds(this, this._getCurrentMode());
 

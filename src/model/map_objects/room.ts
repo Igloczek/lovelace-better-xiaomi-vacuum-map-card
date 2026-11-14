@@ -6,12 +6,16 @@ import { Context } from "./context";
 import { deleteFromArray } from "../../utils";
 import { LabelConfig, RoomConfig } from "../../types/types";
 import { PredefinedMapObject } from "./predefined-map-object";
+import { cssRgb } from "../room-pill-palette";
 
 /**
  * Distance in CSS pixels between a room's label and the cleaning-order badge drawn above it when
  * the room has no icon. It clears the label's own text and stays inside small room outlines.
  */
 const ORDER_BADGE_LABEL_OFFSET = 20;
+
+/** Material Design Icons `check`. */
+const CHECK_PATH = "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
 
 export interface RoomRenderOptions {
     readonly imageOutline?: Array<[number, number]>;
@@ -83,7 +87,9 @@ export class Room extends PredefinedMapObject {
         const position = this._selected ? this._context.selectedRooms().indexOf(this) + 1 : runOrder;
         const order = this._context.showRoomOrder() ? position : 0;
         const highlighted = this._selected || runOrder > 0;
-        const iconContent = order > 0 ? html`<span class="room-order">${order}</span>` : undefined;
+        // A highlighted room's label becomes a pill (badge + name). A stale room never shows one:
+        // it is not a valid part of a run, and its `!` marker sits where the pill would.
+        const pill = highlighted && !this._stale;
         return svg`
             <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${this._stale ? "room-stale" : ""}
             room-${`${this._config.id}`.replace(/[^a-zA-Z0-9_-]/gm, "_")}-wrapper">
@@ -95,28 +101,72 @@ export class Room extends PredefinedMapObject {
                                  : async (): Promise<void> => this.click()
                          }">
                 </polygon>
-                ${this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", iconContent, !this._stale)}
-                ${this.renderOrderBadge(order)}
+                ${pill ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !this._stale)}
+                ${pill ? this.renderPill(order) : svg``}
                 ${this.renderStaleMarker()}
-                ${this.renderLabel(this._config.label, "room-label", this._config.icon)}
+                ${pill ? svg`` : this.renderLabel(this._config.label, "room-label", this._config.icon)}
             </g>
         `;
     }
 
     /**
-     * The order badge for a selected room that has no icon. Upstream draws the number in the icon
-     * slot, but rooms detected from the map colours carry no icon, so for them the number is drawn
-     * above the room label instead of being dropped. A room with an icon keeps the upstream
-     * behaviour: the number replaces the icon.
+     * The label of a selected room, or of a room in a started run, drawn as a pill in the style of
+     * the Xiaomi Home app: a badge at its left end and the room name, with a small pointer at the
+     * room's anchor. The badge holds the room's place in the order when the mode numbers rooms
+     * (`cleaning_order`) and a checkmark otherwise. A room without a label shows the badge alone.
+     *
+     * The pill is HTML in a foreignObject so it sizes to its text. Like the labels it is turned back
+     * against the map rotation and divided by the zoom, so it stays upright and the same size on
+     * screen; it ignores pointer events, so a tap reaches the room underneath. Its colours come from
+     * the resolved palette (`roomPillPalette`), which keeps every text pair at 4.5:1 or better.
      */
-    private renderOrderBadge(order: number): SVGTemplateResult {
-        if (order <= 0 || this._config.icon) return svg``;
-        const anchor = this._config.label ?? this._outlineCenter();
+    private renderPill(order: number): SVGTemplateResult {
+        const anchor = this._pillAnchor();
         if (!anchor) return svg``;
-        return this.renderLabel(
-            { ...anchor, text: `${order}`, offset_y: (anchor.offset_y ?? 0) - ORDER_BADGE_LABEL_OFFSET },
-            "room-order",
-        );
+        const palette = this._context.roomPillPalette();
+        const name = this._config.label?.text?.trim();
+        const style = [
+            `--room-pill-background: ${cssRgb(palette.background)}`,
+            `--room-pill-text: ${cssRgb(palette.text)}`,
+            `--room-pill-ring: ${cssRgb(palette.ring)}`,
+            `--room-pill-badge: ${cssRgb(palette.badge)}`,
+            `--room-pill-badge-text: ${cssRgb(palette.badgeText)}`,
+        ].join("; ");
+        const badge =
+            order > 0
+                ? html`<span class="room-pill-badge room-order">${order}</span>`
+                : html`<span class="room-pill-badge room-check" aria-label="selected"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CHECK_PATH}"></path></svg
+                  ></span>`;
+        return svg`
+            <foreignObject class="room-pill-anchor" x="${anchor[0]}px" y="${anchor[1]}px" width="1" height="1">
+                <body xmlns="http://www.w3.org/1999/xhtml" style="margin: 0">
+                    ${html`<div class="room-pill ${name ? "" : "badge-only"} ${palette.badgeRing ? "badge-ring" : ""}"
+                                style="${style}">${badge}${name ? html`<span class="room-pill-name">${name}</span>` : ""}</div>`}
+                </body>
+            </foreignObject>
+        `;
+    }
+
+    /**
+     * Where the pill's pointer meets the room, in scaled map pixels: the label's position with its
+     * offset, otherwise the icon, otherwise the middle of the outline.
+     */
+    private _pillAnchor(): [number, number] | undefined {
+        const label = this._config.label;
+        if (label) {
+            const [x, y] = this.vacuumToScaledMap(label.x, label.y);
+            return [x + this.scaled(label.offset_x ?? 0), y + this.scaled(label.offset_y ?? 0)];
+        }
+        const icon = this._config.icon;
+        if (icon) {
+            const [x, y] = this.vacuumToScaledMap(icon.x, icon.y);
+            return [x, y];
+        }
+        const centre = this._outlineCenter();
+        if (!centre) return undefined;
+        const [x, y] = this.vacuumToScaledMap(centre.x, centre.y);
+        return [x, y];
     }
 
     /**
@@ -220,28 +270,93 @@ export class Room extends PredefinedMapObject {
                     background var(--map-card-internal-transitions-duration) ease;
             }
 
-            .room-order {
-                font-size: calc(var(--map-card-internal-room-icon-size) * 0.75);
-                font-weight: bold;
-                line-height: 1;
+            /* The selected-room pill (see renderPill). The foreignObject is a 1 px box at the
+               anchor; the pill overflows it. Transforms apply right to left: step up and to the
+               left in the pill's own pixels so the pointer tip lands on the anchor, turn back
+               against the map rotation, then divide by the zoom - so the pill stays upright and the
+               same size on screen at any zoom and rotation. */
+            .room-pill-anchor {
+                overflow: visible;
+                pointer-events: none;
             }
 
-            /* A badge drawn above an icon-less room's label reuses .label-text, which supplies the
-               counter-rotation and the offset. Centring and the outline belong to .room-label, not to
-               .label-text, so they are repeated here: without them a single digit sits several pixels
-               right of the room centre, and the number is unreadable on a light room. The badge is
-               heavier and larger than the room name, and it ignores pointer events so the outline
-               underneath stays clickable. */
-            text.room-order {
-                font-size: calc(var(--map-card-internal-room-label-font-size) * 1.4 / var(--map-scale));
-                font-weight: 700;
-                text-anchor: middle;
-                dominant-baseline: middle;
-                stroke: var(--map-card-internal-room-label-outline-color);
-                stroke-width: calc(var(--map-card-internal-room-label-outline-width) / var(--map-scale));
-                stroke-linejoin: round;
-                paint-order: stroke fill;
+            .room-pill {
+                --room-pill-height: calc(var(--map-card-internal-room-label-font-size) * 2);
+                --room-pill-pointer: 5px;
+                position: relative;
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                width: max-content;
+                height: var(--room-pill-height);
+                padding: 0 10px 0 3px;
+                border-radius: calc(var(--room-pill-height) / 2);
+                background: var(--room-pill-background);
+                color: var(--room-pill-text);
+                /* Set apart from the map by depth, not a hard outline: a hairline from the text
+                   colour, and a soft two-layer shadow that also follows the pointer. */
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-pill-ring) 18%, transparent);
+                filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.2)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.14));
+                font-size: var(--map-card-internal-room-label-font-size);
+                font-weight: 600;
+                letter-spacing: 0.01em;
+                line-height: 1;
+                white-space: nowrap;
                 pointer-events: none;
+                transform-origin: 0 0;
+                transform: scale(calc(1 / var(--map-scale)))
+                    rotate(calc(-1 * var(--map-rotation, 0deg)))
+                    translate(-50%, calc(-100% - var(--room-pill-pointer)));
+            }
+
+            .room-pill.badge-only {
+                padding: 0 3px;
+            }
+
+            /* The pointer under the pill, its tip on the room's anchor. */
+            .room-pill::after {
+                content: "";
+                position: absolute;
+                left: 50%;
+                top: calc(100% - 0.5px);
+                transform: translateX(-50%);
+                border: var(--room-pill-pointer) solid transparent;
+                border-top-color: var(--room-pill-background);
+                border-bottom-width: 0;
+            }
+
+            .room-pill-badge {
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex: none;
+                min-width: calc(var(--room-pill-height) - 6px);
+                height: calc(var(--room-pill-height) - 6px);
+                padding: 0 5px;
+                border-radius: calc(var(--room-pill-height) / 2);
+                background: var(--room-pill-badge);
+                color: var(--room-pill-badge-text);
+                font-size: calc(var(--map-card-internal-room-label-font-size) - 1px);
+                font-weight: 700;
+                font-variant-numeric: tabular-nums;
+            }
+
+            /* The checkmark sits in a true circle, the same size as a one-digit number. */
+            .room-pill-badge.room-check {
+                width: calc(var(--room-pill-height) - 6px);
+                padding: 0;
+            }
+
+            .room-pill.badge-ring .room-pill-badge {
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-pill-text) 35%, transparent);
+            }
+
+            .room-pill-badge svg {
+                width: 13px;
+                height: 13px;
+                fill: currentColor;
             }
 
             /* A configured room whose id is no longer in the camera metadata. The marker reuses
@@ -307,9 +422,6 @@ export class Room extends PredefinedMapObject {
                 fill: var(--map-card-internal-room-label-color-selected);
             }
 
-            .room-wrapper.selected > text.room-order {
-                fill: var(--map-card-internal-room-label-color-selected);
-            }
         `;
     }
 }
