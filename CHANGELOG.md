@@ -120,6 +120,8 @@
   (numeric text, lists keyed by room id).
 - The run is on the map from the moment **Start** sends the call, not only once the integration
   answers; if the call fails the run is removed and the selection comes back in order.
+- The run shows the rooms that were sent, even if a room was tapped while Home Assistant was still
+  answering the call.
 - `unavailable` or `unknown` from a polling integration no longer ends a run mid-clean.
 - Only `cleaning` reported after **Start** counts as the start of a run. The previous job's
   `cleaning` or `returning`, still shown by a lagging integration, or an update that only changes
