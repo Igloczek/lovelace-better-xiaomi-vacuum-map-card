@@ -36,9 +36,10 @@ Same card type, same YAML: [switching takes a minute](#coming-from-xiaomi-vacuum
 
 **Clean from the map**
 
-- **Rooms:** tap one or more rooms and start. On Valetudo, ValetudoRE and roomba_plus, which
-  clean in the order you tap, each selected room shows its place in that order; other vacuums
-  choose their own route, so their rooms are highlighted without numbers
+- **Rooms:** tap one or more rooms and start. A selected room's name turns into a pill, as in the
+  Xiaomi Home app, readable in light and dark themes. On Valetudo, ValetudoRE and roomba_plus,
+  which clean in the order you tap, the pill shows the room's place in that order; other vacuums
+  choose their own route, so it shows a checkmark
   ([per platform](docs/platforms.md#cleaning-order-per-platform)).
 - **Zones:** draw rectangles, or save the zones you use often and pick them with one tap.
 - **Go to a spot:** tap a point and the robot drives there. Saved points work too.

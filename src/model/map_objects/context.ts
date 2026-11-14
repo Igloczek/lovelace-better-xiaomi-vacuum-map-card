@@ -5,6 +5,9 @@ import { PredefinedPoint } from "./predefined-point";
 import { ManualRectangle } from "./manual-rectangle";
 import { CoordinatesConverter } from "./coordinates-converter";
 import { TranslatableString } from "../../types/types";
+import { resolveRoomPillPalette, RoomPillPalette } from "../room-pill-palette";
+
+const DEFAULT_ROOM_PILL_PALETTE = resolveRoomPillPalette({ background: "", text: "", badge: "" });
 
 export class Context {
     constructor(
@@ -38,6 +41,8 @@ export class Context {
          * vacuum does not follow.
          */
         public readonly showRoomOrder: () => boolean = () => true,
+        /** Colours of the selected-room pill, resolved from the theme with readable contrast. */
+        public readonly roomPillPalette: () => RoomPillPalette = () => DEFAULT_ROOM_PILL_PALETTE,
     ) {}
 
     public roundMap([x, y]: PointArrayNotation): PointArrayNotation {

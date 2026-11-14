@@ -55,7 +55,7 @@ before; change it in the editor. The setting is only a starting point and is wri
 
 Rooms are sent in the order you tap them, but only some integrations make the vacuum clean them in
 that order. The card numbers the selected rooms only on those. Everywhere else the vacuum chooses
-its own route and the rooms are highlighted without numbers. A mode can show the numbers with
+its own route and a selected room shows a checkmark instead of a number. A mode can show the numbers with
 `cleaning_order: true`, which does not change the order the vacuum cleans in
 ([cleaning order](configuration.md#cleaning-order)).
 

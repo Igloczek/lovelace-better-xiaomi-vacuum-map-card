@@ -182,7 +182,7 @@ describe("cleaning-order badges (#866, upstream #959)", () => {
         expect(badgesBeforeSecondRun).toEqual(calledSegments(hass).map(String));
     });
 
-    it("replaces the icon of a selected room when the room has one (upstream behaviour)", async () => {
+    it("shows the number in the room pill instead of the icon once a room with an icon is selected", async () => {
         const { card } = await mountCleaningOrderCard({
             map_modes: [
                 {
@@ -210,9 +210,10 @@ describe("cleaning-order badges (#866, upstream #959)", () => {
         iconWrapper("1").dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
         await settle(card.element);
 
-        expect(iconWrapper("1").querySelector(".room-order")?.textContent?.trim()).toBe("1");
-        expect(iconWrapper("1").querySelector("ha-icon")).toBeNull();
-        // The number lives in the icon slot, not above the label, for a room that has an icon.
+        // The selected room's pill (badge + name) takes the icon's place: the icon is gone, and
+        // the number appears once, in the pill's badge (Xiaomi Home app style).
+        expect(roomElement(card, "1").querySelector(".room-icon-wrapper")).toBeNull();
+        expect(roomElement(card, "1").querySelector(".room-pill .room-pill-badge.room-order")?.textContent?.trim()).toBe("1");
         expect(roomElement(card, "1").querySelectorAll(".room-order")).toHaveLength(1);
     });
 

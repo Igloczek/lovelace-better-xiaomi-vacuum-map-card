@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import type { RoomConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 
@@ -65,13 +65,6 @@ const LIVING_ROOM_IMAGE_RECT: Box = { x: 100, y: 20, width: 70, height: 50 };
 const OUTLINE_TOLERANCE = 0.75;
 
 /**
- * Tolerance in CSS pixels between the cleaning-order badge's centre and the room label's centre.
- * Both are anchored on the same x with `text-anchor: middle`, so the two boxes should share a
- * centre; what remains is glyph side bearing, which is well under a pixel for one digit.
- */
-const BADGE_CENTRE_TOLERANCE = 1;
-
-/**
  * Compares an outline box with the expected image-pixel rectangle and names the failing edge, so a
  * misalignment explains the expected geometry instead of only reporting a screenshot diff.
  */
@@ -108,40 +101,6 @@ test.afterEach(async ({ page }) => {
 
 function harness(page: Page): Promise<VisualDescription> {
     return page.evaluate(() => (window as unknown as VisualWindow).visualHarness.describe());
-}
-
-interface MeasuredText {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    centreX: number;
-    textAnchor: string;
-    stroke: string;
-}
-
-/**
- * An SVG text element's rendered box plus the computed properties that place and outline it.
- *
- * `locator.boundingBox()` is deliberately not used here: Playwright reports the text's box extended
- * by its stroke (2 px on each side for the badge outline), which would swallow the 3.7 px gap
- * between the badge and the room label and make the vertical check measure the outline instead of
- * the text.
- */
-function measureText(locator: Locator): Promise<MeasuredText> {
-    return locator.evaluate(element => {
-        const box = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        return {
-            x: box.x,
-            y: box.y,
-            width: box.width,
-            height: box.height,
-            centreX: box.x + box.width / 2,
-            textAnchor: style.textAnchor,
-            stroke: style.stroke,
-        };
-    });
 }
 
 /** A card preset using the synthetic fixture, the Xiaomi Miio ROOM mode and no persisted view. */
@@ -379,44 +338,14 @@ test("room hit-testing selects the clicked room at zoom 1", async ({ page }) => 
     await expect(page.locator(`${CARD} .room-0-wrapper.selected`)).toHaveCount(0);
     await expect(page.locator(`${CARD} .room-2-wrapper.selected`)).toHaveCount(0);
 
-    // The selected room shows its cleaning order above its label. These rooms come from the colour
-    // detection, carry no icon, and so take the fork's badge path rather than upstream's icon slot;
-    // that path only exists in Chromium, which is why it is asserted here and not in Vitest. The
-    // unselected rooms must stay unnumbered, so this is not merely "a badge was rendered".
-    await expect(page.locator(`${CARD} .room-1-wrapper text.room-order`)).toHaveText("1");
-    await expect(page.locator(`${CARD} .room-0-wrapper .room-order`)).toHaveCount(0);
-
-    // The screenshot is not the gate for the badge: at 400 x 398 px the configured 0.001
-    // maxDiffPixelRatio tolerates 159 differing pixels, while a missing or shifted badge changes
-    // only about 104 of them. These boxes are the gate - the badge must stay centred over the label
-    // and above it - and the screenshot covers the surrounding frame.
-    const badge = page.locator(`${CARD} .room-1-wrapper text.room-order`);
-    const label = page.locator(`${CARD} .room-1-wrapper text.room-label`);
-    const badgeBox = await measureText(badge);
-    const labelBox = await measureText(label);
-
-    const centreGap = Math.abs(badgeBox.centreX - labelBox.centreX);
-    expect(
-        centreGap,
-        `badge centre x ${badgeBox.centreX.toFixed(2)} px is ${centreGap.toFixed(
-            2,
-        )} px from the room label centre x ${labelBox.centreX.toFixed(
-            2,
-        )} px, expected within ${BADGE_CENTRE_TOLERANCE} px`,
-    ).toBeLessThanOrEqual(BADGE_CENTRE_TOLERANCE);
-
-    const badgeBottom = badgeBox.y + badgeBox.height;
-    expect(
-        badgeBottom,
-        `badge bottom ${badgeBottom.toFixed(2)} px is not above the room label top ${labelBox.y.toFixed(2)} px`,
-    ).toBeLessThanOrEqual(labelBox.y);
-
-    // The styles those boxes depend on. A start-anchored badge is exactly what round 1 found (the
-    // text sat several pixels right of the room centre), and without the label-style stroke the
-    // number drops to about 2:1 contrast on the room fill. The computed values are asserted
-    // separately from the boxes so each defect names itself.
-    expect(badgeBox.textAnchor).toBe("middle");
-    expect(badgeBox.stroke).not.toBe("none");
+    // The selected room's label becomes its pill (room-pill.spec.ts covers its geometry, contrast
+    // and both themes). This mode numbers rooms (`cleaning_order: true`), so the badge carries the
+    // room's place in the order; the unselected rooms keep their plain label and no pill.
+    await expect(page.locator(`${CARD} .room-1-wrapper .room-pill .room-order`)).toHaveText("1");
+    await expect(page.locator(`${CARD} .room-1-wrapper .room-pill-name`)).toHaveText("Living room");
+    await expect(page.locator(`${CARD} .room-0-wrapper .room-pill`)).toHaveCount(0);
+    await expect(page.locator(`${CARD} .room-0-wrapper text.room-label`)).toHaveText("Kitchen");
+    await expect(page.locator(`${CARD} .room-order`)).toHaveCount(1);
 
     await expect(page.locator(CARD)).toHaveScreenshot("room-hit-test.png");
 });
