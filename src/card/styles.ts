@@ -295,6 +295,23 @@ export const cardStyles = css`
                 rgba(0, 0, 0, 0.95)
             );
             --map-card-internal-room-label-outline-width: var(--map-card-room-label-outline-width, 2px);
+            /* Selected-room pill. Theme-aware defaults: the theme's text colour as the body and its
+               card background as the name, so the pill is dark in a light theme and light in a dark
+               one. The card checks every pair it draws text with and swaps in black or white text
+               when a theme or override would fall below 4.5:1 (src/model/room-pill-palette.ts). */
+            --map-card-internal-room-pill-background-color: var(
+                --map-card-room-pill-background-color,
+                var(--map-card-internal-primary-text-color)
+            );
+            --map-card-internal-room-pill-text-color: var(
+                --map-card-room-pill-text-color,
+                var(--card-background-color, #fff)
+            );
+            --map-card-internal-room-pill-badge-color: var(
+                --map-card-room-pill-badge-color,
+                var(--map-card-internal-primary-color)
+            );
+            --map-card-internal-room-pill-badge-text-color: var(--map-card-room-pill-badge-text-color,);
             --map-card-internal-toast-successful-icon-color: var(
                 --map-card-toast-successful-icon-color,
                 rgb(0, 255, 0)

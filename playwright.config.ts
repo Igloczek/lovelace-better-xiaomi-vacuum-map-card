@@ -20,6 +20,12 @@ import { defineConfig } from "@playwright/test";
  * regenerating every baseline. The workflow does not run `playwright install`, so a mismatch fails
  * instead of silently using a different Chromium.
  */
+/**
+ * The harness server's port. Override with VISUAL_PORT when another checkout's server already holds
+ * the default: `reuseExistingServer` would otherwise test that checkout's bundle.
+ */
+const VISUAL_PORT = process.env.VISUAL_PORT ?? "4173";
+
 export default defineConfig({
     testDir: "test/visual",
     testMatch: "**/*.spec.ts",
@@ -32,7 +38,7 @@ export default defineConfig({
     timeout: 30_000,
     reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
     use: {
-        baseURL: "http://127.0.0.1:4173",
+        baseURL: `http://127.0.0.1:${VISUAL_PORT}`,
         browserName: "chromium",
         viewport: { width: 800, height: 700 },
         deviceScaleFactor: 1,
@@ -54,9 +60,9 @@ export default defineConfig({
     projects: [{ name: "chromium" }],
     webServer: {
         command: "node test/visual/server.cjs",
-        url: "http://127.0.0.1:4173/",
+        url: `http://127.0.0.1:${VISUAL_PORT}/`,
         reuseExistingServer: !process.env.CI,
         timeout: 30_000,
-        env: { VISUAL_PORT: "4173" },
+        env: { VISUAL_PORT },
     },
 });

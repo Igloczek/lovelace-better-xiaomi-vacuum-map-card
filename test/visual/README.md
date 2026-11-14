@@ -21,7 +21,7 @@ is involved: `index.html` plus `harness.js` mount the card element with a mock `
 | `a configured map_view is centred at rotation 90` | rotation pivots on the content centre, so a scale-only default keeps the map centred and overlays aligned |
 | `a stored view beats the configured default after a remount` | a real browser pan/zoom is written to the store and read back over `map_view` |
 | `room hit-testing follows zoom 1/2.5 and rotation 0/90` | at each overlay zoom/rotation pair, taps near two corners of the framed room toggle it and taps on the visible background 5 image px outside it select nothing; the tap is mapped back to source-image pixels through the shared transform |
-| `room hit-testing selects the clicked room at zoom 1` | clicking a room's colour selects that room, and the selected room's cleaning-order badge is centred above its label |
+| `room hit-testing selects the clicked room at zoom 1` | clicking a room's colour selects that room; the selected room shows its pill with a checkmark (this mode does not number rooms) and the others keep their plain label |
 | `default vertical layout` | header, preset selector, map and controls stack vertically |
 | `layout geometry at 400 and 800 px` | vertical stacks the controls below the map; horizontal puts them beside it at both widths |
 | `horizontal layout at 400 px`, `... 800 px`, `... 1200 px` | side-by-side geometry at three widths, map and controls inside the card, the controls column wrapping and scrolling instead of overflowing, one screenshot each |
@@ -62,11 +62,19 @@ base-scale error and ignores the zoom and rotation transforms, so those regressi
 the screenshots. The tolerance is deliberately below one image pixel; a 1 layout-pixel drift can
 therefore pass, and the measured values currently land exactly on the rectangle.
 
-The room hit test asserts the cleaning-order badge the same way, because the screenshot cannot: at
-400 x 398 px, `maxDiffPixelRatio: 0.001` tolerates 159 differing pixels while a missing or shifted
-badge changes only about 104. The badge's centre must stay within 1 px of its room label's centre and
-its bottom above the label's top, and its computed `text-anchor` must be `middle` with a `stroke`
-that is not `none`. The screenshot of that test covers the surrounding frame, not the badge.
+`room-pill.spec.ts` covers the selected-room pill. In the light and the dark theme, at zoom 1 and
+2.5 and rotation 0 and 90, it asserts geometry and computed colours, not only pixels: the pill's
+name and the badge glyph reach 4.5:1 against their backgrounds, the pill is ringed in its text
+colour, ignores pointer events (a tap at its centre reaches the room), stays upright and the same
+size within 1 px, and its pointer tip lands on the room label's anchor within 1.5 px. Further cases
+cover the checkmark when the order is off, a dark dashboard with `transparent_background`, and
+`--map-card-room-pill-*` overrides that pair unreadable colours, which the card must correct. Each
+geometry case also takes a screenshot (`room-pill-<theme>-zoom-<z>-rotation-<r>.png`,
+`room-pill-<theme>-checkmark.png`, `room-pill-dark-transparent.png`).
+
+Run the assertions on any machine without the baselines with `npx playwright test --ignore-snapshots`.
+The server listens on `VISUAL_PORT` (default 4173); set it when another checkout's harness server
+already holds the port, or `reuseExistingServer` tests that checkout's bundle instead of yours.
 
 ## Baselines
 

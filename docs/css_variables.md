@@ -95,6 +95,10 @@
 --map-card-room-label-font-size
 --map-card-room-label-outline-color
 --map-card-room-label-outline-width
+--map-card-room-pill-background-color
+--map-card-room-pill-text-color
+--map-card-room-pill-badge-color
+--map-card-room-pill-badge-text-color
 --map-card-toast-successful-icon-color
 --map-card-toast-unsuccessful-icon-color
 --map-card-transitions-duration
@@ -105,3 +109,7 @@ Room labels default to white text with a dark outline for contrast across map co
 The map viewport (`--map-card-zoomer-background`) is transparent by default, so a map with
 transparent or near-white areas blends into the card's own background. Set the variable to a color
 when you want a visible frame around the map instead.
+
+The `--map-card-room-pill-*` variables colour the label of a selected room; see
+[Selected room label](configuration.md#selected-room-label). The card keeps their text readable
+whatever they are set to.

@@ -258,16 +258,40 @@ For `ROOM` selections, the card can use room IDs and names from the camera's `ro
 Rooms are sent in the order you tap them. Only some integrations make the vacuum clean them in
 that order, and the card numbers the selected rooms only on those: `Hypfer/Valetudo`,
 `rand256/ValetudoRE` (segments) and `johnnyh1975/ha_roomba_plus`. On every other platform, and in
-any mode with its own `service_call_schema`, the vacuum chooses its own route, so the selected
-rooms are highlighted without numbers. The [platform list](platforms.md#cleaning-order-per-platform)
+any mode with its own `service_call_schema`, the vacuum chooses its own route, so a selected room
+shows a checkmark instead of a number. The [platform list](platforms.md#cleaning-order-per-platform)
 gives the reason for each.
 
 If your vacuum does follow the order sent (for example your own service call asks for it), set
 `cleaning_order: true` on the ROOM map mode to show the numbers. The setting only controls the
-numbers; it does not make a vacuum follow the order. `cleaning_order: false` hides them on the
-platforms that number by default.
+numbers; it does not make a vacuum follow the order. `cleaning_order: false` shows checkmarks on
+the platforms that number by default.
 
-After **Start** the rooms stay highlighted exactly as they were selected, with their numbers where they are shown. The
+#### Selected room label
+
+A selected room's label turns into a pill, as in the Xiaomi Home app: a round badge with the
+room's number in the cleaning order (or a checkmark, see above) next to the room name, with a small
+pointer at the room. A room with an icon shows its icon until it is selected and the pill after; a
+room without a name shows the badge alone. The rooms of a started run keep their pills. The pill
+stays upright and the same size at any zoom and rotation, and taps go through it to the room.
+
+The pill follows the theme: dark with light text in a light theme, light with dark text in a dark
+theme, with a thin ring in the text colour so it stands out on any room colour and on a light or
+dark dashboard. Colours can be changed with CSS variables on the card (for example with
+`card_mod`):
+
+| Variable | Default | Colours |
+|---|---|---|
+| `--map-card-room-pill-background-color` | the theme's text colour (`--primary-text-color`) | the pill |
+| `--map-card-room-pill-text-color` | the theme's card background (`--card-background-color`) | the room name and the ring |
+| `--map-card-room-pill-badge-color` | the card's primary colour (`--map-card-primary-color`, else `--slider-color`) | the badge |
+| `--map-card-room-pill-badge-text-color` | black or white, whichever reads better on the badge | the number or checkmark |
+
+Whatever these are set to, the card keeps the text readable: when a name or a badge glyph would
+contrast less than 4.5:1 with what is behind it (WCAG AA), it is drawn in black or white instead,
+whichever reads better. The pill is always drawn opaque; a colour's transparency is ignored.
+
+After **Start** the rooms stay highlighted exactly as they were selected, with their pills. The
 selection stays on the map until Home Assistant answers the call; once the call is accepted the
 run of the rooms that were sent takes its place, and if the call fails the selection stays so you
 can retry. While the vacuum works through the run (`cleaning` or
