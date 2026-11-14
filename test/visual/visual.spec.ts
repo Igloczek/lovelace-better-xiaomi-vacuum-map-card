@@ -152,7 +152,9 @@ function cardConfig(overrides: Partial<XiaomiVacuumMapCardConfig> = {}): XiaomiV
         map_source: { camera: "camera.vacuum_map" },
         calibration_source: { camera: true },
         vacuum_platform: "Xiaomi Miio",
-        map_modes: [{ template: "vacuum_clean_segment" }],
+        // The badges these baselines show are click-order numbers: opt in, since Xiaomi Miio does not
+        // follow the order by default (FORK b5).
+        map_modes: [{ template: "vacuum_clean_segment", cleaning_order: true }],
         // Pin tiles and icons empty so these baselines cover the map overlay and the card layout
         // only. Generated tiles/icons are the generator batches' surface, not map rendering's.
         tiles: [],
@@ -508,7 +510,7 @@ const STALE_ROOM_OVER_LIVE_ONE: RoomConfig = {
 
 function staleRoomConfig(): XiaomiVacuumMapCardConfig {
     return cardConfig({
-        map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [STALE_ROOM_OVER_LIVE_ONE] }],
+        map_modes: [{ template: "vacuum_clean_segment", cleaning_order: true, predefined_selections: [STALE_ROOM_OVER_LIVE_ONE] }],
     });
 }
 
@@ -630,7 +632,7 @@ function horizontalConfig(overrides: Partial<XiaomiVacuumMapCardConfig> = {}): X
         // More than one mode renders the dropdown; the map-action buttons and the long tile list
         // then exercise wrapping and scrolling in the clamped controls column.
         map_modes: [
-            { template: "vacuum_clean_segment" },
+            { template: "vacuum_clean_segment", cleaning_order: true },
             { template: "vacuum_clean_zone" },
             { template: "vacuum_goto" },
         ],
@@ -810,7 +812,7 @@ test("a long mode name ellipsizes inside the controls column at 400 px", async (
         page,
         horizontalConfig({
             map_modes: [
-                { template: "vacuum_clean_segment", name: LONG_MODE_NAME },
+                { template: "vacuum_clean_segment", name: LONG_MODE_NAME, cleaning_order: true },
                 { template: "vacuum_clean_zone" },
             ],
         }),
