@@ -295,9 +295,8 @@ async function main() {
     }
     await sleep(900);
 
-    // 6. The other floor: a second map whose rooms are detected the same way. Rooms stay locked while
-    // the vacuum works through the run started in step 1, so stop it first.
-    await clickOn(page.locator(`${CARD} ha-icon[icon="mdi:stop"]`).first(), 1200);
+    // 6. The other floor: a second map whose rooms are detected the same way. The run started in
+    // step 1 belongs to the ground floor, so its rooms can be picked while the robot cleans.
     await clickOn(page.locator(`${CARD} .preset-selector-icon-wrapper`).last(), 1800);
     await click(...Object.values(await mapPoint(240, 210)));
     await click(...Object.values(await mapPoint(450, 100)), 2200);
