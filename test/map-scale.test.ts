@@ -21,9 +21,7 @@ function scaledCanvas(zoom: number, rotation: number): HTMLCanvasElement {
         offsetWidth,
         offsetHeight,
         getBoundingClientRect: () => ({
-            width:
-                (Math.abs(Math.cos(radians)) * offsetWidth + Math.abs(Math.sin(radians)) * offsetHeight) *
-                zoom,
+            width: (Math.abs(Math.cos(radians)) * offsetWidth + Math.abs(Math.sin(radians)) * offsetHeight) * zoom,
         }),
     } as unknown as HTMLCanvasElement;
 }

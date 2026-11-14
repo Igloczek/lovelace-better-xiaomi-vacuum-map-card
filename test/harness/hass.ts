@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import type { Connection } from "home-assistant-js-websocket";
-import type { HassEntity } from "home-assistant-js-websocket/dist/types";
+import type { HassEntity } from "home-assistant-js-websocket";
 
 import { localize } from "../../src/localize/localize";
 import type { CalibrationPoint, Language, MapExtractorRoom, TranslatableString } from "../../src/types/types";
@@ -90,10 +90,12 @@ export const DEFAULT_HA_VERSION = "2026.11.0";
 
 function toRegistryEntries(entities: MockEntityRegistryInput | undefined): MockEntityRegistryEntry[] {
     if (!entities) return [];
-    const list = Array.isArray(entities) ? entities : Object.entries(entities).map(([id, entry]) => ({
-        ...entry,
-        entity_id: entry.entity_id ?? id,
-    }));
+    const list = Array.isArray(entities)
+        ? entities
+        : Object.entries(entities).map(([id, entry]) => ({
+              ...entry,
+              entity_id: entry.entity_id ?? id,
+          }));
     return list.map(entry => ({
         ...entry,
         unique_id: entry.unique_id ?? entry.entity_id,
@@ -194,10 +196,7 @@ function makeRouter(
     };
 }
 
-function makeSetWSHandler(
-    router: MockRouter,
-    customHandlers: Record<string, WSHandler>,
-): MockHass["setWSHandler"] {
+function makeSetWSHandler(router: MockRouter, customHandlers: Record<string, WSHandler>): MockHass["setWSHandler"] {
     return (type: string, handler: WSHandler): void => {
         customHandlers[type] = handler;
         router.handlers.set(type, handler);
@@ -315,14 +314,16 @@ export function withRegistryEntries(hass: MockHass, entries: MockEntityRegistryI
  */
 export function withState(hass: MockHass, entityId: string, patch: Partial<HassEntity>): WithStateResult {
     const previous = hass.states[entityId];
-    const base: HassEntity = previous ?? ({
-        entity_id: entityId,
-        state: "unknown",
-        attributes: {},
-        last_changed: "2026-01-01T00:00:00.000Z",
-        last_updated: "2026-01-01T00:00:00.000Z",
-        context: { id: `mock-${entityId}`, parent_id: null, user_id: null },
-    } as HassEntity);
+    const base: HassEntity =
+        previous ??
+        ({
+            entity_id: entityId,
+            state: "unknown",
+            attributes: {},
+            last_changed: "2026-01-01T00:00:00.000Z",
+            last_updated: "2026-01-01T00:00:00.000Z",
+            context: { id: `mock-${entityId}`, parent_id: null, user_id: null },
+        } as HassEntity);
     const state: HassEntity = {
         ...base,
         ...patch,
@@ -384,13 +385,7 @@ export function syntheticCalibrationPoints(): CalibrationPoint[] {
  * Builds a `MapExtractorRoom` from the four bounds most maps expose. The type requires every
  * field to be present (possibly `undefined`), which is why fixtures must not use object literals.
  */
-export function extractorRoom(
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-    name?: string,
-): MapExtractorRoom {
+export function extractorRoom(x0: number, y0: number, x1: number, y1: number, name?: string): MapExtractorRoom {
     return {
         x0,
         y0,

@@ -21,8 +21,6 @@ const AUTH_DIR = path.join(__dirname, ".auth");
 const TOKEN_FILE = path.join(AUTH_DIR, "token.json");
 const CARD_ENTITIES = path.join(ARTIFACTS, "entities.json");
 
-
-
 async function api(pathname, options = {}) {
     const response = await fetch(`${BASE}${pathname}`, options);
     const text = await response.text();
@@ -53,7 +51,9 @@ async function onboard() {
     //    answers 404 to the onboarding API once the instance is set up.
     if (fs.existsSync(TOKEN_FILE)) {
         const saved = JSON.parse(fs.readFileSync(TOKEN_FILE, "utf8")).access_token;
-        const check = await api("/api/", { headers: { authorization: `Bearer ${saved}` } }).catch(() => ({ status: 0 }));
+        const check = await api("/api/", { headers: { authorization: `Bearer ${saved}` } }).catch(() => ({
+            status: 0,
+        }));
         if (check.status === 200) {
             console.log("reusing the saved token");
             return saved;
@@ -68,7 +68,8 @@ async function onboard() {
     } catch {
         steps = { status: 0 };
     }
-    const userStep = steps.status === 200 && Array.isArray(steps.body) ? steps.body.find(step => step.step === "user") : undefined;
+    const userStep =
+        steps.status === 200 && Array.isArray(steps.body) ? steps.body.find(step => step.step === "user") : undefined;
     if (userStep && !userStep.done) {
         return await createOwner();
     }
@@ -82,18 +83,31 @@ async function createOwner() {
     const created = await api("/api/onboarding/users", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ client_id: CLIENT_ID, name: NAME, username: USERNAME, password: PASSWORD, language: "en" }),
+        body: JSON.stringify({
+            client_id: CLIENT_ID,
+            name: NAME,
+            username: USERNAME,
+            password: PASSWORD,
+            language: "en",
+        }),
     });
-    if (created.status !== 200) throw new Error(`onboarding/users failed: ${created.status} ${JSON.stringify(created.body)}`);
+    if (created.status !== 200)
+        throw new Error(`onboarding/users failed: ${created.status} ${JSON.stringify(created.body)}`);
 
     const token = await api("/auth/token", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ grant_type: "authorization_code", code: created.body.auth_code, client_id: CLIENT_ID }).toString(),
+        body: new URLSearchParams({
+            grant_type: "authorization_code",
+            code: created.body.auth_code,
+            client_id: CLIENT_ID,
+        }).toString(),
     });
     if (token.status !== 200) throw new Error(`auth/token failed: ${token.status} ${JSON.stringify(token.body)}`);
 
-    const auth = { headers: { authorization: `Bearer ${token.body.access_token}`, "content-type": "application/json" } };
+    const auth = {
+        headers: { authorization: `Bearer ${token.body.access_token}`, "content-type": "application/json" },
+    };
     await api("/api/onboarding/core_config", { method: "POST", ...auth, body: "{}" });
     await api("/api/onboarding/analytics", { method: "POST", ...auth, body: "{}" });
     await api("/api/onboarding/integration", {
@@ -110,7 +124,11 @@ async function loginWithCredentials() {
     const flow = await api("/auth/login_flow", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ client_id: CLIENT_ID, handler: ["homeassistant", null], redirect_uri: `${BASE}/?auth_callback=1` }),
+        body: JSON.stringify({
+            client_id: CLIENT_ID,
+            handler: ["homeassistant", null],
+            redirect_uri: `${BASE}/?auth_callback=1`,
+        }),
     });
     if (flow.status !== 200) throw new Error(`login_flow failed: ${flow.status} ${JSON.stringify(flow.body)}`);
     const step = await api(`/auth/login_flow/${flow.body.flow_id}`, {
@@ -118,11 +136,16 @@ async function loginWithCredentials() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ client_id: CLIENT_ID, username: USERNAME, password: PASSWORD }),
     });
-    if (step.status !== 200 || !step.body.result) throw new Error(`login failed: ${step.status} ${JSON.stringify(step.body)}`);
+    if (step.status !== 200 || !step.body.result)
+        throw new Error(`login failed: ${step.status} ${JSON.stringify(step.body)}`);
     const token = await api("/auth/token", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ grant_type: "authorization_code", code: step.body.result, client_id: CLIENT_ID }).toString(),
+        body: new URLSearchParams({
+            grant_type: "authorization_code",
+            code: step.body.result,
+            client_id: CLIENT_ID,
+        }).toString(),
     });
     if (token.status !== 200) throw new Error(`auth/token failed: ${token.status}`);
     saveToken(token.body);
@@ -132,7 +155,10 @@ async function loginWithCredentials() {
 
 function saveToken(body) {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
-    fs.writeFileSync(TOKEN_FILE, JSON.stringify({ access_token: body.access_token, refresh_token: body.refresh_token }, null, 2));
+    fs.writeFileSync(
+        TOKEN_FILE,
+        JSON.stringify({ access_token: body.access_token, refresh_token: body.refresh_token }, null, 2),
+    );
 }
 
 function connectWebSocket(token) {
@@ -194,17 +220,32 @@ function card(overrides = {}) {
                     {
                         id: "0",
                         label: { text: "Kitchen", x: 500, y: 450 },
-                        outline: [[200, 200], [800, 200], [800, 700], [200, 700]],
+                        outline: [
+                            [200, 200],
+                            [800, 200],
+                            [800, 700],
+                            [200, 700],
+                        ],
                     },
                     {
                         id: "1",
                         label: { text: "Living room", x: 1350, y: 450 },
-                        outline: [[1000, 200], [1700, 200], [1700, 700], [1000, 700]],
+                        outline: [
+                            [1000, 200],
+                            [1700, 200],
+                            [1700, 700],
+                            [1000, 700],
+                        ],
                     },
                     {
                         id: "2",
                         label: { text: "Bedroom", x: 500, y: 1100 },
-                        outline: [[200, 900], [800, 900], [800, 1300], [200, 1300]],
+                        outline: [
+                            [200, 900],
+                            [800, 900],
+                            [800, 1300],
+                            [200, 1300],
+                        ],
                     },
                 ],
             },
@@ -311,18 +352,33 @@ async function main() {
                                             {
                                                 id: "0",
                                                 label: { text: "Kitchen", x: 500, y: 450 },
-                                                outline: [[200, 200], [800, 200], [800, 700], [200, 700]],
+                                                outline: [
+                                                    [200, 200],
+                                                    [800, 200],
+                                                    [800, 700],
+                                                    [200, 700],
+                                                ],
                                             },
                                             {
                                                 id: "1",
                                                 label: { text: "Living room", x: 1350, y: 450 },
-                                                outline: [[1000, 200], [1700, 200], [1700, 700], [1000, 700]],
+                                                outline: [
+                                                    [1000, 200],
+                                                    [1700, 200],
+                                                    [1700, 700],
+                                                    [1000, 700],
+                                                ],
                                                 state_entity: "input_boolean.e2e_clean_living_room",
                                             },
                                             {
                                                 id: "2",
                                                 label: { text: "Bedroom", x: 500, y: 1100 },
-                                                outline: [[200, 900], [800, 900], [800, 1300], [200, 1300]],
+                                                outline: [
+                                                    [200, 900],
+                                                    [800, 900],
+                                                    [800, 1300],
+                                                    [200, 1300],
+                                                ],
                                             },
                                         ],
                                     },
@@ -388,7 +444,10 @@ async function main() {
                                                 selection_type: "ROOM",
                                                 service_call_schema: {
                                                     service: "vacuum.send_command",
-                                                    service_data: { command: "app_segment_clean", params: "[[selection]]" },
+                                                    service_data: {
+                                                        command: "app_segment_clean",
+                                                        params: "[[selection]]",
+                                                    },
                                                 },
                                             },
                                             { template: "vacuum_clean_zone" },
@@ -427,7 +486,11 @@ async function main() {
     const entities = await ws.send("get_states");
     const summary = entities
         .filter(entity => /^(vacuum|camera)\./.test(entity.entity_id))
-        .map(entity => ({ entity_id: entity.entity_id, state: entity.state, attributes: Object.keys(entity.attributes) }));
+        .map(entity => ({
+            entity_id: entity.entity_id,
+            state: entity.state,
+            attributes: Object.keys(entity.attributes),
+        }));
     fs.writeFileSync(CARD_ENTITIES, JSON.stringify(summary, null, 2));
     console.log(`dashboards ready: ${dashboards.map(d => d.url_path).join(", ")}`);
     console.log(`entities: ${summary.map(entity => entity.entity_id).join(", ")}`);

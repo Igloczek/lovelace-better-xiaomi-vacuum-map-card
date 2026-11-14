@@ -88,8 +88,7 @@ export const listOf =
 export const exactSequence =
     (...items: Validator[]): Validator =>
     (v, p) => {
-        if (!Array.isArray(v) || v.length !== items.length)
-            return fail(p, `expected exactly ${items.length} items`, v);
+        if (!Array.isArray(v) || v.length !== items.length) return fail(p, `expected exactly ${items.length} items`, v);
         return v.flatMap((x, i) => items[i](x, `${p}[${i}]`));
     };
 
@@ -127,7 +126,8 @@ export const object =
         }
         if (!schema.extra) {
             const known = new Set([...Object.keys(schema.required ?? {}), ...Object.keys(schema.optional ?? {})]);
-            for (const key of Object.keys(record)) if (!known.has(key)) errors.push(`${p}.${key}: extra keys not allowed`);
+            for (const key of Object.keys(record))
+                if (!known.has(key)) errors.push(`${p}.${key}: extra keys not allowed`);
         }
         return errors;
     };
@@ -188,7 +188,7 @@ export interface ServiceContract {
 export const USER_CONFIGURED: Record<string, string> = {
     "al-one/hass-xiaomi-miot":
         "xiaomi_miot.call_action needs per-model siid/aiid/params; docs/templates/alOneHassXiaomiMiot.md asks for a full service_call_schema",
-    "default": "the `new.json` scaffold for contributors has no services",
+    default: "the `new.json` scaffold for contributors has no services",
 };
 
 const XIAOMI_MIIO = "home-assistant/core homeassistant/components/xiaomi_miio/services.py";
@@ -197,7 +197,8 @@ const DREAME = "Tasshack/dreame-vacuum custom_components/dreame_vacuum/vacuum.py
 const MIIO2 = "KrzysztofHajdamowicz/home-assistant-vacuum-styj02ym custom_components/miio2/vacuum.py L54-124";
 const VIOMI_V8 = "tykarol/home-assistant-viomi-vacuum-v8 custom_components/viomi_vacuum_v8/vacuum.py L45-133";
 const VIOMISE = "marotoweb/home-assistant-vacuum-viomise custom_components/viomise/vacuum.py L66-172, L324-345";
-const ECOVACS = "home-assistant/core ecovacs/vacuum.py L375-405; deebot-client commands/json/clean.py `\",\".join(str(i) for i in area)`";
+const ECOVACS =
+    'home-assistant/core ecovacs/vacuum.py L375-405; deebot-client commands/json/clean.py `",".join(str(i) for i in area)`';
 const VALETUDO = "Hypfer/Valetudo backend/lib/mqtt/capabilities/*MqttHandle.js";
 const VALETUDO_RE = "rand256/valetudo lib/MqttClient.js L570-720 (a string segment id is looked up as a room name)";
 const MQTT = "home-assistant/core mqtt/services.py L46-63 (payload Any(cv.string, None))";
@@ -235,7 +236,7 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
         },
         vacuum_follow_path: followPath("xiaomi_miio.vacuum_goto"),
     },
-    "Roborock": {
+    Roborock: {
         // Core roborock passes `params` unchanged to the device (python-roborock v1_protocol), which
         // expects integer segment ids: a string id would reach the firmware as a string.
         vacuum_clean_segment: {
@@ -248,12 +249,18 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
         },
         vacuum_clean_zone: {
             service: "vacuum.send_command",
-            data: sendCommand("app_zoned_clean", listOf(exactSequence(strictInt, strictInt, strictInt, strictInt, strictInt), { min: 1 })),
+            data: sendCommand(
+                "app_zoned_clean",
+                listOf(exactSequence(strictInt, strictInt, strictInt, strictInt, strictInt), { min: 1 }),
+            ),
             source: "home-assistant/core roborock/vacuum.py; zones carry repeats as the fifth value",
         },
         vacuum_clean_zone_predefined: {
             service: "vacuum.send_command",
-            data: sendCommand("app_zoned_clean", listOf(exactSequence(strictInt, strictInt, strictInt, strictInt, strictInt), { min: 1 })),
+            data: sendCommand(
+                "app_zoned_clean",
+                listOf(exactSequence(strictInt, strictInt, strictInt, strictInt, strictInt), { min: 1 }),
+            ),
             source: "home-assistant/core roborock/vacuum.py",
         },
         vacuum_goto: {
@@ -463,7 +470,10 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
             service: "vacuum.send_command",
             data: sendCommand(
                 "custom_area",
-                object({ required: { coordinates: listOf(jsonNumber, { min: 4 }) }, optional: { cleanings: strictInt } }),
+                object({
+                    required: { coordinates: listOf(jsonNumber, { min: 4 }) },
+                    optional: { cleanings: strictInt },
+                }),
             ),
             source: ECOVACS,
         },
@@ -471,7 +481,10 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
             service: "vacuum.send_command",
             data: sendCommand(
                 "custom_area",
-                object({ required: { coordinates: listOf(jsonNumber, { min: 4 }) }, optional: { cleanings: strictInt } }),
+                object({
+                    required: { coordinates: listOf(jsonNumber, { min: 4 }) },
+                    optional: { cleanings: strictInt },
+                }),
             ),
             source: ECOVACS,
         },
@@ -519,7 +532,15 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
                         required: {
                             command: literal("zoned_cleanup"),
                             zone_coordinates: listOf(
-                                object({ required: { x1: jsonNumber, y1: jsonNumber, x2: jsonNumber, y2: jsonNumber, repeats: jsonNumber } }),
+                                object({
+                                    required: {
+                                        x1: jsonNumber,
+                                        y1: jsonNumber,
+                                        x2: jsonNumber,
+                                        y2: jsonNumber,
+                                        repeats: jsonNumber,
+                                    },
+                                }),
                                 { min: 1 },
                             ),
                             afterCleaning: cvString,
@@ -561,13 +582,11 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
         },
         vacuum_goto_predefined: {
             service: "mqtt.publish",
-            data: mqttPublish(
-                jsonString(object({ required: { command: literal("go_to"), spot_id: cvString } })),
-            ),
+            data: mqttPublish(jsonString(object({ required: { command: literal("go_to"), spot_id: cvString } }))),
             source: VALETUDO_RE,
         },
     },
-    "send_command": {
+    send_command: {
         vacuum_clean_segment: {
             service: "vacuum.send_command",
             data: sendCommand("app_segment_clean", listOf(strictInt, { min: 1 })),
@@ -575,12 +594,18 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
         },
         vacuum_clean_zone: {
             service: "vacuum.send_command",
-            data: sendCommand("app_zoned_clean", listOf(exactSequence(strictInt, strictInt, strictInt, strictInt, strictInt))),
+            data: sendCommand(
+                "app_zoned_clean",
+                listOf(exactSequence(strictInt, strictInt, strictInt, strictInt, strictInt)),
+            ),
             source: "miio app_zoned_clean: [[x1, y1, x2, y2, repeats], ...]",
         },
         vacuum_clean_zone_predefined: {
             service: "vacuum.send_command",
-            data: sendCommand("app_zoned_clean", listOf(exactSequence(strictInt, strictInt, strictInt, strictInt, strictInt))),
+            data: sendCommand(
+                "app_zoned_clean",
+                listOf(exactSequence(strictInt, strictInt, strictInt, strictInt, strictInt)),
+            ),
             source: "miio app_zoned_clean",
         },
         vacuum_goto: {
@@ -595,7 +620,7 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
         },
         vacuum_follow_path: followPath("vacuum.send_command"),
     },
-    "Neato": {
+    Neato: {
         vacuum_clean_segment: {
             service: "neato.custom_cleaning",
             data: entityService({}, { zone: cvString, mode: coerceInt, navigation: coerceInt, category: coerceInt }),
@@ -613,13 +638,22 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
         vacuum_clean_zone: {
             service: "neatsvor.vacuum_clean_zone",
             data: object({
-                required: { entity_id: entityId, zones: listOf(anyOf(zone4(jsonNumber), exactSequence(jsonNumber, jsonNumber, jsonNumber, jsonNumber, jsonNumber)), { min: 1 }) },
+                required: {
+                    entity_id: entityId,
+                    zones: listOf(
+                        anyOf(
+                            zone4(jsonNumber),
+                            exactSequence(jsonNumber, jsonNumber, jsonNumber, jsonNumber, jsonNumber),
+                        ),
+                        { min: 1 },
+                    ),
+                },
                 extra: true,
             }),
             source: "CoderAS-ru/hass-neatsvor __init__.py L472-511 (no schema; numbers required)",
         },
     },
-    "Roomba": {
+    Roomba: {
         vacuum_clean_segment: {
             service: "vacuum.send_command",
             data: sendCommand(
@@ -682,11 +716,13 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
  * Home Assistant older than the entry's `before_ha_version`, checked at `haVersion`.
  */
 const ECOVACS_2026_2 =
-    "home-assistant/core tag 2026.2.0 ecovacs/vacuum.py L357,365 (`str(params[\"rooms\"])`, deebot-client 17.1.0)";
+    'home-assistant/core tag 2026.2.0 ecovacs/vacuum.py L357,365 (`str(params["rooms"])`, deebot-client 17.1.0)';
 const commaIds: Validator = (v, p) =>
     typeof v === "string" && /^\d+(,\d+)*$/.test(v) ? ok : fail(p, "expected comma-separated ids", v);
 const commaCoordinates: Validator = (v, p) =>
-    typeof v === "string" && /^-?\d+(\.\d+)?(,-?\d+(\.\d+)?){3,}$/.test(v) ? ok : fail(p, "expected comma-separated coordinates", v);
+    typeof v === "string" && /^-?\d+(\.\d+)?(,-?\d+(\.\d+)?){3,}$/.test(v)
+        ? ok
+        : fail(p, "expected comma-separated coordinates", v);
 
 export const LEGACY_CONTRACTS: Record<string, Record<string, { haVersion: string; contract: ServiceContract }>> = {
     "DeebotUniverse/Deebot-4-Home-Assistant": {
@@ -694,7 +730,10 @@ export const LEGACY_CONTRACTS: Record<string, Record<string, { haVersion: string
             haVersion: "2026.2.3",
             contract: {
                 service: "vacuum.send_command",
-                data: sendCommand("spot_area", object({ required: { rooms: commaIds }, optional: { cleanings: strictInt } })),
+                data: sendCommand(
+                    "spot_area",
+                    object({ required: { rooms: commaIds }, optional: { cleanings: strictInt } }),
+                ),
                 source: ECOVACS_2026_2,
             },
         },
@@ -702,7 +741,10 @@ export const LEGACY_CONTRACTS: Record<string, Record<string, { haVersion: string
             haVersion: "2026.2.3",
             contract: {
                 service: "vacuum.send_command",
-                data: sendCommand("custom_area", object({ required: { coordinates: commaCoordinates }, optional: { cleanings: strictInt } })),
+                data: sendCommand(
+                    "custom_area",
+                    object({ required: { coordinates: commaCoordinates }, optional: { cleanings: strictInt } }),
+                ),
                 source: ECOVACS_2026_2,
             },
         },
@@ -710,7 +752,10 @@ export const LEGACY_CONTRACTS: Record<string, Record<string, { haVersion: string
             haVersion: "2026.2.3",
             contract: {
                 service: "vacuum.send_command",
-                data: sendCommand("custom_area", object({ required: { coordinates: commaCoordinates }, optional: { cleanings: strictInt } })),
+                data: sendCommand(
+                    "custom_area",
+                    object({ required: { coordinates: commaCoordinates }, optional: { cleanings: strictInt } }),
+                ),
                 source: ECOVACS_2026_2,
             },
         },
@@ -744,7 +789,14 @@ function valetudoZone(): ServiceContract {
             jsonString(
                 object({
                     required: {
-                        zones: listOf(object({ required: { points: object({ required: { pA: point, pB: point, pC: point, pD: point } }) } }), { min: 1 }),
+                        zones: listOf(
+                            object({
+                                required: {
+                                    points: object({ required: { pA: point, pB: point, pC: point, pD: point } }),
+                                },
+                            }),
+                            { min: 1 },
+                        ),
                         iterations: jsonNumber,
                     },
                 }),
@@ -783,12 +835,12 @@ export const ENTITY_ID = "vacuum.contract_test";
 const DOCUMENTED_VARIABLES: Record<string, VariablesStorage> = {
     "Hypfer/Valetudo": { topic: "valetudo/robot" },
     "rand256/ValetudoRE": { topic: "valetudo/rockrobo" },
-    "Roomba": { pmap_id: "abc123def456" },
+    Roomba: { pmap_id: "abc123def456" },
 };
 
 /** Per-room variables the docs ask for (Roomba: the region `type`). */
 const DOCUMENTED_ROOM_VARIABLES: Record<string, VariablesStorage> = {
-    "Roomba": { type: "rid" },
+    Roomba: { type: "rid" },
 };
 
 export type IdVariant = "metadata-string-ids" | "configured-number-ids";
@@ -859,7 +911,9 @@ export function contractCases(): ContractCase[] {
         for (const template of PlatformGenerator.getModeTemplateNames(platform)) {
             const base = new MapMode(platform, { template } as MapModeConfig, "en");
             const isRoom = base.selectionType === SelectionType.ROOM;
-            const idTypes: Array<"number" | "string" | undefined> = isRoom ? [undefined, "number", "string"] : [undefined];
+            const idTypes: Array<"number" | "string" | undefined> = isRoom
+                ? [undefined, "number", "string"]
+                : [undefined];
             const idVariants: Array<IdVariant | undefined> = isRoom
                 ? ["metadata-string-ids", "configured-number-ids"]
                 : [undefined];
@@ -869,7 +923,9 @@ export function contractCases(): ContractCase[] {
                     const mode = new MapMode(platform, config, "en");
                     const repeats = Math.min(2, mode.maxRepeats);
                     const selection = selectionFor(mode, ids, repeats);
-                    const roomCount = isRoom ? selection.filter(s => typeof s === "string" || typeof s === "number").length : 1;
+                    const roomCount = isRoom
+                        ? selection.filter(s => typeof s === "string" || typeof s === "number").length
+                        : 1;
                     const legacy = LEGACY_CONTRACTS[platform]?.[template];
                     const versions = [
                         { haVersion: CURRENT_HA_VERSION, contract: CONTRACTS[platform]?.[template] },

@@ -9,7 +9,15 @@ import { MapMode } from "../../src/model/map_mode/map-mode";
 import { SelectionType } from "../../src/model/map_mode/selection-type";
 import type { MapModeConfig, PlatformTemplate, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle } from "../harness";
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle, useHarnessClock, withState } from "../harness";
+import {
+    fixtureConfig,
+    fixtureHass,
+    loadSyntheticFixture,
+    mountCard,
+    settle,
+    useHarnessClock,
+    withState,
+} from "../harness";
 
 /**
  * The numbered badges claim a cleaning order. A number is drawn only where the platform's service
@@ -120,7 +128,9 @@ describe("MapMode.showsRoomOrder", () => {
 
     it("follows the template, and a mode can override it either way", () => {
         expect(roomMode({ template: "vacuum_clean_segment" }, "Hypfer/Valetudo").showsRoomOrder()).toBe(true);
-        expect(roomMode({ template: "vacuum_clean_segment", cleaning_order: false }, "Hypfer/Valetudo").showsRoomOrder()).toBe(false);
+        expect(
+            roomMode({ template: "vacuum_clean_segment", cleaning_order: false }, "Hypfer/Valetudo").showsRoomOrder(),
+        ).toBe(false);
         expect(roomMode({ template: "vacuum_clean_segment", cleaning_order: true }).showsRoomOrder()).toBe(true);
     });
 
@@ -135,7 +145,11 @@ describe("MapMode.showsRoomOrder", () => {
     it("has no order to show for one room or for other selection types", () => {
         expect(roomMode({ cleaning_order: true, max_selections: 1 }).showsRoomOrder()).toBe(false);
         expect(
-            new MapMode("Xiaomi Miio", { selection_type: "MANUAL_RECTANGLE", cleaning_order: true }, "en").showsRoomOrder(),
+            new MapMode(
+                "Xiaomi Miio",
+                { selection_type: "MANUAL_RECTANGLE", cleaning_order: true },
+                "en",
+            ).showsRoomOrder(),
         ).toBe(false);
     });
 });
@@ -160,7 +174,9 @@ async function clickRoom(card: CardHandle, id: string): Promise<void> {
 }
 
 function highlighted(card: CardHandle): string[] {
-    return ["0", "1", "2"].filter(id => card.shadowRoot.querySelector(`.room-${id}-wrapper`)?.classList.contains("selected"));
+    return ["0", "1", "2"].filter(id =>
+        card.shadowRoot.querySelector(`.room-${id}-wrapper`)?.classList.contains("selected"),
+    );
 }
 
 function numbers(card: CardHandle): number {

@@ -1,4 +1,14 @@
-import { expect, openDashboard, card, shot, test, waitForCard, waitForHaReady, getDashboardConfig, saveDashboardConfig } from "./helpers";
+import {
+    expect,
+    openDashboard,
+    card,
+    shot,
+    test,
+    waitForCard,
+    waitForHaReady,
+    getDashboardConfig,
+    saveDashboardConfig,
+} from "./helpers";
 
 /**
  * `layout: horizontal` in a real sections view: the card must place the map beside the controls, a
@@ -71,7 +81,11 @@ test("horizontal layout in a real sections view, with resize and a long mode nam
     // the cell is shorter than the content, which is allowed.
     const containment = await target.evaluate(element => {
         const cardRect = element.getBoundingClientRect();
-        const controls = [...element.shadowRoot.querySelectorAll(".layout-content.horizontal .map-controls, .layout-content.horizontal .dropdown-menu-button")];
+        const controls = [
+            ...element.shadowRoot.querySelectorAll(
+                ".layout-content.horizontal .map-controls, .layout-content.horizontal .dropdown-menu-button",
+            ),
+        ];
         return controls.map(control => {
             const rect = control.getBoundingClientRect();
             return {

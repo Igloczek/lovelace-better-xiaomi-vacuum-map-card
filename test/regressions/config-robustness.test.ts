@@ -188,7 +188,9 @@ describe("invalid dynamic predefined selections are ignored (#938)", () => {
             attributes: {},
         });
 
-        expect(() => rectanglesFrom(zonesMode([{ zones: "sensor.dynamic_zones.attributes.zones" }]), hass)).not.toThrow();
+        expect(() =>
+            rectanglesFrom(zonesMode([{ zones: "sensor.dynamic_zones.attributes.zones" }]), hass),
+        ).not.toThrow();
         expect(rectanglesFrom(zonesMode([{ zones: "sensor.dynamic_zones.attributes.zones" }]), hass)).toEqual([]);
     });
 
@@ -222,10 +224,7 @@ describe("invalid dynamic predefined selections are ignored (#938)", () => {
         }).hass;
 
         const rectangles = rectanglesFrom(zonesMode([{ zones: "sensor.dynamic_zones" }]), hass);
-        expect(rectangles.map(rectangle => rectangle.toVacuum(null))).toEqual([
-            [[0, 0, 10, 10]],
-            [[20, 20, 30, 30]],
-        ]);
+        expect(rectangles.map(rectangle => rectangle.toVacuum(null))).toEqual([[[0, 0, 10, 10]], [[20, 20, 30, 30]]]);
 
         const points = pointsFrom(pointsMode([{ position: "input_text.dynamic_points" }]), hass);
         expect(points).toHaveLength(2);

@@ -35,7 +35,11 @@ export async function freshAccessToken(base = process.env.E2E_HA_URL || "http://
     const response = await fetch(`${base}/auth/token`, {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: saved.refresh_token, client_id: `${base}/` }),
+        body: new URLSearchParams({
+            grant_type: "refresh_token",
+            refresh_token: saved.refresh_token,
+            client_id: `${base}/`,
+        }),
     });
     if (!response.ok) return saved.access_token;
     return ((await response.json()) as { access_token: string }).access_token;

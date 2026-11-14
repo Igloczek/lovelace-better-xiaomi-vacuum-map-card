@@ -3,12 +3,7 @@ import { css, CSSResultGroup, svg, SVGTemplateResult } from "lit";
 import { forwardHaptic } from "custom-card-helpers";
 
 import { Context } from "./context";
-import {
-    IconConfig,
-    PointType,
-    PointWithRepeatsType,
-    PredefinedPointConfig,
-} from "../../types/types";
+import { IconConfig, PointType, PointWithRepeatsType, PredefinedPointConfig } from "../../types/types";
 import { deleteFromArray, getDynamicPredefinedSelectionItems } from "../../utils";
 import { MapMode } from "../map_mode/map-mode";
 import { HomeAssistantFixed } from "../../types/fixes";

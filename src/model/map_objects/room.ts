@@ -5,7 +5,7 @@ import { forwardHaptic } from "custom-card-helpers";
 import { Context } from "./context";
 import { deleteFromArray } from "../../utils";
 import { LabelConfig, RoomConfig } from "../../types/types";
-import {PredefinedMapObject} from "./predefined-map-object";
+import { PredefinedMapObject } from "./predefined-map-object";
 import { cssRgb } from "../room-pill-palette";
 
 /**
@@ -92,12 +92,14 @@ export class Room extends PredefinedMapObject {
         const pill = highlighted && !this._stale;
         return svg`
             <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${this._stale ? "room-stale" : ""}
-            room-${`${this._config.id}`.replace(/[^a-zA-Z0-9_\-]/gm, "_")}-wrapper">
+            room-${`${this._config.id}`.replace(/[^a-zA-Z0-9_-]/gm, "_")}-wrapper">
                 <polygon class="room-outline ${this._imageOutline || this._stale || this._cardHitTest ? "" : "clickable"}"
                          points="${poly.map(p => p.join(", ")).join(" ")}"
-                         @click="${this._imageOutline || this._stale || this._cardHitTest
-                             ? undefined
-                             : async (): Promise<void> => this.click()}">
+                         @click="${
+                             this._imageOutline || this._stale || this._cardHitTest
+                                 ? undefined
+                                 : async (): Promise<void> => this.click()
+                         }">
                 </polygon>
                 ${pill ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !this._stale)}
                 ${pill ? this.renderPill(order) : svg``}

@@ -14,7 +14,9 @@ import { rebuildSelection } from "./selection";
 export function getLiveRooms(card: XiaomiVacuumMapCard): Record<string, MapExtractorRoom> | undefined {
     const camera = card._getCurrentPreset()?.map_source?.camera;
     return camera
-        ? (cameraRoomsById(card.hass?.states[camera]?.attributes["rooms"]) as Record<string, MapExtractorRoom> | undefined)
+        ? (cameraRoomsById(card.hass?.states[camera]?.attributes["rooms"]) as
+              | Record<string, MapExtractorRoom>
+              | undefined)
         : undefined;
 }
 
@@ -54,14 +56,14 @@ export function getRoomsConfig(card: XiaomiVacuumMapCard, requestId?: string): R
         for (const room of readCameraRooms(rawRooms)) {
             const outline = room.outline;
             const keepFloat = outline.toString().includes(".");
-            const formatCoord = (v: number, divide = 1): number =>
-                keepFloat ? v / divide : Math.round(v / divide);
+            const formatCoord = (v: number, divide = 1): number => (keepFloat ? v / divide : Math.round(v / divide));
             const x = outline.reduce((a, v) => a + v[0], 0);
             const y = outline.reduce((a, v) => a + v[1], 0);
             const region = card.roomColorDetection?.regions.find(candidate => candidate.id === room.id);
-            const detectedCenter = region && card.coordinatesConverter
-                ? card.coordinatesConverter.mapToVacuum(region.center[0], region.center[1])
-                : undefined;
+            const detectedCenter =
+                region && card.coordinatesConverter
+                    ? card.coordinatesConverter.mapToVacuum(region.center[0], region.center[1])
+                    : undefined;
             const centerX = room.x ?? detectedCenter?.[0] ?? formatCoord(x, outline.length);
             const centerY = room.y ?? detectedCenter?.[1] ?? formatCoord(y, outline.length);
 

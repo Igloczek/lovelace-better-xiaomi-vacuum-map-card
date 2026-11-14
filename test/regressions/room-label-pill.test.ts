@@ -3,7 +3,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ACTIVE_ROOM_RUN_STORE_KEY } from "../../src/const";
 import type { MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle } from "../harness";
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle, useHarnessClock, withState } from "../harness";
+import {
+    fixtureConfig,
+    fixtureHass,
+    loadSyntheticFixture,
+    mountCard,
+    settle,
+    useHarnessClock,
+    withState,
+} from "../harness";
 
 /**
  * A selected room's label becomes a pill in the style of the Xiaomi Home app: a badge at its left
@@ -60,7 +68,7 @@ function pills(card: CardHandle): Record<string, PillView> {
         const check = pill.querySelector(".room-pill-badge.room-check");
         const number = pill.querySelector(".room-pill-badge.room-order")?.textContent?.trim();
         out[id] = {
-            badge: check ? "check" : number ?? "",
+            badge: check ? "check" : (number ?? ""),
             name: pill.querySelector(".room-pill-name")?.textContent?.trim() ?? "",
         };
     }
@@ -118,7 +126,9 @@ describe("selected-room pill", () => {
             const button = card.shadowRoot.querySelector(".map-actions-item.main");
             button?.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
             await settle(card.element, 400);
-            await card.updateHass(withState(card.hass, VACUUM, { state: "cleaning", last_changed: "2026-11-01T10:00:30.000Z" }).hass);
+            await card.updateHass(
+                withState(card.hass, VACUUM, { state: "cleaning", last_changed: "2026-11-01T10:00:30.000Z" }).hass,
+            );
             await settle(card.element);
             const badge = (n: string): string => (cleaningOrder ? n : "check");
             expect(pills(card)).toEqual({
@@ -134,8 +144,28 @@ describe("selected-room pill", () => {
         const card = await mount({
             cleaning_order: true,
             predefined_selections: [
-                { id: 0, icon: { name: "mdi:silverware-fork-knife", x: 500, y: 450 }, label: { text: "Kitchen", x: 500, y: 450 }, outline: [[200, 200], [800, 200], [800, 700], [200, 700]] },
-                { id: 1, icon: { name: "mdi:sofa", x: 1350, y: 450 }, label: { text: "Living room", x: 1350, y: 450 }, outline: [[1000, 200], [1700, 200], [1700, 700], [1000, 700]] },
+                {
+                    id: 0,
+                    icon: { name: "mdi:silverware-fork-knife", x: 500, y: 450 },
+                    label: { text: "Kitchen", x: 500, y: 450 },
+                    outline: [
+                        [200, 200],
+                        [800, 200],
+                        [800, 700],
+                        [200, 700],
+                    ],
+                },
+                {
+                    id: 1,
+                    icon: { name: "mdi:sofa", x: 1350, y: 450 },
+                    label: { text: "Living room", x: 1350, y: 450 },
+                    outline: [
+                        [1000, 200],
+                        [1700, 200],
+                        [1700, 700],
+                        [1000, 700],
+                    ],
+                },
             ],
         } as Partial<MapModeConfig>);
         const icon = (id: string): Element | null => wrapper(card, id).querySelector(".room-icon-wrapper ha-icon");
@@ -159,7 +189,17 @@ describe("selected-room pill", () => {
         const card = await mountCard(
             config({
                 cleaning_order: true,
-                predefined_selections: [{ id: 1, outline: [[1000, 200], [1700, 200], [1700, 700], [1000, 700]] }],
+                predefined_selections: [
+                    {
+                        id: 1,
+                        outline: [
+                            [1000, 200],
+                            [1700, 200],
+                            [1700, 700],
+                            [1000, 700],
+                        ],
+                    },
+                ],
             } as Partial<MapModeConfig>),
             hass,
         );
@@ -175,12 +215,24 @@ describe("selected-room pill", () => {
         // still names it must not give it a pill: its `!` marker sits where the pill would.
         const run = { entity: VACUUM, roomIds: ["5", "0"], startedAt: Date.now(), seenActive: true };
         useHarnessClock();
-        window.localStorage.setItem(ACTIVE_ROOM_RUN_STORE_KEY, JSON.stringify({ [VACUUM]: { ...run, startedAt: Date.now() } }));
+        window.localStorage.setItem(
+            ACTIVE_ROOM_RUN_STORE_KEY,
+            JSON.stringify({ [VACUUM]: { ...run, startedAt: Date.now() } }),
+        );
         const card = await mountCard(
             config({
                 cleaning_order: true,
                 predefined_selections: [
-                    { id: 5, label: { text: "Old room", x: 500, y: 1100 }, outline: [[200, 900], [800, 900], [800, 1300], [200, 1300]] },
+                    {
+                        id: 5,
+                        label: { text: "Old room", x: 500, y: 1100 },
+                        outline: [
+                            [200, 900],
+                            [800, 900],
+                            [800, 1300],
+                            [200, 1300],
+                        ],
+                    },
                 ],
             } as Partial<MapModeConfig>),
             withState(fixtureHass(loadSyntheticFixture()), VACUUM, { state: "cleaning" }).hass,
@@ -199,7 +251,12 @@ describe("selected-room pill", () => {
         const pill = wrapper(card, "2").querySelector(".room-pill") as HTMLElement | null;
         // The palette is applied as inline custom properties the stylesheet reads, so a theme change
         // re-resolves contrast instead of trusting the theme.
-        for (const property of ["--room-pill-background", "--room-pill-text", "--room-pill-badge", "--room-pill-badge-text"]) {
+        for (const property of [
+            "--room-pill-background",
+            "--room-pill-text",
+            "--room-pill-badge",
+            "--room-pill-badge-text",
+        ]) {
             expect(pill?.style.getPropertyValue(property), property).toMatch(/^rgb\(/);
         }
     });

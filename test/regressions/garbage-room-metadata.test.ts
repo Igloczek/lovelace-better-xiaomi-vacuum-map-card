@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import type { RoomConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle } from "../harness";
-import { extractorRoom, fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, useHarnessClock, withState } from "../harness";
+import {
+    extractorRoom,
+    fixtureConfig,
+    fixtureHass,
+    loadSyntheticFixture,
+    mountCard,
+    useHarnessClock,
+    withState,
+} from "../harness";
 
 /**
  * Camera `rooms` metadata is integration data the card does not control. An entry that is not a

@@ -43,14 +43,14 @@ function connect(baseUrl, token) {
     return new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error(`no answer from ${url}`)), 15000);
         ws.addEventListener("error", () => reject(new Error(`cannot connect to ${url}`)));
-        ws.addEventListener("message", (event) => {
+        ws.addEventListener("message", event => {
             const msg = JSON.parse(event.data);
             if (msg.type === "auth_required") ws.send(JSON.stringify({ type: "auth", access_token: token }));
             else if (msg.type === "auth_invalid") reject(new Error("Home Assistant rejected the token"));
             else if (msg.type === "auth_ok") {
                 clearTimeout(timer);
                 resolve({
-                    call: (payload) =>
+                    call: payload =>
                         new Promise((res, rej) => {
                             const id = nextId++;
                             pending.set(id, { res, rej });
@@ -70,9 +70,11 @@ function connect(baseUrl, token) {
 async function fetchCardVersion(baseUrl, token, resources) {
     if (!baseUrl || !Array.isArray(resources)) return null;
     // A stale resource (an old manual copy, a removed HACS path) can sit next to the live one.
-    for (const resource of resources.filter((r) => /xiaomi-vacuum-map-card/.test(r.url ?? ""))) {
+    for (const resource of resources.filter(r => /xiaomi-vacuum-map-card/.test(r.url ?? ""))) {
         try {
-            const res = await fetch(new URL(resource.url, baseUrl), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+            const res = await fetch(new URL(resource.url, baseUrl), {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             const version = res.ok ? cardVersionFromBundle(await res.text()) : null;
             if (version) return version;
         } catch {
@@ -90,12 +92,13 @@ async function collect() {
         raw = JSON.parse(await readFile(args.raw, "utf8"));
     } else {
         if (!baseUrl || !token) fail("set HA_URL and HA_TOKEN, or pass --raw <browser snapshot>.");
-        const conn = await connect(baseUrl, token).catch((e) => fail(e.message));
+        const conn = await connect(baseUrl, token).catch(e => fail(e.message));
         raw = await collectRaw(conn.call);
         conn.close();
     }
     if (!raw.cards?.length) fail("no custom:xiaomi-vacuum-map-card found in any dashboard.");
-    const cardVersion = args["card-version"] ?? raw.card_version ?? (await fetchCardVersion(baseUrl, token, raw.resources));
+    const cardVersion =
+        args["card-version"] ?? raw.card_version ?? (await fetchCardVersion(baseUrl, token, raw.resources));
     const report = buildReport(raw, {
         entity: args.entity,
         card: args.card !== undefined ? Number(args.card) : undefined,
@@ -111,8 +114,9 @@ async function collect() {
     console.error(
         `collected: ${raw.cards.length} card(s), ${Object.keys(report.states).length} entities, ${report.registry.length} registry entries`,
     );
-    if (raw.cards.length > 1) console.error("several cards found; pick one with --entity <vacuum entity> or --card <index>");
-    const missing = missingFields(report).filter((f) => !f.startsWith("problem.") && f !== "agent.name");
+    if (raw.cards.length > 1)
+        console.error("several cards found; pick one with --entity <vacuum entity> or --card <index>");
+    const missing = missingFields(report).filter(f => !f.startsWith("problem.") && f !== "agent.name");
     if (missing.length) console.error(`still missing (fill in by hand): ${missing.join(", ")}`);
 }
 
@@ -128,7 +132,13 @@ async function render() {
 async function check() {
     const file = positional[0] ?? fail("usage: check <issue.md>");
     const result = reviewIssue(await readFile(file, "utf8"));
-    console.log(JSON.stringify({ ...result, redactedBody: result.redactedBody ? "(secrets found, would be rewritten)" : null }, null, 2));
+    console.log(
+        JSON.stringify(
+            { ...result, redactedBody: result.redactedBody ? "(secrets found, would be rewritten)" : null },
+            null,
+            2,
+        ),
+    );
     if (!result.complete || result.redactedBody) process.exit(1);
 }
 

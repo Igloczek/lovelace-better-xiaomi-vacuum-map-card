@@ -1,17 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-    ActionableObjectConfig,
-    MapModeConfig,
-    XiaomiVacuumMapCardConfig,
-} from "../../src/types/types";
+import type { ActionableObjectConfig, MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import { setPresetIndex } from "../../src/card/presets";
 import { runSelection as run } from "../../src/card/run";
 import { createContext } from "../../src/card/selection";
 import { handleActionWithConfig } from "../../src/card/actions";
 import type { XiaomiVacuumMapCard } from "../../src/xiaomi-vacuum-map-card";
 import type { CardHandle, MockHass } from "../harness";
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle, useHarnessClock, withState } from "../harness";
+import {
+    fixtureConfig,
+    fixtureHass,
+    loadSyntheticFixture,
+    mountCard,
+    settle,
+    useHarnessClock,
+    withState,
+} from "../harness";
 
 /**
  * Every service call the card makes must either succeed or tell the user it failed. Before this,
@@ -41,7 +45,12 @@ const SWITCH_POINT_MODE = {
         service_data: { entity_id: "[[entity_id]]", command: "goto", params: "[[selection]]" },
     },
     predefined_selections: [
-        { id: "kitchen", position: [25500, 25500], state_entity: "input_boolean.kitchen_point", icon: { name: "mdi:map-marker", x: 25500, y: 25500 } },
+        {
+            id: "kitchen",
+            position: [25500, 25500],
+            state_entity: "input_boolean.kitchen_point",
+            icon: { name: "mdi:map-marker", x: 25500, y: 25500 },
+        },
     ],
 } as const;
 
@@ -53,7 +62,10 @@ interface Mounted {
     toast: ToastSpy;
 }
 
-async function mount(overrides: Partial<XiaomiVacuumMapCardConfig> = {}, modes: unknown[] = [ROOM_MODE]): Promise<Mounted> {
+async function mount(
+    overrides: Partial<XiaomiVacuumMapCardConfig> = {},
+    modes: unknown[] = [ROOM_MODE],
+): Promise<Mounted> {
     useHarnessClock();
     const fixture = loadSyntheticFixture();
     let hass = fixtureHass(fixture);
@@ -154,12 +166,21 @@ describe("fire-and-forget service calls", () => {
                 },
             ],
         });
-        vi.mocked(hass.callService).mockRejectedValue({ code: "not_found", message: "Service script.turn_on not found" });
+        vi.mocked(hass.callService).mockRejectedValue({
+            code: "not_found",
+            message: "Service script.turn_on not found",
+        });
 
         setPresetIndex(card.element as unknown as XiaomiVacuumMapCard, 1, true);
         await settle(card.element, 300);
 
-        expect(hass.callService).toHaveBeenCalledWith("script", "turn_on", { entity_id: "script.prepare" }, undefined, false);
+        expect(hass.callService).toHaveBeenCalledWith(
+            "script",
+            "turn_on",
+            { entity_id: "script.prepare" },
+            undefined,
+            false,
+        );
         expect(toast).toHaveBeenCalledWith("popups.failed", "mdi:close", false, "Service script.turn_on not found");
     });
 
@@ -171,13 +192,25 @@ describe("fire-and-forget service calls", () => {
         context.toggleEntity("input_boolean.kitchen_point");
         await settle(card.element);
 
-        expect(hass.callService).toHaveBeenCalledWith("homeassistant", "toggle", { entity_id: "input_boolean.kitchen_point" }, undefined, false);
+        expect(hass.callService).toHaveBeenCalledWith(
+            "homeassistant",
+            "toggle",
+            { entity_id: "input_boolean.kitchen_point" },
+            undefined,
+            false,
+        );
         expect(toast).toHaveBeenCalledWith("popups.failed", "mdi:close", false, "Entity not found");
     });
 
     it.each([
-        ["call-service", { action: "call-service", service: "vacuum.start", service_data: { entity_id: "[[entity_id]]" } }],
-        ["perform-action", { action: "perform-action", perform_action: "vacuum.start", data: { entity_id: "[[entity_id]]" } }],
+        [
+            "call-service",
+            { action: "call-service", service: "vacuum.start", service_data: { entity_id: "[[entity_id]]" } },
+        ],
+        [
+            "perform-action",
+            { action: "perform-action", perform_action: "vacuum.start", data: { entity_id: "[[entity_id]]" } },
+        ],
     ])("sends an icon's %s action and reports a rejection", async (_name, tapAction) => {
         const { card, hass, toast } = await mount();
         vi.mocked(hass.callService).mockRejectedValue({ code: "home_assistant_error", message: "Vacuum is offline" });
@@ -203,7 +236,11 @@ const TEMPLATED_ROOM_MODE = {
     service_call_schema: {
         service: "vacuum.send_command",
         evaluate_data_as_template: true,
-        service_data: { entity_id: "[[entity_id]]", command: "app_segment_clean", params: "{{ [[selection]] | length }}" },
+        service_data: {
+            entity_id: "[[entity_id]]",
+            command: "app_segment_clean",
+            params: "{{ [[selection]] | length }}",
+        },
     },
 } as const;
 

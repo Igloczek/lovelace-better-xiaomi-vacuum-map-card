@@ -14,7 +14,14 @@ import { CoordinatesConverter } from "../src/model/map_objects/coordinates-conve
 import { RoomColorDetection, RoomColorDetector } from "../src/model/room-color-detector";
 import { roomIdAtImagePoint } from "../src/model/room-hit-test";
 import type { MapExtractorRoom } from "../src/types/types";
-import { Rect, Rgb, SyntheticMap, roomBounds, syntheticMapCalibration, VACUUM_UNITS_PER_PIXEL } from "./harness/synthetic-map";
+import {
+    Rect,
+    Rgb,
+    SyntheticMap,
+    roomBounds,
+    syntheticMapCalibration,
+    VACUUM_UNITS_PER_PIXEL,
+} from "./harness/synthetic-map";
 
 const WALL: Rgb = [93, 109, 126];
 const OUTSIDE: [number, number, number, number] = [19, 87, 148, 255];
@@ -147,7 +154,12 @@ describe("floor that belongs to no room", () => {
         map.rect([20, 20, 79, 59], BLUE);
         const detection = detect(map, { "1": [20, 20, 79, 59] });
         expect(tap(detection, 50, 40)).toBe("1");
-        for (const [x, y] of [[85, 40], [15, 40], [50, 64], [50, 15]]) {
+        for (const [x, y] of [
+            [85, 40],
+            [15, 40],
+            [50, 64],
+            [50, 15],
+        ]) {
             expect(tap(detection, x, y), `${x},${y}`).toBeUndefined();
         }
     });
@@ -174,8 +186,28 @@ describe("interlocking L-shaped rooms of different colours", () => {
     function interlocking(walled: boolean): RoomColorDetection | undefined {
         const map = new SyntheticMap(200, 120, OUTSIDE);
         if (walled) map.rect([8, 8, 191, 111], WALL);
-        map.polygon([[10, 10], [110, 10], [110, 40], [40, 40], [40, 110], [10, 110]], A_COLOR);
-        map.polygon([[112, 10], [190, 10], [190, 110], [42, 110], [42, 42], [112, 42]], B_COLOR);
+        map.polygon(
+            [
+                [10, 10],
+                [110, 10],
+                [110, 40],
+                [40, 40],
+                [40, 110],
+                [10, 110],
+            ],
+            A_COLOR,
+        );
+        map.polygon(
+            [
+                [112, 10],
+                [190, 10],
+                [190, 110],
+                [42, 110],
+                [42, 42],
+                [112, 42],
+            ],
+            B_COLOR,
+        );
         return detect(map, { A: [10, 10, 109, 109], B: [42, 10, 189, 109] });
     }
 
@@ -192,14 +224,17 @@ describe("interlocking L-shaped rooms of different colours", () => {
 });
 
 describe("a neighbour's bounds that overlap the room", () => {
-    it.each([3, 6, 10])("does not trim the room when a differently coloured neighbour's bounds reach %i px into it", overlap => {
-        const map = new SyntheticMap(200, 80, OUTSIDE);
-        map.rect([10, 10, 119, 69], ORANGE).rect([120, 10, 121, 69], WALL).rect([122, 10, 179, 69], BLUE);
-        const detection = detect(map, { A: [10, 10, 119, 69], B: [122 - overlap, 10, 179, 69] });
-        const outline = detection!.regions.find(region => region.id === "A")!.outline;
-        expect(Math.max(...outline.map(point => point[0]))).toBeGreaterThanOrEqual(119);
-        expect(tap(detection, 118, 40)).toBe("A");
-    });
+    it.each([3, 6, 10])(
+        "does not trim the room when a differently coloured neighbour's bounds reach %i px into it",
+        overlap => {
+            const map = new SyntheticMap(200, 80, OUTSIDE);
+            map.rect([10, 10, 119, 69], ORANGE).rect([120, 10, 121, 69], WALL).rect([122, 10, 179, 69], BLUE);
+            const detection = detect(map, { A: [10, 10, 119, 69], B: [122 - overlap, 10, 179, 69] });
+            const outline = detection!.regions.find(region => region.id === "A")!.outline;
+            expect(Math.max(...outline.map(point => point[0]))).toBeGreaterThanOrEqual(119);
+            expect(tap(detection, 118, 40)).toBe("A");
+        },
+    );
 });
 
 describe("growing a room over what is drawn on it", () => {

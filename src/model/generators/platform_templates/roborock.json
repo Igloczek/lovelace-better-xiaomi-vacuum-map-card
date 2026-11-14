@@ -13,10 +13,12 @@
                     "service": "vacuum.send_command",
                     "service_data": {
                         "command": "app_segment_clean",
-                        "params": [{
+                        "params": [
+                            {
                                 "segments": "[[selection]]",
                                 "repeat": "[[repeats]]"
-                            }],
+                            }
+                        ],
                         "entity_id": "[[entity_id]]"
                     }
                 }
@@ -214,4 +216,3 @@
         }
     ]
 }
-

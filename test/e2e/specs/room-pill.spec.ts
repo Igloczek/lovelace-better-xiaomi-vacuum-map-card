@@ -12,7 +12,9 @@ import { card, expect, openDashboard, shot, test, waitForCard, type CardHandle }
 /** A screen point inside a room, off-centre towards a vertex so the label is not the target. */
 function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: number } | null> {
     return target.evaluate((element, roomId: string) => {
-        const outline = element.shadowRoot.querySelector(`.room-${roomId}-wrapper .room-outline`) as SVGPolygonElement | null;
+        const outline = element.shadowRoot.querySelector(
+            `.room-${roomId}-wrapper .room-outline`,
+        ) as SVGPolygonElement | null;
         const matrix = outline?.getScreenCTM();
         if (!outline || !matrix || outline.points.numberOfItems === 0) return null;
         const svg = outline.ownerSVGElement!;
@@ -23,7 +25,10 @@ function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: numb
             point.y = outline.points.getItem(index).y;
             screen.push(point.matrixTransform(matrix));
         }
-        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), { x: 0, y: 0 });
+        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), {
+            x: 0,
+            y: 0,
+        });
         const vertex = screen[0];
         return { x: centre.x + (vertex.x - centre.x) * 0.6, y: centre.y + (vertex.y - centre.y) * 0.6 };
     }, id);
@@ -76,8 +81,12 @@ async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<voi
     await openDashboard(page, "/e2e-selection/rooms");
     await waitForCard(page);
     const target = await card(page);
-    await expect.poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length)).toBeGreaterThanOrEqual(3);
-    const darkMode = await page.evaluate(() => (document.querySelector("home-assistant") as any)?.hass?.themes?.darkMode);
+    await expect
+        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length))
+        .toBeGreaterThanOrEqual(3);
+    const darkMode = await page.evaluate(
+        () => (document.querySelector("home-assistant") as any)?.hass?.themes?.darkMode,
+    );
     expect(darkMode, "Home Assistant applied the colour scheme").toBe(scheme === "dark");
 
     for (const id of ["2", "0"]) {
@@ -91,11 +100,17 @@ async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<voi
     const first = (await readPill(target, "2"))!;
     const second = (await readPill(target, "0"))!;
     expect(second).toMatchObject({ badge: "2", name: "Kitchen" });
-    for (const [pill, label] of [[first, "Bedroom"], [second, "Kitchen"]] as const) {
+    for (const [pill, label] of [
+        [first, "Bedroom"],
+        [second, "Kitchen"],
+    ] as const) {
         expect(contrast(pill.colour, pill.background), `${scheme} ${label}: name`).toBeGreaterThanOrEqual(4.5);
-        expect(contrast(pill.badgeColour, pill.badgeBackground), `${scheme} ${label}: badge`).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(pill.badgeColour, pill.badgeBackground), `${scheme} ${label}: badge`).toBeGreaterThanOrEqual(
+            4.5,
+        );
         // The pill follows the theme in the expected direction: light on light, dark on dark.
-        if (scheme === "light") expect(luminance(pill.background), `${scheme} ${label}: light pill`).toBeGreaterThan(0.7);
+        if (scheme === "light")
+            expect(luminance(pill.background), `${scheme} ${label}: light pill`).toBeGreaterThan(0.7);
         else expect(luminance(pill.background), `${scheme} ${label}: dark pill`).toBeLessThan(0.2);
     }
     expect(await readPill(target, "1"), "an unselected room keeps its plain label").toBeNull();

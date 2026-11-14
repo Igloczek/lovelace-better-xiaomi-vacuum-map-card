@@ -63,9 +63,7 @@ describe("layout: vertical (default)", () => {
             fixtureHass(loadSyntheticFixture()),
         );
         // Validation turns the typo into an error card; no layout code runs and nothing throws.
-        expect(invalid.shadowRoot.querySelector("pre")?.textContent).toContain(
-            "Invalid layout: diagonal",
-        );
+        expect(invalid.shadowRoot.querySelector("pre")?.textContent).toContain("Invalid layout: diagonal");
         expect(invalid.shadowRoot.querySelector(HORIZONTAL)).toBeNull();
         await invalid.cleanup();
 

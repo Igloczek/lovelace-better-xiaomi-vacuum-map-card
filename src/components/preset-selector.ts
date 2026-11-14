@@ -1,41 +1,40 @@
 import { css, CSSResultGroup, html, TemplateResult } from "lit";
-import { customElement, property } from "lit/decorators";
+import { customElement, property } from "lit/decorators.js";
 
 import { CardPresetConfig } from "../types/types";
 import { RootlessLitElement } from "./rootless-lit-element";
 
 @customElement("xvmc-preset-selector")
 export class PresetSelector extends RootlessLitElement {
-
-    @property({attribute: false})
+    @property({ attribute: false })
     private availablePresets!: CardPresetConfig[];
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private availablePresetIndex!: number;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private openPreviousPreset!: () => void;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private previousPresetIndex!: number;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private presetActivable!: boolean;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private presetName!: string;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private executePresetsActivation!: () => void;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private openNextPreset!: () => void;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private nextPresetIndex!: number;
 
     public render(): TemplateResult | void {
-        if (this.availablePresets.length < 2){
+        if (this.availablePresets.length < 2) {
             return;
         }
         const rtl = getComputedStyle(this)?.getPropertyValue("direction") === "rtl";

@@ -160,10 +160,9 @@ describe("duration_unit multiplier resolution (#965)", () => {
 
     for (const conversion of conversions) {
         it(`converts ${conversion.sourceUnit} to ${conversion.durationUnit}`, () => {
-            expect(resolveTileMultiplier(
-                { duration_unit: conversion.durationUnit },
-                conversion.sourceUnit,
-            )).toBeCloseTo(conversion.multiplier, 10);
+            expect(
+                resolveTileMultiplier({ duration_unit: conversion.durationUnit }, conversion.sourceUnit),
+            ).toBeCloseTo(conversion.multiplier, 10);
         });
     }
 

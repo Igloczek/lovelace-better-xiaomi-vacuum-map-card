@@ -14,12 +14,16 @@ import { normalizeJinjaQuotes } from "../src/utils";
  */
 describe("normalizeJinjaQuotes", () => {
     it("turns a JSON-escaped list inside {{ }} into Jinja code", () => {
-        expect(normalizeJinjaQuotes(JSON.stringify({ a: '{{ ["13"] | length }}' }))).toBe('{"a":"{{ ["13"] | length }}"}');
+        expect(normalizeJinjaQuotes(JSON.stringify({ a: '{{ ["13"] | length }}' }))).toBe(
+            '{"a":"{{ ["13"] | length }}"}',
+        );
     });
 
     it("keeps a list inside a single-quoted Jinja string (roomba, Valetudo RE)", () => {
-        const template = JSON.stringify({ regions: "{%set s='[\"13\",\"14\"]'|from_json%}{{ s | length }}" });
-        expect(normalizeJinjaQuotes(template)).toBe('{"regions":"{%set s=\'["13","14"]\'|from_json%}{{ s | length }}"}');
+        const template = JSON.stringify({ regions: '{%set s=\'["13","14"]\'|from_json%}{{ s | length }}' });
+        expect(normalizeJinjaQuotes(template)).toBe(
+            '{"regions":"{%set s=\'["13","14"]\'|from_json%}{{ s | length }}"}',
+        );
     });
 
     it("leaves text outside the Jinja delimiters untouched", () => {
@@ -30,10 +34,9 @@ describe("normalizeJinjaQuotes", () => {
     });
 
     it("unescapes a double-quoted Jinja string containing an apostrophe", () => {
-        expect(normalizeJinjaQuotes(JSON.stringify({ a: "{{ \"it's\" }}" }))).toBe('{"a":"{{ "it\'s" }}"}');
+        expect(normalizeJinjaQuotes(JSON.stringify({ a: '{{ "it\'s" }}' }))).toBe('{"a":"{{ "it\'s" }}"}');
     });
 });
-
 
 const ENTITY = "vacuum.test";
 const noRender = {} as HomeAssistantFixed;
@@ -49,8 +52,13 @@ function fill(
     variables = {},
     pointSelection?: boolean,
 ): Record<string, unknown> {
-    return new ServiceCallSchema({ service: "a.b", service_data: data }).apply(ENTITY, selection, repeats, variables, pointSelection)
-        .serviceData as Record<string, unknown>;
+    return new ServiceCallSchema({ service: "a.b", service_data: data }).apply(
+        ENTITY,
+        selection,
+        repeats,
+        variables,
+        pointSelection,
+    ).serviceData as Record<string, unknown>;
 }
 
 describe("placeholders", () => {
@@ -72,7 +80,15 @@ describe("placeholders", () => {
 
     it("give an empty selection an empty list, an empty unwrapped string and size 0", () => {
         expect(
-            fill({ whole: "[[selection]]", unwrapped: "[[selection_unwrapped]]", size: "[[selection_size]]", x: "[[point_x]]" }, []),
+            fill(
+                {
+                    whole: "[[selection]]",
+                    unwrapped: "[[selection_unwrapped]]",
+                    size: "[[selection_size]]",
+                    x: "[[point_x]]",
+                },
+                [],
+            ),
         ).toEqual({ whole: [], unwrapped: "", size: 0, x: "" });
     });
 
@@ -82,17 +98,25 @@ describe("placeholders", () => {
 
     it("give point_x and point_y for a point, also when the repeats are inside it", () => {
         expect(fill({ x: "[[point_x]]", y: "[[point_y]]" }, [25500, 25000])).toEqual({ x: 25500, y: 25000 });
-        expect(fill({ x: "[[point_x]]", y: "[[point_y]]" }, [25500, 25000, 2], 1, {}, true)).toEqual({ x: 25500, y: 25000 });
+        expect(fill({ x: "[[point_x]]", y: "[[point_y]]" }, [25500, 25000, 2], 1, {}, true)).toEqual({
+            x: 25500,
+            y: 25000,
+        });
         expect(fill({ x: "[[point_x]]", y: "[[point_y]]" }, [25500, 25000, 2], 1, {}, false)).toEqual({ x: "", y: "" });
         expect(fill({ x: "[[point_x]]" }, [[25500, 25000]])).toEqual({ x: "" });
     });
 
     it("decode |[[jsonify]] and pass variables through", () => {
         expect(
-            fill({ ids: "[ [[selection_unwrapped]] ]|[[jsonify]]", topic: "[[topic]]/set", list: "[[variables]]" }, ["13", "14"], 1, {
-                topic: "valetudo/robot",
-                variables: [{ type: "rid" }, { type: "zid" }],
-            }),
+            fill(
+                { ids: "[ [[selection_unwrapped]] ]|[[jsonify]]", topic: "[[topic]]/set", list: "[[variables]]" },
+                ["13", "14"],
+                1,
+                {
+                    topic: "valetudo/robot",
+                    variables: [{ type: "rid" }, { type: "zid" }],
+                },
+            ),
         ).toEqual({ ids: [13, 14], topic: "valetudo/robot/set", list: [{ type: "rid" }, { type: "zid" }] });
     });
 
@@ -140,7 +164,9 @@ describe("room selection and repeats types", () => {
             ...zones,
             ...zones,
         ]);
-        expect(mode({ selection_type: "MANUAL_RECTANGLE", repeats_type: "EXTERNAL" }).repeatSelection(zones, 3)).toEqual(zones);
+        expect(
+            mode({ selection_type: "MANUAL_RECTANGLE", repeats_type: "EXTERNAL" }).repeatSelection(zones, 3),
+        ).toEqual(zones);
     });
 });
 
@@ -148,7 +174,10 @@ describe("point placeholders follow the mode's selection type", () => {
     const schema = { service: "a.b", service_data: { x: "[[point_x]]", y: "[[point_y]]" } };
     it("fills them for a point mode with INTERNAL repeats", async () => {
         const m = mode({ selection_type: "MANUAL_POINT", repeats_type: "INTERNAL", service_call_schema: schema });
-        expect((await m.getServiceCall(noRender, ENTITY, [25500, 25000, 2], 2, {})).serviceData).toEqual({ x: 25500, y: 25000 });
+        expect((await m.getServiceCall(noRender, ENTITY, [25500, 25000, 2], 2, {})).serviceData).toEqual({
+            x: 25500,
+            y: 25000,
+        });
     });
 
     it("leaves them empty for three numeric room ids", async () => {
@@ -179,7 +208,13 @@ describe("Home Assistant version dependent payloads (Deebot / Ecovacs)", () => {
             command: "spot_area",
             params: { rooms, cleanings: 2 },
         });
-        const zone = await deebot("vacuum_clean_zone").getServiceCall(hassAt(version), ENTITY, [[25500, 25500, 26500, 26500]], 1, {});
+        const zone = await deebot("vacuum_clean_zone").getServiceCall(
+            hassAt(version),
+            ENTITY,
+            [[25500, 25500, 26500, 26500]],
+            1,
+            {},
+        );
         expect(zone.serviceData).toEqual({ entity_id: ENTITY, command: "custom_area", params: { coordinates } });
     });
 
@@ -201,7 +236,12 @@ describe("normalizeJinjaQuotes on the shipped templates", () => {
         const templated = contractCases().filter(c => c.templated);
         expect(templated.length).toBeGreaterThan(0);
         for (const testCase of templated) {
-            const call = testCase.mode.serviceCallSchema.apply(ENTITY, testCase.selection, testCase.repeats, testCase.variables);
+            const call = testCase.mode.serviceCallSchema.apply(
+                ENTITY,
+                testCase.selection,
+                testCase.repeats,
+                testCase.variables,
+            );
             const text = JSON.stringify(call.serviceData);
             for (const block of text.match(/\{\{[\s\S]*?\}\}|\{%[\s\S]*?%\}/g) ?? []) {
                 const inner = block.slice(2, -2);
@@ -218,12 +258,20 @@ describe("normalizeJinjaQuotes on the shipped templates", () => {
 
 describe("exported mode config keeps the legacy schemas", () => {
     it("round-trips a Deebot mode through toMapModeConfig and still picks the payload by version", async () => {
-        const original = new MapMode("DeebotUniverse/Deebot-4-Home-Assistant", { template: "vacuum_clean_segment" } as MapModeConfig, "en");
+        const original = new MapMode(
+            "DeebotUniverse/Deebot-4-Home-Assistant",
+            { template: "vacuum_clean_segment" } as MapModeConfig,
+            "en",
+        );
         const exported = original.toMapModeConfig();
         expect(exported.legacy_service_call_schemas?.[0]?.before_ha_version).toBe("2026.3");
 
         // The exported config has a service_call_schema of its own, like a pasted-back YAML config.
-        const reimported = new MapMode("DeebotUniverse/Deebot-4-Home-Assistant", JSON.parse(JSON.stringify(exported)), "en");
+        const reimported = new MapMode(
+            "DeebotUniverse/Deebot-4-Home-Assistant",
+            JSON.parse(JSON.stringify(exported)),
+            "en",
+        );
         const at = (version: string) => ({ config: { version } }) as unknown as HomeAssistantFixed;
         const selection = reimported.getRoomSelection(["16", "17"], 1);
         expect((await reimported.getServiceCall(at("2026.2.0"), ENTITY, selection, 1, {})).serviceData).toMatchObject({

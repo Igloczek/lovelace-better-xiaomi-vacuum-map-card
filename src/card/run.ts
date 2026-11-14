@@ -22,13 +22,10 @@ export async function handleServiceCallGet(card: XiaomiVacuumMapCard): Promise<v
     } else {
         let serviceCall: ServiceCall;
         try {
-            serviceCall = await currentMode.getServiceCall(
-                card.hass,
-                currentPreset.entity,
-                selection,
-                card.repeats,
-                { ...card.internalVariables, ...variables },
-            );
+            serviceCall = await currentMode.getServiceCall(card.hass, currentPreset.entity, selection, card.repeats, {
+                ...card.internalVariables,
+                ...variables,
+            });
         } catch (e) {
             card._showToast("popups.failed", "mdi:close", false, errorMessage(e));
             forwardHaptic("failure");
@@ -107,8 +104,7 @@ async function sendSelection(
         return true;
     }
     // The run's baseline is the state shown when the call goes out, not when it is answered.
-    const run =
-        runRoomIds.length > 0 ? prepareActiveRoomRun(card, entity, runRoomIds, currentMode) : undefined;
+    const run = runRoomIds.length > 0 ? prepareActiveRoomRun(card, entity, runRoomIds, currentMode) : undefined;
     const accepted = await callServiceReported(
         card,
         serviceCall.domain,
@@ -166,11 +162,14 @@ interface TranslatedServiceError {
 /** The message Home Assistant's own notification would show: the translated exception, if any. */
 async function serviceErrorMessage(card: XiaomiVacuumMapCard, e: unknown): Promise<string> {
     const error = (e ?? {}) as TranslatedServiceError;
-    const load = (card.hass as unknown as {
-        loadBackendTranslation?: (category: string, integration?: string) => Promise<
-            (key: string, placeholders?: Record<string, string>) => string
-        >;
-    }).loadBackendTranslation;
+    const load = (
+        card.hass as unknown as {
+            loadBackendTranslation?: (
+                category: string,
+                integration?: string,
+            ) => Promise<(key: string, placeholders?: Record<string, string>) => string>;
+        }
+    ).loadBackendTranslation;
     if (error.translation_domain && error.translation_key && typeof load === "function") {
         try {
             const localize = await load.call(card.hass, "exceptions", error.translation_domain);

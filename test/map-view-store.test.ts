@@ -66,7 +66,14 @@ describe("map view storage", () => {
             "xiaomi-vacuum-map-card.map-view",
             JSON.stringify({ old: { s: 2, x: -100, y: -40, r: 0, ts: 1 } }),
         );
-        expect(getMapView("old")).toEqual({ scale: 2, x: -100, y: -40, rotation: 0, locked: undefined, width: undefined });
+        expect(getMapView("old")).toEqual({
+            scale: 2,
+            x: -100,
+            y: -40,
+            rotation: 0,
+            locked: undefined,
+            width: undefined,
+        });
     });
 });
 

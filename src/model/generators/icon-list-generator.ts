@@ -1,4 +1,4 @@
-import { HassEntity } from "home-assistant-js-websocket/dist/types";
+import { HassEntity } from "home-assistant-js-websocket";
 
 import {
     EntityRegistryEntry,
@@ -14,7 +14,6 @@ import { localize } from "../../localize/localize";
 import { HomeAssistantFixed } from "../../types/fixes";
 import { getAllEntitiesFromTheSameDevice } from "../../utils";
 import { PlatformGenerator } from "./platform-generator";
-
 
 class IconsGeneratorContext {
     private readonly _icons: IconActionConfig[];
@@ -34,13 +33,15 @@ class IconsGeneratorContext {
             return;
         }
         if (icon.icon_id && this._userDefinedIcons.some(i => i.icon_id === icon.icon_id)) {
-            this._userDefinedIcons.filter(i => i.icon_id === icon.icon_id).forEach(i => {
-                if (i.replace_config) {
-                    this._icons.push({ ...icon, ...i });
-                } else {
-                    this._icons.push(i);
-                }
-            });
+            this._userDefinedIcons
+                .filter(i => i.icon_id === icon.icon_id)
+                .forEach(i => {
+                    if (i.replace_config) {
+                        this._icons.push({ ...icon, ...i });
+                    } else {
+                        this._icons.push(i);
+                    }
+                });
             return;
         }
         this._icons.push(icon);
@@ -50,7 +51,6 @@ class IconsGeneratorContext {
         return this._icons;
     }
 }
-
 
 export class IconListGenerator {
     private static _ICON_MAPPING = {
@@ -80,7 +80,11 @@ export class IconListGenerator {
         return context.icons;
     }
 
-    private static getCommonIcons(hass: HomeAssistantFixed, vacuumEntity: string, language: Language): IconActionConfig[] {
+    private static getCommonIcons(
+        hass: HomeAssistantFixed,
+        vacuumEntity: string,
+        language: Language,
+    ): IconActionConfig[] {
         const state = hass.states[vacuumEntity];
         const state_available = state && state.attributes;
         const icons: IconActionConfig[] = [];
@@ -106,7 +110,7 @@ export class IconListGenerator {
                 tap_action: {
                     action: "call-service",
                     service: "vacuum.start",
-                    service_data: {
+                    data: {
                         entity_id: vacuumEntity,
                     },
                 },
@@ -137,7 +141,7 @@ export class IconListGenerator {
                 tap_action: {
                     action: "call-service",
                     service: "vacuum.pause",
-                    service_data: {
+                    data: {
                         entity_id: vacuumEntity,
                     },
                 },
@@ -168,7 +172,7 @@ export class IconListGenerator {
                 tap_action: {
                     action: "call-service",
                     service: "vacuum.stop",
-                    service_data: {
+                    data: {
                         entity_id: vacuumEntity,
                     },
                 },
@@ -191,7 +195,7 @@ export class IconListGenerator {
                 tap_action: {
                     action: "call-service",
                     service: "vacuum.return_to_base",
-                    service_data: {
+                    data: {
                         entity_id: vacuumEntity,
                     },
                 },
@@ -222,7 +226,7 @@ export class IconListGenerator {
                 tap_action: {
                     action: "call-service",
                     service: "vacuum.clean_spot",
-                    service_data: {
+                    data: {
                         entity_id: vacuumEntity,
                     },
                 },
@@ -235,19 +239,22 @@ export class IconListGenerator {
                 tap_action: {
                     action: "call-service",
                     service: "vacuum.locate",
-                    service_data: {
+                    data: {
                         entity_id: vacuumEntity,
                     },
                 },
             });
 
-        const fanSpeeds = state_available ? state.attributes["fan_speed_list"] ?? [] : [];
+        const fanSpeeds = state_available ? (state.attributes["fan_speed_list"] ?? []) : [];
         for (let i = 0; i < fanSpeeds.length; i++) {
             const fanSpeed = fanSpeeds[i];
             icons.push({
                 icon_id: "fan_speed_menu_" + fanSpeed,
                 menu_id: "fan_speed",
-                icon: fanSpeed in IconListGenerator._ICON_MAPPING ? IconListGenerator._ICON_MAPPING[fanSpeed] : "mdi:fan-alert",
+                icon:
+                    fanSpeed in IconListGenerator._ICON_MAPPING
+                        ? IconListGenerator._ICON_MAPPING[fanSpeed]
+                        : "mdi:fan-alert",
                 label: localize("tile.fan_speed.value." + fanSpeed.toLowerCase(), language, fanSpeed),
                 conditions: [
                     {
@@ -260,7 +267,7 @@ export class IconListGenerator {
                 tap_action: {
                     action: "call-service",
                     service: "vacuum.set_fan_speed",
-                    service_data: {
+                    data: {
                         entity_id: vacuumEntity,
                         fan_speed: fanSpeed,
                     },
@@ -276,7 +283,7 @@ export class IconListGenerator {
                 tap_action: {
                     action: "call-service",
                     service: "vacuum.set_fan_speed",
-                    service_data: {
+                    data: {
                         entity_id: vacuumEntity,
                         fan_speed: fanSpeeds[0],
                     },
@@ -292,8 +299,9 @@ export class IconListGenerator {
         platform: string,
     ): Promise<IconActionConfig[]> {
         const entityRegistryEntries = await getAllEntitiesFromTheSameDevice(hass, vacuumEntityId);
-        return PlatformGenerator.getIconsTemplates(platform)
-            .flatMap(i => IconListGenerator.createIcon(i, entityRegistryEntries));
+        return PlatformGenerator.getIconsTemplates(platform).flatMap(i =>
+            IconListGenerator.createIcon(i, entityRegistryEntries),
+        );
     }
 
     private static createIcon(
@@ -311,19 +319,20 @@ export class IconListGenerator {
 
     private static createSingleIcon(
         iconTemplate: SingleIconTemplate,
-        entityRegistryEntries: EntityRegistryEntry[]
+        entityRegistryEntries: EntityRegistryEntry[],
     ): IconActionConfig[] {
-        const matches = entityRegistryEntries.filter(e => String(e.unique_id ?? "").match(iconTemplate.unique_id_regex));
-        if (matches.length !== 1)
-            return [];
+        const matches = entityRegistryEntries.filter(e =>
+            String(e.unique_id ?? "").match(iconTemplate.unique_id_regex),
+        );
+        if (matches.length !== 1) return [];
         const matched = matches[0];
         const iconConfig: IconActionConfig = {
             ...iconTemplate,
-            "icon": iconTemplate.icon ?? matched.icon ?? matched.original_icon,
-            "variables": {
+            icon: iconTemplate.icon ?? matched.icon ?? matched.original_icon,
+            variables: {
                 ...(iconTemplate.variables ?? {}),
-                "entity": matched.entity_id
-            }
+                entity: matched.entity_id,
+            },
         };
         if (iconConfig.hasOwnProperty("unique_id_regex")) {
             delete iconConfig["unique_id_regex"];
@@ -333,16 +342,17 @@ export class IconListGenerator {
 
     private static createMenuIcon(
         iconTemplate: MenuIconTemplate,
-        entityRegistryEntries: EntityRegistryEntry[]
+        entityRegistryEntries: EntityRegistryEntry[],
     ): MenuIconActionConfig[] {
-        const matches = entityRegistryEntries.filter(e => String(e.unique_id ?? "").match(iconTemplate.unique_id_regex));
-        if (matches.length !== 1)
-            return [];
+        const matches = entityRegistryEntries.filter(e =>
+            String(e.unique_id ?? "").match(iconTemplate.unique_id_regex),
+        );
+        if (matches.length !== 1) return [];
         const matched = matches[0];
         const iconConfig: MenuIconActionConfig = {
             ...iconTemplate,
-            "entity": matched.entity_id,
-            "icon": iconTemplate.icon ?? matched.icon ?? matched.original_icon,
+            entity: matched.entity_id,
+            icon: iconTemplate.icon ?? matched.icon ?? matched.original_icon,
         };
         if (iconConfig.hasOwnProperty("unique_id_regex")) {
             delete iconConfig["unique_id_regex"];
@@ -350,18 +360,14 @@ export class IconListGenerator {
         return [iconConfig];
     }
 
-
     private static isFeatureSupported(state: HassEntity, features: number) {
         return state && state.attributes && ((state.attributes["supported_features"] ?? 0) & features) === features;
     }
 }
 
 export function sortIcons(i1: IconActionConfig, i2: IconActionConfig): number {
-    if (i1.order === undefined && i2.order === undefined)
-        return 0;
-    if (i1.order === undefined)
-        return 1;
-    if (i2.order === undefined)
-        return -1;
+    if (i1.order === undefined && i2.order === undefined) return 0;
+    if (i1.order === undefined) return 1;
+    if (i2.order === undefined) return -1;
     return i1.order - i2.order;
 }

@@ -80,13 +80,14 @@ export class SyntheticMap implements ImageDataLike {
             const crossings: number[] = [];
             points.forEach((point, index) => {
                 const next = points[(index + 1) % points.length];
-                if ((point[1] <= centreY) !== (next[1] <= centreY)) {
+                if (point[1] <= centreY !== next[1] <= centreY) {
                     crossings.push(point[0] + ((centreY - point[1]) / (next[1] - point[1])) * (next[0] - point[0]));
                 }
             });
             crossings.sort((a, b) => a - b);
             for (let index = 0; index + 1 < crossings.length; index += 2) {
-                for (let x = Math.ceil(crossings[index] - 0.5); x + 0.5 <= crossings[index + 1]; x++) this.set(x, y, color);
+                for (let x = Math.ceil(crossings[index] - 0.5); x + 0.5 <= crossings[index + 1]; x++)
+                    this.set(x, y, color);
             }
         }
         return this;
@@ -112,7 +113,8 @@ export class SyntheticMap implements ImageDataLike {
             const x = fromX + ((toX - fromX) * step) / steps;
             const y = fromY + ((toY - fromY) * step) / steps;
             for (let dy = -Math.floor(half); dy <= Math.ceil(half); dy++) {
-                for (let dx = -Math.floor(half); dx <= Math.ceil(half); dx++) this.set(Math.round(x + dx), Math.round(y + dy), color);
+                for (let dx = -Math.floor(half); dx <= Math.ceil(half); dx++)
+                    this.set(Math.round(x + dx), Math.round(y + dy), color);
             }
         }
         return this;
@@ -136,7 +138,12 @@ export class SyntheticMap implements ImageDataLike {
         const at = (x: number, y: number, channel: number): number => source[(y * this.width + x) * 4 + channel];
         for (let y = 1; y < this.height - 1; y++) {
             for (let x = 1; x < this.width - 1; x++) {
-                const neighbours: Array<[number, number]> = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]];
+                const neighbours: Array<[number, number]> = [
+                    [x - 1, y],
+                    [x + 1, y],
+                    [x, y - 1],
+                    [x, y + 1],
+                ];
                 const differing = neighbours.filter(([nx, ny]) =>
                     [0, 1, 2, 3].some(channel => at(nx, ny, channel) !== at(x, y, channel)),
                 );

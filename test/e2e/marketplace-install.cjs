@@ -25,7 +25,8 @@ function socket() {
         const pending = new Map();
         connection.onmessage = event => {
             const message = JSON.parse(event.data);
-            if (message.type === "auth_required") connection.send(JSON.stringify({ type: "auth", access_token: accessToken }));
+            if (message.type === "auth_required")
+                connection.send(JSON.stringify({ type: "auth", access_token: accessToken }));
             else if (message.type === "auth_ok") resolve({ send, close: () => connection.close() });
             else if (message.type === "result") {
                 const call = pending.get(message.id);
@@ -54,7 +55,8 @@ async function main() {
     await ws.send("marketplace/warning/accept");
     const detected = await ws.send("marketplace/repositories/detect", { repository: REPO_URL });
     console.log(`detected categories: ${detected.categories.join(", ")}`);
-    if (!detected.categories.includes("plugin")) throw new Error("the repository is not detected as a dashboard resource");
+    if (!detected.categories.includes("plugin"))
+        throw new Error("the repository is not detected as a dashboard resource");
 
     try {
         await ws.send("marketplace/repositories/add", { repository: REPO_URL, category: "plugin" });

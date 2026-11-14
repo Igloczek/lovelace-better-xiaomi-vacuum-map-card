@@ -91,9 +91,9 @@ describe("withRegistryEntries", () => {
         });
 
         expect(hass.entities["vacuum.b"]).toBeUndefined();
-        await expect(
-            hass.callWS({ type: "config/entity_registry/get", entity_id: "vacuum.b" }),
-        ).rejects.toThrow(/no registry entry for vacuum\.b/);
+        await expect(hass.callWS({ type: "config/entity_registry/get", entity_id: "vacuum.b" })).rejects.toThrow(
+            /no registry entry for vacuum\.b/,
+        );
         expect(derived).not.toBe(hass);
         expect(derived.states).toBe(hass.states);
     });

@@ -33,7 +33,10 @@ const TEMPLATED_ROOM_MODE = {
     },
 } as const;
 
-async function mountRoomsCard(hass: MockHass, mode: Record<string, unknown> = TEMPLATED_ROOM_MODE): Promise<CardHandle> {
+async function mountRoomsCard(
+    hass: MockHass,
+    mode: Record<string, unknown> = TEMPLATED_ROOM_MODE,
+): Promise<CardHandle> {
     useHarnessClock();
     const fixture = loadSyntheticFixture();
     const config: XiaomiVacuumMapCardConfig = {
@@ -107,7 +110,8 @@ describe("room selections from camera metadata", () => {
         answerRenderTemplate(hass, template => {
             rendered = template;
             // A real render fails on `\"` inside `{{ }}`; the card must not send one.
-            if (/\{\{[^}]*\\"/.test(template)) return { error: "TemplateSyntaxError: unexpected char '\\\\'", level: "ERROR" };
+            if (/\{\{[^}]*\\"/.test(template))
+                return { error: "TemplateSyntaxError: unexpected char '\\\\'", level: "ERROR" };
             const result = template.replace(/\{\{\s*\[([^\]]*)\]\s*\|\s*length\s*\}\}/, (_, items: string) =>
                 String(items.split(",").length),
             );
@@ -146,7 +150,11 @@ describe("room selections from camera metadata", () => {
 
 describe("normalizeJinjaQuotes", () => {
     it("unescapes JSON quotes only inside Jinja delimiters", () => {
-        const template = JSON.stringify({ a: '{{ ["13","14"] | length }}', b: '"kept"', c: '{% if "x" %}y{% endif %}' });
+        const template = JSON.stringify({
+            a: '{{ ["13","14"] | length }}',
+            b: '"kept"',
+            c: '{% if "x" %}y{% endif %}',
+        });
         expect(normalizeJinjaQuotes(template)).toBe(
             '{"a":"{{ ["13","14"] | length }}","b":"\\"kept\\"","c":"{% if "x" %}y{% endif %}"}',
         );

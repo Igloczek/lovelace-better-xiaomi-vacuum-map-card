@@ -2,8 +2,7 @@
   "recommendations": [
     "github.vscode-pull-request-github",
     "eamodio.gitlens",
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
+    "oxc.oxc-vscode",
     "bierner.lit-html",
     "runem.lit-plugin",
     "auchenberg.vscode-browser-preview",

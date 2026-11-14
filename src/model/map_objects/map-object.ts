@@ -144,11 +144,7 @@ export abstract class MapObject {
      * sitting below its icon stays below it however far the map is turned, instead of swinging around
      * and landing on top of it. At 0deg the result is identical to placing the label outright.
      */
-    protected renderLabel(
-        config: LabelConfig | undefined,
-        htmlClass: string,
-        anchor?: IconConfig,
-    ): SVGTemplateResult {
+    protected renderLabel(config: LabelConfig | undefined, htmlClass: string, anchor?: IconConfig): SVGTemplateResult {
         const mapped = config ? this.vacuumToScaledMap(config.x, config.y) : [];
         const anchored = anchor ? this.vacuumToScaledMap(anchor.x, anchor.y) : undefined;
         const origin = anchored ?? mapped;

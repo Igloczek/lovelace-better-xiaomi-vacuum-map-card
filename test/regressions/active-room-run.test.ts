@@ -9,7 +9,15 @@ import {
 } from "../../src/model/active-room-run";
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle } from "../harness";
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle, useHarnessClock, withState } from "../harness";
+import {
+    fixtureConfig,
+    fixtureHass,
+    loadSyntheticFixture,
+    mountCard,
+    settle,
+    useHarnessClock,
+    withState,
+} from "../harness";
 
 /**
  * The cleaning order stays on the map while the run it belongs to is in progress.
@@ -176,7 +184,10 @@ describe("cleaning order during a run", () => {
         await setVacuumState(card, "cleaning");
         card.element.remove();
 
-        const reloaded = await mountCard(cardConfig(), withState(fixtureHass(loadSyntheticFixture()), VACUUM, { state: "cleaning" }).hass);
+        const reloaded = await mountCard(
+            cardConfig(),
+            withState(fixtureHass(loadSyntheticFixture()), VACUUM, { state: "cleaning" }).hass,
+        );
         await reloaded.fireMapLoad();
 
         expect(badges(reloaded)).toEqual({ "2": "1", "0": "2" });

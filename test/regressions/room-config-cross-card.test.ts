@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { EVENT_ROOM_CONFIG } from "../../src/const";
 import type { EditorHandle, MockHass } from "../harness";
-import type { MapExtractorRoom, RoomConfig, RoomConfigEventData, XiaomiVacuumMapCardConfig } from "../../src/types/types";
+import type {
+    MapExtractorRoom,
+    RoomConfig,
+    RoomConfigEventData,
+    XiaomiVacuumMapCardConfig,
+} from "../../src/types/types";
 import {
     cameraEntity,
     extractorRoom,
@@ -130,9 +135,7 @@ describe("room-config events are scoped to a card (#944)", () => {
         // The single assertion records every observable part of the leak, so the failure output
         // shows both the extra card answer and the rooms editor A ended up with.
         expect({
-            answeredWithRooms: roomConfigEvents.map(event =>
-                (event.rooms ?? []).map(room => String(room.id)),
-            ),
+            answeredWithRooms: roomConfigEvents.map(event => (event.rooms ?? []).map(room => String(room.id))),
             editorAConfigs: changesForA,
             editorBConfigs: changesForB,
         }).toEqual({
@@ -274,7 +277,17 @@ describe("editor room-config answers", () => {
         // entity check can reject it.
         fireRoomConfig({
             modeIndex: -1,
-            rooms: [{ id: "7", outline: [[100, 100], [300, 100], [300, 300], [100, 300]] }],
+            rooms: [
+                {
+                    id: "7",
+                    outline: [
+                        [100, 100],
+                        [300, 100],
+                        [300, 300],
+                        [100, 300],
+                    ],
+                },
+            ],
             entity: SECOND_VACUUM,
         });
         await settle(editor.element);

@@ -1,19 +1,13 @@
 import { css, CSSResultGroup, html, TemplateResult } from "lit";
-import { customElement, property } from "lit/decorators";
-import { ifDefined } from "lit/directives/if-defined";
+import { customElement, property } from "lit/decorators.js";
+import { ifDefined } from "lit/directives/if-defined.js";
 import { computeStateDomain, hasAction } from "custom-card-helpers";
-import { HassEntity } from "home-assistant-js-websocket/dist/types";
+import { HassEntity } from "home-assistant-js-websocket";
 
 import { actionHandler } from "../action-handler-directive";
 import { conditional } from "../utils";
 import { computeEntityName } from "../entity-name";
-import {
-    ActionHandlerFunctionCreator,
-    EntityConfig,
-    ReplacedKey,
-    TileConfig,
-    VariablesStorage,
-} from "../types/types";
+import { ActionHandlerFunctionCreator, EntityConfig, ReplacedKey, TileConfig, VariablesStorage } from "../types/types";
 import { HomeAssistantFixed } from "../types/fixes";
 import { localizeEntity } from "../localize/localize";
 import { computeAttributeNameDisplay } from "../localize/hass/compute_attribute_display";
@@ -21,23 +15,21 @@ import { blankBeforePercent } from "../localize/hass/blank_before_percent";
 import { formatNumber } from "../localize/hass/format_number";
 import { RootlessLitElement } from "./rootless-lit-element";
 
-
 @customElement("xvmc-tile")
 export class Tile extends RootlessLitElement {
-
-    @property({attribute: false})
+    @property({ attribute: false })
     private config!: TileConfig;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private hass!: HomeAssistantFixed;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private isInEditor!: boolean;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private onAction!: ActionHandlerFunctionCreator;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private internalVariables!: VariablesStorage;
 
     protected render(): TemplateResult | void {
@@ -53,7 +45,7 @@ export class Tile extends RootlessLitElement {
 
         return html`
             <div
-                .title="${this.isInEditor ? `tile_id: ${this.config.tile_id}` : this.config.tooltip ?? ""}"
+                .title="${this.isInEditor ? `tile_id: ${this.config.tile_id}` : (this.config.tooltip ?? "")}"
                 @action="${this.onAction(this.config)}"
                 .actionHandler="${actionHandler({
                     hasHold: hasAction(this.config?.hold_action),
@@ -63,7 +55,8 @@ export class Tile extends RootlessLitElement {
                 <div class="tile-value-wrapper">
                     ${conditional(
                         icon !== "",
-                        () => html`
+                        () =>
+                            html`
                             <div class="tile-icon">
                                 <ha-state-icon
                                     .icon=${icon}
@@ -79,22 +72,22 @@ export class Tile extends RootlessLitElement {
         `;
     }
 
-    private getTileLabel(
-        stateObject?: HassEntity,
-    ) {
-        if (this.config.label !== undefined)
-            return this.config.label;
+    private getTileLabel(stateObject?: HassEntity) {
+        if (this.config.label !== undefined) return this.config.label;
         if (stateObject !== undefined) {
             if (this.config.attribute !== undefined)
-                return computeAttributeNameDisplay(this.hass.localize, stateObject, this.hass.entities, this.config.attribute);
+                return computeAttributeNameDisplay(
+                    this.hass.localize,
+                    stateObject,
+                    this.hass.entities,
+                    this.config.attribute,
+                );
             return computeEntityName(this.hass, stateObject) ?? this.config.entity;
         }
         return this.config.tile_id ?? "tile";
     }
 
-    private getTileValue(
-        stateObject?: HassEntity,
-    ) {
+    private getTileValue(stateObject?: HassEntity) {
         let value: ReplacedKey = "";
         let unit = this.getUnit();
         const processNumber = this.config.multiplier !== undefined || this.config.precision !== undefined;
@@ -104,11 +97,11 @@ export class Tile extends RootlessLitElement {
         let numeric = false;
         if (this.config.entity && stateObject) {
             if (processNumber) {
-                const raw = this.config.attribute
-                    ? stateObject.attributes[this.config.attribute]
-                    : stateObject.state;
+                const raw = this.config.attribute ? stateObject.attributes[this.config.attribute] : stateObject.state;
                 numeric = Tile.isNumeric(raw);
-                value = numeric ? (raw as ReplacedKey) : localizeEntity(this.hass, this.config as EntityConfig, stateObject);
+                value = numeric
+                    ? (raw as ReplacedKey)
+                    : localizeEntity(this.hass, this.config as EntityConfig, stateObject);
             } else {
                 value = localizeEntity(this.hass, this.config as EntityConfig, stateObject);
                 const originalUnit = stateObject.attributes.unit_of_measurement;
@@ -149,8 +142,7 @@ export class Tile extends RootlessLitElement {
         if (Object.prototype.hasOwnProperty.call(translations, valueKey)) {
             value = translations[valueKey];
         } else {
-            const translationKey = Object.keys(translations)
-                .find(key => key.toLowerCase() === valueKey);
+            const translationKey = Object.keys(translations).find(key => key.toLowerCase() === valueKey);
             if (translationKey !== undefined) {
                 value = translations[translationKey];
             } else if (formatted !== undefined) {
@@ -187,10 +179,10 @@ export class Tile extends RootlessLitElement {
 
     private getUnit() {
         return !this.config.unit
-            ? "" :
-            this.config.unit === "%"
-                ? blankBeforePercent(this.hass.locale) + "%"
-                : ` ${this.config.unit}`;
+            ? ""
+            : this.config.unit === "%"
+              ? blankBeforePercent(this.hass.locale) + "%"
+              : ` ${this.config.unit}`;
     }
 
     public static get styles(): CSSResultGroup {

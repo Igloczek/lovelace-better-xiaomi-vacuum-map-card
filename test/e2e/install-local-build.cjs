@@ -17,7 +17,13 @@ const BASE = process.env.E2E_HA_URL || "http://localhost:8123";
 const AUTH = path.join(__dirname, ".auth", "token.json");
 const CONFIG = path.join(__dirname, "ha", "config");
 const BUNDLE = path.join(__dirname, "..", "..", "dist", "xiaomi-vacuum-map-card.js");
-const INSTALLED = path.join(CONFIG, "www", "community", "lovelace-better-xiaomi-vacuum-map-card", "xiaomi-vacuum-map-card.js");
+const INSTALLED = path.join(
+    CONFIG,
+    "www",
+    "community",
+    "lovelace-better-xiaomi-vacuum-map-card",
+    "xiaomi-vacuum-map-card.js",
+);
 
 if (!fs.existsSync(BUNDLE)) {
     console.error(`missing ${BUNDLE}; run npm run build first`);
@@ -49,7 +55,8 @@ function socket() {
         const pending = new Map();
         connection.onmessage = event => {
             const message = JSON.parse(event.data);
-            if (message.type === "auth_required") connection.send(JSON.stringify({ type: "auth", access_token: accessToken }));
+            if (message.type === "auth_required")
+                connection.send(JSON.stringify({ type: "auth", access_token: accessToken }));
             else if (message.type === "auth_ok") resolve({ send, close: () => connection.close() });
             else if (message.type === "result") {
                 const call = pending.get(message.id);

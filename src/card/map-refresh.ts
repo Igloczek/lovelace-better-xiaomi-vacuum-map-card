@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { state } from "lit/decorators";
 import { CardPresetConfig } from "../types/types";
 import { DISCONNECTED_IMAGE, DISCONNECTION_TIME } from "../const";
 import {

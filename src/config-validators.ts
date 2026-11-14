@@ -70,9 +70,7 @@ function validateEnumName(value: unknown, values: Record<string, unknown>): stri
 }
 
 function validateConditions(conditions: unknown, field: string): TranslatableString[] {
-    return validateList<unknown>(conditions, field, condition =>
-        isMapping(condition) ? [] : [notMapping(field)],
-    );
+    return validateList<unknown>(conditions, field, condition => (isMapping(condition) ? [] : [notMapping(field)]));
 }
 
 function validateMapSource(mapSource: MapSourceConfig): TranslatableString[] {
@@ -198,10 +196,7 @@ function validatePredefinedRectangleConfig(ps: PredefinedSelectionConfig): Trans
         errors.push("validation.preset.map_modes.predefined_selections.zones.missing");
     } else if (typeof config.zones !== "string" && !Array.isArray(config.zones)) {
         errors.push(notList("zones"));
-    } else if (
-        typeof config.zones !== "string" &&
-        config.zones.some(z => !Array.isArray(z) || z.length != 4)
-    ) {
+    } else if (typeof config.zones !== "string" && config.zones.some(z => !Array.isArray(z) || z.length != 4)) {
         errors.push("validation.preset.map_modes.predefined_selections.zones.invalid_parameters_number");
     }
     if (config.icon) {
@@ -288,7 +283,10 @@ function validateMapModeConfig(
         return [["validation.preset.map_modes.template.invalid", "{0}", config.template]];
     }
     const errors: TranslatableString[] = [];
-    const selectionTypeError = validateEnumName(config.selection_type, SelectionType as unknown as Record<string, unknown>);
+    const selectionTypeError = validateEnumName(
+        config.selection_type,
+        SelectionType as unknown as Record<string, unknown>,
+    );
     if (selectionTypeError !== undefined) {
         return [["validation.preset.map_modes.selection_type.invalid", "{0}", selectionTypeError]];
     }
@@ -296,8 +294,11 @@ function validateMapModeConfig(
     if (repeatsTypeError !== undefined) {
         return [["validation.preset.map_modes.repeats_type.invalid", "{0}", repeatsTypeError]];
     }
-    if (config.predefined_selections !== undefined && config.predefined_selections !== null
-        && !Array.isArray(config.predefined_selections)) {
+    if (
+        config.predefined_selections !== undefined &&
+        config.predefined_selections !== null &&
+        !Array.isArray(config.predefined_selections)
+    ) {
         return [notList("predefined_selections")];
     }
     const cleaningOrder: unknown = config.cleaning_order;
@@ -330,7 +331,7 @@ function validateMapModeConfig(
         case SelectionType.MANUAL_RECTANGLE:
         case SelectionType.MANUAL_PATH:
         case SelectionType.MANUAL_POINT:
-            if (parsed.predefinedSelections?.length ?? 0 > 0) {
+            if ((parsed.predefinedSelections?.length ?? 0) > 0) {
                 errors.push([
                     "validation.preset.map_modes.predefined_selections.not_applicable",
                     "{0}",
@@ -371,15 +372,19 @@ function validatePreset(config: CardPresetConfig, nameRequired: boolean, languag
     // An empty `calibration_source:` key is YAML `null`: absent, as upstream treated it.
     if (config.calibration_source !== undefined && config.calibration_source !== null)
         validateCalibrationSource(config.calibration_source as CalibrationSourceConfig).forEach(e => errors.push(e));
-    if (config.vacuum_platform
-        && !PlatformGenerator.getPlatforms().includes(PlatformGenerator.getPlatformName(config.vacuum_platform))
+    if (
+        config.vacuum_platform &&
+        !PlatformGenerator.getPlatforms().includes(PlatformGenerator.getPlatformName(config.vacuum_platform))
     )
         errors.push(["validation.preset.platform.invalid", "{0}", config.vacuum_platform]);
     validateList(config.icons, "icons", validateIconConfig).forEach(e => errors.push(e));
     validateList(config.tiles, "tiles", validateTileConfig).forEach(e => errors.push(e));
     validateConditions(config.conditions, "conditions").forEach(e => errors.push(e));
-    if (![PlatformGenerator.SETUP_INTEGER_PLATFORM, PlatformGenerator.SETUP_DECIMAL_PLATFORM]
-        .includes(PlatformGenerator.getPlatformName(config.vacuum_platform))) {
+    if (
+        ![PlatformGenerator.SETUP_INTEGER_PLATFORM, PlatformGenerator.SETUP_DECIMAL_PLATFORM].includes(
+            PlatformGenerator.getPlatformName(config.vacuum_platform),
+        )
+    ) {
         validateList<MapModeConfig>(config.map_modes, "map_modes", mode =>
             validateMapModeConfig(vacuumPlatform, mode, language),
         ).forEach(e => errors.push(e));

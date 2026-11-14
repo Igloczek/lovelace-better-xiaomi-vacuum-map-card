@@ -120,9 +120,7 @@ export function isConditionMet(
         // A removed or not-yet-loaded entity has no state: its value is unknown, so a `value`
         // condition is not met and a `value_not` condition is.
         const entity = hass.states[condition.entity];
-        currentValue = condition.attribute
-            ? entity?.attributes?.[condition.attribute]
-            : entity?.state;
+        currentValue = condition.attribute ? entity?.attributes?.[condition.attribute] : entity?.state;
     }
     if (condition.value) {
         return currentValue == condition.value;
@@ -152,16 +150,15 @@ export function hasConfigOrAnyEntityChanged(
     }
     const oldHass = changedProps.get("_hass") as HomeAssistantFixed | undefined;
     const entitesChanged = !oldHass || watchedEntities.some(entity => oldHass.states[entity] !== hass?.states[entity]);
-    if (entitesChanged)
-        return true;
+    if (entitesChanged) return true;
     const changedKeys = Array.from(changedProps.keys());
-    return changedKeys.length > 1 || changedKeys.length == 1 && changedKeys[0] != "_hass";
+    return changedKeys.length > 1 || (changedKeys.length == 1 && changedKeys[0] != "_hass");
 }
 
 export function checkIfEntitiesChanged(
     entities: string[],
     oldHass: HomeAssistantFixed,
-    newHass: HomeAssistantFixed
+    newHass: HomeAssistantFixed,
 ): boolean {
     const changedEntities = entities.filter(entity => oldHass.states[entity] !== newHass.states[entity]);
     return changedEntities.length > 0;

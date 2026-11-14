@@ -91,9 +91,9 @@ describe("selection rebuild", () => {
 
         const zones = [new Item("big", false, undefined, 2), new Item("small")];
         const zoneSnapshot = captureSelection(SelectionType.PREDEFINED_RECTANGLE, zones, [zones[1], zones[0]]);
-        expect(restore([new Item("big", false, undefined, 2), new Item("small")], zoneSnapshot, { maxSelections: 2 })).toEqual([
-            "small",
-        ]);
+        expect(
+            restore([new Item("big", false, undefined, 2), new Item("small")], zoneSnapshot, { maxSelections: 2 }),
+        ).toEqual(["small"]);
     });
 
     it("holds missing items while the source is unknown and restores them in place", () => {

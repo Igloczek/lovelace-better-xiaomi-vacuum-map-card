@@ -14,11 +14,9 @@ declare global {
 
 export type ValidUserDataKey = keyof FrontendUserData;
 
-export const fetchFrontendUserData = async <
-    UserDataKey extends ValidUserDataKey
->(
+export const fetchFrontendUserData = async <UserDataKey extends ValidUserDataKey>(
     conn: Connection,
-    key: UserDataKey
+    key: UserDataKey,
 ): Promise<FrontendUserData[UserDataKey] | null> => {
     const result = await conn.sendMessagePromise<{
         value: FrontendUserData[UserDataKey] | null;

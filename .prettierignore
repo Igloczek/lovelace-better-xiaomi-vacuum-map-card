@@ -1,8 +1,0 @@
-dist
-.vscode
-.devcontainer
-package-lock.json
-*.md
-*.yaml
-*.yml
-*.txt

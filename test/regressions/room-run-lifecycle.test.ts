@@ -14,7 +14,16 @@ import {
 import { setCurrentMode } from "../../src/card/selection";
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle, MockHass } from "../harness";
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle, useHarnessClock, waitFor, withState } from "../harness";
+import {
+    fixtureConfig,
+    fixtureHass,
+    loadSyntheticFixture,
+    mountCard,
+    settle,
+    useHarnessClock,
+    waitFor,
+    withState,
+} from "../harness";
 
 /**
  * What happens after Start, for every state sequence a vacuum and its integration can produce.
@@ -257,11 +266,20 @@ describe("the run on the map after Start", () => {
         // Another entity changes: Home Assistant pushes a new hass with the vacuum's old report.
         await card.updateHass(withState(card.hass, "sensor.other", { state: "1" }).hass);
         await settle(card.element);
-        await card.updateHass(withState(card.hass, VACUUM, { state: "docked", last_changed: "2026-11-01T10:00:10.000Z", last_updated: "2026-11-01T10:00:10.000Z" }).hass);
+        await card.updateHass(
+            withState(card.hass, VACUUM, {
+                state: "docked",
+                last_changed: "2026-11-01T10:00:10.000Z",
+                last_updated: "2026-11-01T10:00:10.000Z",
+            }).hass,
+        );
         await settle(card.element);
         expect(badges(card)).toEqual({ "2": "1", "0": "2" });
 
-        await card.updateHass(withState(card.hass, VACUUM, { state: "cleaning", last_changed: AFTER_START, last_updated: AFTER_START }).hass);
+        await card.updateHass(
+            withState(card.hass, VACUUM, { state: "cleaning", last_changed: AFTER_START, last_updated: AFTER_START })
+                .hass,
+        );
         await settle(card.element);
         expect(badges(card)).toEqual({ "2": "1", "0": "2" });
         await clickRoom(card, "1");
@@ -317,7 +335,11 @@ describe("the run on the map after Start", () => {
         );
         await settle(card.element);
         await card.updateHass(
-            withState(card.hass, VACUUM, { state: "docked", last_changed: "2026-11-01T10:00:10.000Z", last_updated: "2026-11-01T10:00:10.000Z" }).hass,
+            withState(card.hass, VACUUM, {
+                state: "docked",
+                last_changed: "2026-11-01T10:00:10.000Z",
+                last_updated: "2026-11-01T10:00:10.000Z",
+            }).hass,
         );
         await settle(card.element);
         expect(badges(card)).toEqual({ "2": "1", "0": "2" });
@@ -409,7 +431,11 @@ describe("the run on the map after Start", () => {
         let card!: CardHandle;
         vi.mocked(hass.callService).mockImplementation(async () => {
             await card.updateHass(
-                withState(card.hass, VACUUM, { state: "cleaning", last_changed: AFTER_START, last_updated: AFTER_START }).hass,
+                withState(card.hass, VACUUM, {
+                    state: "cleaning",
+                    last_changed: AFTER_START,
+                    last_updated: AFTER_START,
+                }).hass,
             );
             return undefined;
         });

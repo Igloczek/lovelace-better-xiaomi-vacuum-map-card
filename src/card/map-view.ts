@@ -1,9 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { state } from "lit/decorators";
 import { forwardHaptic } from "custom-card-helpers";
 import type { XiaomiVacuumMapCardConfig } from "../types/types";
 import { CalibrationPoint, CardPresetConfig } from "../types/types";
-import { MAP_ROTATION_SNAP_THRESHOLD, MAP_ROTATION_STEP, MAP_VIEW_ID_ATTRIBUTES, MAP_VIEW_SAVE_DEBOUNCE } from "../const";
+import {
+    MAP_ROTATION_SNAP_THRESHOLD,
+    MAP_ROTATION_STEP,
+    MAP_VIEW_ID_ATTRIBUTES,
+    MAP_VIEW_SAVE_DEBOUNCE,
+} from "../const";
 import {
     fitMapViewToWidth,
     getMapView,
@@ -124,7 +128,7 @@ export function renderMapImage(card: XiaomiVacuumMapCard, transparentBackground:
             if (minimum >= 250 && maximum - minimum <= 6) imageData.data[offset + 3] = 0;
         }
         context.putImageData(imageData, 0, 0);
-    } catch (_error) {
+    } catch {
         // Keep the source map visible if the browser does not allow pixel access.
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.drawImage(image, 0, 0);
@@ -403,21 +407,11 @@ export function getMapViewKey(card: XiaomiVacuumMapCard): string {
     // change the storage key of every existing card, so every user with `persist_map_view`
     // (on by default) would silently lose the view they had saved once after upgrading.
     const mapView = card.config?.map_view;
-    const parts = [
-        getMapViewCardKey(card),
-        card.presetIndex ?? 0,
-        camera || image,
-        getMapViewMapId(card, camera),
-    ];
+    const parts = [getMapViewCardKey(card), card.presetIndex ?? 0, camera || image, getMapViewMapId(card, camera)];
     if (mapView) {
         parts.push(
             hashString(
-                JSON.stringify([
-                    mapView.scale ?? null,
-                    mapView.x ?? null,
-                    mapView.y ?? null,
-                    mapView.rotation ?? null,
-                ]),
+                JSON.stringify([mapView.scale ?? null, mapView.x ?? null, mapView.y ?? null, mapView.rotation ?? null]),
             ),
         );
     }
@@ -474,11 +468,7 @@ export function restoreMapView(card: XiaomiVacuumMapCard): void {
     const sessionStart = card.restoredMapViewKey === undefined;
     card.restoredMapViewKey = key;
     const stored = isMapViewPersistenceEnabled(card) ? getMapView(key) : undefined;
-    const view = resolveMapView(
-        stored,
-        sessionStart ? card.config?.map_view : undefined,
-        getNeutralMapView(card),
-    );
+    const view = resolveMapView(stored, sessionStart ? card.config?.map_view : undefined, getNeutralMapView(card));
     if (!view) {
         // A later key change with nothing stored for it keeps the current view, which is exactly
         // the pre-B9 behaviour when no default is configured.

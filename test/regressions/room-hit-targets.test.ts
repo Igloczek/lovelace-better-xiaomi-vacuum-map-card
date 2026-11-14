@@ -27,7 +27,19 @@ function roomsConfig(): XiaomiVacuumMapCardConfig {
 function detectionOfRoom(id: string): RoomColorDetection {
     return {
         imageData: { width: 200, height: 150, data: new Uint8ClampedArray(200 * 150 * 4) },
-        regions: [{ id, colorKey: 1, center: [50, 45], outline: [[20, 20], [80, 20], [80, 70], [20, 70]] }],
+        regions: [
+            {
+                id,
+                colorKey: 1,
+                center: [50, 45],
+                outline: [
+                    [20, 20],
+                    [80, 20],
+                    [80, 70],
+                    [20, 70],
+                ],
+            },
+        ],
         roomIdByColor: new Map([[1, id]]),
         labels: new Int16Array(200 * 150).fill(-1),
         labelRoomIds: [id],
@@ -64,4 +76,3 @@ describe("room hit targets", () => {
         expect(clickableOutlines(card)).toEqual([]);
     });
 });
-

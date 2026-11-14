@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { svg, SVGTemplateResult } from "lit";
-import { property } from "lit/decorators";
 import { forwardHaptic } from "custom-card-helpers";
 import type { PredefinedPointConfig, RoomConfig } from "../types/types";
 import { PredefinedZoneConfig, VariablesStorage } from "../types/types";
@@ -63,7 +62,12 @@ export function createContext(card: XiaomiVacuumMapCard): Context {
  * user's selection survives: manual shapes stay, predefined objects that still exist keep their
  * selection and its order, and only objects that disappeared leave it.
  */
-export function setCurrentMode(card: XiaomiVacuumMapCard, newModeIndex: number, manual = true, keep?: SelectionSnapshot): void {
+export function setCurrentMode(
+    card: XiaomiVacuumMapCard,
+    newModeIndex: number,
+    manual = true,
+    keep?: SelectionSnapshot,
+): void {
     const newMode = card.modes[newModeIndex];
     const snapshot = keep && keep.selectionType === newMode?.selectionType ? keep : undefined;
     let held: SelectionSnapshot | undefined;
@@ -114,9 +118,7 @@ export function setCurrentMode(card: XiaomiVacuumMapCard, newModeIndex: number, 
             const extractedIds = new Set((extractedRooms ?? []).map(room => String(room.id)));
             const unmappedRooms = configuredRooms.filter(
                 room =>
-                    room?.id !== undefined &&
-                    !extractedIds.has(String(room.id)) &&
-                    !staleRoomIds.has(String(room.id)),
+                    room?.id !== undefined && !extractedIds.has(String(room.id)) && !staleRoomIds.has(String(room.id)),
             );
             const roomConfigs = extractedRooms?.length
                 ? [...extractedRooms, ...unmappedRooms, ...staleRooms]
@@ -132,11 +134,16 @@ export function setCurrentMode(card: XiaomiVacuumMapCard, newModeIndex: number, 
                     ...configured,
                     ...room,
                     icon: configured?.icon
-                        ? { ...configured.icon, x: center?.[0] ?? configured.icon.x, y: center?.[1] ?? configured.icon.y }
+                        ? {
+                              ...configured.icon,
+                              x: center?.[0] ?? configured.icon.x,
+                              y: center?.[1] ?? configured.icon.y,
+                          }
                         : undefined,
-                    label: region && room.label
-                        ? { ...room.label, offset_x: 0, offset_y: 0 }
-                        : room.label ?? configured?.label,
+                    label:
+                        region && room.label
+                            ? { ...room.label, offset_x: 0, offset_y: 0 }
+                            : (room.label ?? configured?.label),
                     variables: configured?.variables,
                     default_state: configured?.default_state,
                     state_entity: configured?.state_entity,
@@ -155,9 +162,7 @@ export function setCurrentMode(card: XiaomiVacuumMapCard, newModeIndex: number, 
             }));
             break;
         case SelectionType.PREDEFINED_POINT:
-            const pointsFromEntities = PredefinedPoint.getFromEntities(newMode, card.hass, () =>
-                createContext(card),
-            );
+            const pointsFromEntities = PredefinedPoint.getFromEntities(newMode, card.hass, () => createContext(card));
             const manualPoints = newMode.predefinedSelections
                 .map(ps => ps as PredefinedPointConfig)
                 .filter(ppc => typeof ppc.position !== "string")
@@ -253,7 +258,8 @@ function getLiveRoomIdsKey(card: XiaomiVacuumMapCard): string | undefined {
  */
 export function updateSelectables(card: XiaomiVacuumMapCard, entitiesChanged: boolean): void {
     const roomsChanged =
-        card._getCurrentMode()?.selectionType === SelectionType.ROOM && getLiveRoomIdsKey(card) !== card.builtRoomIdsKey;
+        card._getCurrentMode()?.selectionType === SelectionType.ROOM &&
+        getLiveRoomIdsKey(card) !== card.builtRoomIdsKey;
     if (entitiesChanged || roomsChanged) rebuildSelection(card);
 }
 
@@ -273,7 +279,10 @@ export function getUsableSelectedRooms(card: XiaomiVacuumMapCard, mode: MapMode)
     });
 }
 
-export function getSelection(card: XiaomiVacuumMapCard, mode: MapMode | undefined): { selection: unknown[]; variables: VariablesStorage } {
+export function getSelection(
+    card: XiaomiVacuumMapCard,
+    mode: MapMode | undefined,
+): { selection: unknown[]; variables: VariablesStorage } {
     if (!mode) {
         return { selection: [], variables: {} };
     }
@@ -300,7 +309,10 @@ export function getSelection(card: XiaomiVacuumMapCard, mode: MapMode | undefine
             const usableRooms = getUsableSelectedRooms(card, mode);
             // `getRoomSelection` also applies REPEAT, so it returns before the generic step below.
             return {
-                selection: mode.getRoomSelection(usableRooms.map(r => r.toVacuum()), card.repeats),
+                selection: mode.getRoomSelection(
+                    usableRooms.map(r => r.toVacuum()),
+                    card.repeats,
+                ),
                 variables: variablesExtractor(usableRooms),
             };
         case SelectionType.MANUAL_PATH:

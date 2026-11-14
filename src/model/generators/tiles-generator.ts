@@ -40,15 +40,11 @@ function isDurationUnit(unit: string): boolean {
  * when the template was written, so a template can carry both and stay correct for unit-less
  * sensors. Without a `multiplier` the value is assumed to be in seconds.
  */
-export function resolveTileMultiplier(
-    tileTemplate: TileTemplate,
-    sourceUnit: string | undefined,
-): number | undefined {
+export function resolveTileMultiplier(tileTemplate: TileTemplate, sourceUnit: string | undefined): number | undefined {
     const target = tileTemplate.duration_unit;
     if (target !== undefined && isDurationUnit(target)) {
-        const source = sourceUnit !== undefined && isDurationUnit(sourceUnit)
-            ? DURATION_UNITS_IN_SECONDS[sourceUnit]
-            : undefined;
+        const source =
+            sourceUnit !== undefined && isDurationUnit(sourceUnit) ? DURATION_UNITS_IN_SECONDS[sourceUnit] : undefined;
         if (source !== undefined) {
             return source / DURATION_UNITS_IN_SECONDS[target];
         }
@@ -59,7 +55,6 @@ export function resolveTileMultiplier(
     }
     return tileTemplate.multiplier ? tileTemplate.multiplier : undefined;
 }
-
 
 class TilesGeneratorContext {
     private readonly _tiles: TileConfig[];
@@ -79,13 +74,15 @@ class TilesGeneratorContext {
             return;
         }
         if (tile.tile_id && this._userDefinedTiles.some(t => t.tile_id === tile.tile_id)) {
-            this._userDefinedTiles.filter(t => t.tile_id === tile.tile_id).forEach(t => {
-                if (t.replace_config) {
-                    this._tiles.push({ ...tile, ...t });
-                } else {
-                    this._tiles.push(t);
-                }
-            });
+            this._userDefinedTiles
+                .filter(t => t.tile_id === tile.tile_id)
+                .forEach(t => {
+                    if (t.replace_config) {
+                        this._tiles.push({ ...tile, ...t });
+                    } else {
+                        this._tiles.push(t);
+                    }
+                });
             return;
         }
         this._tiles.push(tile);
@@ -95,7 +92,6 @@ class TilesGeneratorContext {
         return this._tiles;
     }
 }
-
 
 export class TilesGenerator {
     public static async generate(
@@ -115,7 +111,9 @@ export class TilesGenerator {
         const context = new TilesGeneratorContext(tilesToOverride);
         context.addTiles(TilesGenerator.getCommonTiles(state, vacuumEntity, language));
         context.addTiles(await TilesGenerator.getTilesFromEntities(hass, vacuumEntity, platform, language, variables));
-        context.addTiles(TilesGenerator.getTilesFromAttributes(hass, state, vacuumEntity, platform, language, variables));
+        context.addTiles(
+            TilesGenerator.getTilesFromAttributes(hass, state, vacuumEntity, platform, language, variables),
+        );
         return context.tiles;
     }
 
@@ -217,7 +215,11 @@ export class TilesGenerator {
                     tile: t,
                     entity: entityRegistryEntries.filter(e => String(e.unique_id ?? "").match(t.unique_id_regex)),
                 }))
-                .flatMap(v => v.entity.map(e => TilesGenerator.mapEntryToTile(hass, vacuumEntityId, e, v.tile, language, variables)))
+                .flatMap(v =>
+                    v.entity.map(e =>
+                        TilesGenerator.mapEntryToTile(hass, vacuumEntityId, e, v.tile, language, variables),
+                    ),
+                );
         }
         return [];
     }
@@ -301,9 +303,7 @@ export class TilesGenerator {
     ): number | undefined {
         // Attribute-based tiles show an attribute value, so the entity's own unit says nothing
         // about it; they keep the seconds assumption.
-        const sourceUnit = attribute === undefined
-            ? hass.states[entity_id]?.attributes.unit_of_measurement
-            : undefined;
+        const sourceUnit = attribute === undefined ? hass.states[entity_id]?.attributes.unit_of_measurement : undefined;
         return resolveTileMultiplier(tileTemplate, sourceUnit);
     }
 
@@ -312,9 +312,9 @@ export class TilesGenerator {
         tile: TileConfig,
         language: Language,
         entity_id: string,
-        attribute: string | undefined) {
-        if (tile.label !== undefined)
-            return localize(tile.label, language);
+        attribute: string | undefined,
+    ) {
+        if (tile.label !== undefined) return localize(tile.label, language);
         if (attribute !== undefined)
             return computeAttributeNameDisplay(hass.localize, hass.states[entity_id], hass.entities, attribute);
         return computeEntityName(hass, hass.states[entity_id]) ?? entity_id;
@@ -357,15 +357,11 @@ export class TilesGenerator {
         defaultVariables[TemplatableItemValue.ATTRIBUTE] = attribute ?? "";
         return defaultVariables;
     }
-
 }
 
 export function sortTiles(t1: TileConfig, t2: TileConfig): number {
-    if (t1.order === undefined && t2.order === undefined)
-        return 0;
-    if (t1.order === undefined)
-        return 1;
-    if (t2.order === undefined)
-        return -1;
+    if (t1.order === undefined && t2.order === undefined) return 0;
+    if (t1.order === undefined) return 1;
+    if (t2.order === undefined) return -1;
     return t1.order - t2.order;
 }

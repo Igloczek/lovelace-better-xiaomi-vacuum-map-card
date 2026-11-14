@@ -34,17 +34,17 @@ export function findCards(node, path = [], out = []) {
 }
 
 export async function collectRaw(call) {
-    const attempt = async (msg) => {
+    const attempt = async msg => {
         try {
             return await call(msg);
         } catch (e) {
             return { __error: String(e?.message ?? e?.code ?? e) };
         }
     };
-    const ok = (v) => v && !v.__error;
+    const ok = v => v && !v.__error;
 
     const dashboards = await attempt({ type: "lovelace/dashboards/list" });
-    const urlPaths = [null, ...(Array.isArray(dashboards) ? dashboards.map((d) => d.url_path) : [])];
+    const urlPaths = [null, ...(Array.isArray(dashboards) ? dashboards.map(d => d.url_path) : [])];
     const cards = [];
     for (const url_path of urlPaths) {
         const config = await attempt({ type: "lovelace/config", url_path, force: false });
@@ -56,13 +56,14 @@ export async function collectRaw(call) {
     const entityRegistry = await attempt({ type: "config/entity_registry/list" });
     const platforms = new Set();
     if (Array.isArray(entityRegistry)) {
-        const referenced = new Set(cards.flatMap((c) => referencedEntityIds(c.config)));
+        const referenced = new Set(cards.flatMap(c => referencedEntityIds(c.config)));
         for (const e of entityRegistry) if (referenced.has(e.entity_id)) platforms.add(e.platform);
     }
     const manifests = {};
     for (const domain of platforms) {
         const manifest = await attempt({ type: "manifest/get", integration: domain });
-        if (ok(manifest)) manifests[domain] = { version: manifest.version ?? null, is_built_in: manifest.is_built_in ?? null };
+        if (ok(manifest))
+            manifests[domain] = { version: manifest.version ?? null, is_built_in: manifest.is_built_in ?? null };
     }
 
     return {
@@ -83,9 +84,9 @@ export function referencedEntityIds(value, out = new Set()) {
     if (typeof value === "string") {
         for (const m of value.matchAll(ENTITY_ID)) out.add(m[0]);
     } else if (Array.isArray(value)) {
-        value.forEach((v) => referencedEntityIds(v, out));
+        value.forEach(v => referencedEntityIds(v, out));
     } else if (value && typeof value === "object") {
-        Object.values(value).forEach((v) => referencedEntityIds(v, out));
+        Object.values(value).forEach(v => referencedEntityIds(v, out));
     }
     return out;
 }
@@ -99,35 +100,35 @@ export function cardVersionFromBundle(js) {
 // Report building: select only what the card reads, then redact
 // ---------------------------------------------------------------------------------------------
 
-const asArray = (v) => (Array.isArray(v) ? v : []);
+const asArray = v => (Array.isArray(v) ? v : []);
 
 export function buildReport(raw, opts = {}) {
     const cards = asArray(raw.cards);
     const card =
-        (opts.entity && cards.find((c) => c.config?.entity === opts.entity)) ||
+        (opts.entity && cards.find(c => c.config?.entity === opts.entity)) ||
         (Number.isInteger(opts.card) ? cards[opts.card] : undefined) ||
         cards[0];
     const states = asArray(raw.states);
     const registry = asArray(raw.entity_registry);
     const devices = asArray(raw.device_registry);
-    const stateIds = new Set(states.map((s) => s.entity_id));
+    const stateIds = new Set(states.map(s => s.entity_id));
 
     const config = card?.config ?? {};
     const vacuumId = config.entity ?? null;
     const cameraId = config.map_source?.camera ?? null;
-    const regById = new Map(registry.map((e) => [e.entity_id, e]));
-    const deviceIds = new Set([vacuumId, cameraId].map((id) => regById.get(id)?.device_id).filter(Boolean));
+    const regById = new Map(registry.map(e => [e.entity_id, e]));
+    const deviceIds = new Set([vacuumId, cameraId].map(id => regById.get(id)?.device_id).filter(Boolean));
 
-    const relevant = new Set([...referencedEntityIds(config)].filter((id) => stateIds.has(id) || regById.has(id)));
+    const relevant = new Set([...referencedEntityIds(config)].filter(id => stateIds.has(id) || regById.has(id)));
     for (const e of registry) if (deviceIds.has(e.device_id)) relevant.add(e.entity_id);
 
-    const camera = states.find((s) => s.entity_id === cameraId);
+    const camera = states.find(s => s.entity_id === cameraId);
     const cameraAttrs = camera?.attributes ?? {};
-    const resource = asArray(raw.resources).find((r) => /xiaomi-vacuum-map-card/.test(r.url ?? ""));
+    const resource = asArray(raw.resources).find(r => /xiaomi-vacuum-map-card/.test(r.url ?? ""));
     const vacuumPlatform = regById.get(vacuumId)?.platform ?? null;
     const cameraPlatform = regById.get(cameraId)?.platform ?? null;
     const manifests = raw.manifests ?? {};
-    const vacuumDevice = devices.find((d) => d.id === regById.get(vacuumId)?.device_id);
+    const vacuumDevice = devices.find(d => d.id === regById.get(vacuumId)?.device_id);
 
     const report = {
         schema_version: SCHEMA_VERSION,
@@ -171,12 +172,25 @@ export function buildReport(raw, opts = {}) {
         card_config: config,
         camera_attributes: cameraAttrs,
         states: Object.fromEntries(
-            states.filter((s) => relevant.has(s.entity_id)).map((s) => [s.entity_id, { state: s.state, attributes: s.attributes }]),
+            states
+                .filter(s => relevant.has(s.entity_id))
+                .map(s => [s.entity_id, { state: s.state, attributes: s.attributes }]),
         ),
-        registry: registry.filter((e) => relevant.has(e.entity_id)).map(pickRegistry),
-        devices: devices.filter((d) => deviceIds.has(d.id)).map(pickDevice),
-        logs: { ha: pickLogs(raw.system_log, [vacuumPlatform, cameraPlatform]), browser_console: opts.browserConsole ?? [] },
-        problem: { summary: "", expected: "", actual: "", reproduction: [], diagnosis: "", workaround: "", related: [] },
+        registry: registry.filter(e => relevant.has(e.entity_id)).map(pickRegistry),
+        devices: devices.filter(d => deviceIds.has(d.id)).map(pickDevice),
+        logs: {
+            ha: pickLogs(raw.system_log, [vacuumPlatform, cameraPlatform]),
+            browser_console: opts.browserConsole ?? [],
+        },
+        problem: {
+            summary: "",
+            expected: "",
+            actual: "",
+            reproduction: [],
+            diagnosis: "",
+            workaround: "",
+            related: [],
+        },
         testability: "needs-fixture",
         redactions: [],
         collection_errors: Object.entries(raw)
@@ -216,21 +230,31 @@ function pickDevice(d) {
 
 function pickLogs(log, platforms) {
     const words = ["xiaomi", "vacuum", "map-card", "map_card", "camera", ...platforms.filter(Boolean)];
-    const match = (e) => {
-        const text = [e.name, e.source, ...(Array.isArray(e.message) ? e.message : [e.message])].join(" ").toLowerCase();
-        return words.some((w) => text.includes(String(w).toLowerCase()));
+    const match = e => {
+        const text = [e.name, e.source, ...(Array.isArray(e.message) ? e.message : [e.message])]
+            .join(" ")
+            .toLowerCase();
+        return words.some(w => text.includes(String(w).toLowerCase()));
     };
     return asArray(log)
         .filter(match)
         .slice(0, LOG_LIMIT)
-        .map((e) => ({ level: e.level, name: e.name, message: e.message, source: e.source, count: e.count, first_occurred: e.first_occurred }));
+        .map(e => ({
+            level: e.level,
+            name: e.name,
+            message: e.message,
+            source: e.source,
+            count: e.count,
+            first_occurred: e.first_occurred,
+        }));
 }
 
 // ---------------------------------------------------------------------------------------------
 // Redaction
 // ---------------------------------------------------------------------------------------------
 
-const DROP_KEYS = /^(access_token|token|refresh_token|password|passwd|secret|api_key|apikey|auth|authorization|cookie|serial|serial_number|sn|mac|mac_address|bssid|ssid|wifi_ssid|ip|ip_address|local_ip|host|email|latitude|longitude|location|address|identifiers|connections|external_url|internal_url|webhook_id|cloudhook_url)$/i;
+const DROP_KEYS =
+    /^(access_token|token|refresh_token|password|passwd|secret|api_key|apikey|auth|authorization|cookie|serial|serial_number|sn|mac|mac_address|bssid|ssid|wifi_ssid|ip|ip_address|local_ip|host|email|latitude|longitude|location|address|identifiers|connections|external_url|internal_url|webhook_id|cloudhook_url)$/i;
 
 // High-confidence secret patterns. These run on everything, including issue bodies in CI.
 const SECRET_PATTERNS = [
@@ -276,7 +300,7 @@ function scrubString(s, tally) {
 // Device-specific chunks inside unique_id values (serials, DUIDs, MAC-derived hex). The word
 // fragments platform templates match (`_battery_level`, `clean_mode_`) survive.
 function scrubUniqueId(id, aliases) {
-    return String(id ?? "").replace(/[0-9A-Fa-f]{2}(?:[:-]?[0-9A-Fa-f]{2}){5,}|[0-9A-Za-z]{12,}|\d{6,}/g, (chunk) => {
+    return String(id ?? "").replace(/[0-9A-Fa-f]{2}(?:[:-]?[0-9A-Fa-f]{2}){5,}|[0-9A-Za-z]{12,}|\d{6,}/g, chunk => {
         if (!/\d/.test(chunk)) return chunk;
         if (!aliases.has(chunk)) aliases.set(chunk, `ID${aliases.size + 1}`);
         return aliases.get(chunk);
@@ -310,7 +334,7 @@ export function redactReport(report) {
     for (const d of report.devices) deviceAliases.set(d.id, `device_${deviceAliases.size + 1}`);
 
     const ids = [...entityAliases.keys()].sort((a, b) => b.length - a.length);
-    const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const entityRe = ids.length ? new RegExp(`(?<![a-z0-9_.])(${ids.map(escape).join("|")})(?![a-z0-9_])`, "g") : null;
 
     const walk = (value, key) => {
@@ -320,7 +344,7 @@ export function redactReport(report) {
         }
         if (key === "entity_picture" && typeof value === "string") {
             tally["entity_picture"] = (tally["entity_picture"] ?? 0) + 1;
-            return value.split("?")[0].replace(entityRe ?? /$^/, (m) => entityAliases.get(m)) + "?<redacted>";
+            return value.split("?")[0].replace(entityRe ?? /$^/, m => entityAliases.get(m)) + "?<redacted>";
         }
         if (key === "friendly_name" && typeof value === "string") {
             tally["friendly_name"] = (tally["friendly_name"] ?? 0) + 1;
@@ -329,14 +353,14 @@ export function redactReport(report) {
         if (key === "unique_id" && typeof value === "string") return scrubUniqueId(value, idAliases);
         if ((key === "device_id" || key === "id") && deviceAliases.has(value)) return deviceAliases.get(value);
         if (typeof value === "string") {
-            const aliased = entityRe ? value.replace(entityRe, (m) => entityAliases.get(m)) : value;
+            const aliased = entityRe ? value.replace(entityRe, m => entityAliases.get(m)) : value;
             return scrubString(aliased, tally);
         }
-        if (Array.isArray(value)) return value.map((v) => walk(v));
+        if (Array.isArray(value)) return value.map(v => walk(v));
         if (value && typeof value === "object") {
             return Object.fromEntries(
                 Object.entries(value).map(([k, v]) => {
-                    const newKey = entityRe && /\./.test(k) ? k.replace(entityRe, (m) => entityAliases.get(m)) : k;
+                    const newKey = entityRe && /\./.test(k) ? k.replace(entityRe, m => entityAliases.get(m)) : k;
                     return [newKey, walk(v, k)];
                 }),
             );
@@ -374,17 +398,22 @@ export const REQUIRED_FIELDS = [
 ];
 
 const get = (obj, path) => path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
-const isBlank = (v) =>
-    v === undefined || v === null || v === "" || v === "unknown" ||
+const isBlank = v =>
+    v === undefined ||
+    v === null ||
+    v === "" ||
+    v === "unknown" ||
     (Array.isArray(v) && v.length === 0) ||
     (typeof v === "object" && !Array.isArray(v) && Object.keys(v).length === 0);
 
 export function missingFields(report) {
-    return REQUIRED_FIELDS.filter((path) => isBlank(get(report, path)));
+    return REQUIRED_FIELDS.filter(path => isBlank(get(report, path)));
 }
 
 export function issueTitle(report) {
-    const summary = String(report.problem?.summary ?? "").split(/[.\n]/)[0].trim();
+    const summary = String(report.problem?.summary ?? "")
+        .split(/[.\n]/)[0]
+        .trim();
     const where = [report.vacuum?.integration, report.card?.version].filter(Boolean).join(", ");
     return `${summary || "Card problem"}${where ? ` (${where})` : ""}`.slice(0, 120);
 }
@@ -395,7 +424,7 @@ export const BODY_LIMIT = 60000;
 
 function trimArrays(value, max) {
     if (Array.isArray(value)) {
-        const items = value.slice(0, max).map((v) => trimArrays(v, max));
+        const items = value.slice(0, max).map(v => trimArrays(v, max));
         return value.length > max ? [...items, `… ${value.length - max} more trimmed`] : items;
     }
     if (value && typeof value === "object") {
@@ -405,11 +434,15 @@ function trimArrays(value, max) {
 }
 
 export function fitReport(report, limit = BODY_LIMIT) {
-    const size = (r) => renderIssueBodyUnfitted(r).length;
+    const size = r => renderIssueBodyUnfitted(r).length;
     if (size(report) <= limit) return report;
     let r = { ...report, redactions: [...(report.redactions ?? [])] };
     for (const max of [50, 10, 3]) {
-        r = { ...r, camera_attributes: trimArrays(report.camera_attributes, max), states: trimArrays(report.states, max) };
+        r = {
+            ...r,
+            camera_attributes: trimArrays(report.camera_attributes, max),
+            states: trimArrays(report.states, max),
+        };
         if (size(r) <= limit) return { ...r, redactions: [...r.redactions, `long arrays trimmed to ${max} items`] };
     }
     r = {
@@ -418,7 +451,11 @@ export function fitReport(report, limit = BODY_LIMIT) {
         redactions: [...r.redactions, "state attributes dropped for size"],
     };
     if (size(r) <= limit) return r;
-    return { ...r, camera_attributes: { __trimmed: "too large for an issue body" }, redactions: [...r.redactions, "camera attributes dropped for size"] };
+    return {
+        ...r,
+        camera_attributes: { __trimmed: "too large for an issue body" },
+        redactions: [...r.redactions, "camera attributes dropped for size"],
+    };
 }
 
 export function renderIssueBody(report) {
@@ -442,7 +479,9 @@ function renderIssueBodyUnfitted(report) {
         p.actual || "_missing_",
         "",
         "## Reproduction",
-        ...(Array.isArray(p.reproduction) && p.reproduction.length ? p.reproduction.map((s, i) => `${i + 1}. ${s}`) : ["_missing_"]),
+        ...(Array.isArray(p.reproduction) && p.reproduction.length
+            ? p.reproduction.map((s, i) => `${i + 1}. ${s}`)
+            : ["_missing_"]),
         "",
         "## Environment",
         "| | |",
@@ -457,7 +496,7 @@ function renderIssueBodyUnfitted(report) {
     ];
     if (p.diagnosis) lines.push("## Diagnosis", p.diagnosis, "");
     if (p.workaround) lines.push("## Workaround", p.workaround, "");
-    if (Array.isArray(p.related) && p.related.length) lines.push("## Related", ...p.related.map((r) => `- ${r}`), "");
+    if (Array.isArray(p.related) && p.related.length) lines.push("## Related", ...p.related.map(r => `- ${r}`), "");
     lines.push(
         "## Redactions",
         (report.redactions ?? []).join(" · ") || "none",

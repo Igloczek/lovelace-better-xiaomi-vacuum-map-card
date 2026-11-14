@@ -16,7 +16,9 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
         target.evaluate(element => {
             const wrappers = [...element.shadowRoot.querySelectorAll(".room-wrapper")];
             return {
-                ids: wrappers.map(wrapper => (wrapper.getAttribute("class") ?? "").match(/room-([\w-]+)-wrapper/)?.[1] ?? ""),
+                ids: wrappers.map(
+                    wrapper => (wrapper.getAttribute("class") ?? "").match(/room-([\w-]+)-wrapper/)?.[1] ?? "",
+                ),
                 stale: wrappers.filter(wrapper => wrapper.classList.contains("room-stale")).length,
                 warning: (element.shadowRoot.querySelector(".room-config-warning")?.textContent ?? "").trim(),
             };
@@ -53,14 +55,22 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
                 point.y = points.getItem(index).y;
                 screen.push(point.matrixTransform(matrix));
             }
-            const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), { x: 0, y: 0 });
+            const centre = screen.reduce(
+                (acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }),
+                { x: 0, y: 0 },
+            );
             const vertex = screen[0];
             return { x: centre.x + (vertex.x - centre.x) * 0.6, y: centre.y + (vertex.y - centre.y) * 0.6 };
         });
         expect(stalePoint).not.toBeNull();
         await page.mouse.click(stalePoint!.x, stalePoint!.y);
         await expect
-            .poll(async () => (await target.evaluate(element => element.selectedRooms.map((room: any) => String(room.toVacuum())))) as string[])
+            .poll(
+                async () =>
+                    (await target.evaluate(element =>
+                        element.selectedRooms.map((room: any) => String(room.toVacuum())),
+                    )) as string[],
+            )
             .not.toContain("0");
         await shot(page, "15-stale-rooms");
 
@@ -86,14 +96,22 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
                 point.y = points.getItem(index).y;
                 screen.push(point.matrixTransform(matrix));
             }
-            const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), { x: 0, y: 0 });
+            const centre = screen.reduce(
+                (acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }),
+                { x: 0, y: 0 },
+            );
             const vertex = screen[0];
             return { x: centre.x + (vertex.x - centre.x) * 0.6, y: centre.y + (vertex.y - centre.y) * 0.6 };
         });
         expect(livePoint, "the re-mapped room 7 must be live").not.toBeNull();
         await page.mouse.click(livePoint!.x, livePoint!.y);
         await expect
-            .poll(async () => (await target.evaluate(element => element.selectedRooms.map((room: any) => String(room.toVacuum())))) as string[])
+            .poll(
+                async () =>
+                    (await target.evaluate(element =>
+                        element.selectedRooms.map((room: any) => String(room.toVacuum())),
+                    )) as string[],
+            )
             .toEqual(["7"]);
     } finally {
         // Always restore the fixture: a failure above must not renumber the camera for later specs.

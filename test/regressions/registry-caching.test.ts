@@ -117,9 +117,7 @@ describe("registry lookup payload (#864)", () => {
 
         const entries = await getAllEntitiesFromTheSameDevice(hass, VACUUM);
 
-        expect(
-            wsMessages(hass, "config/entity_registry/get_entries")[0].entity_ids,
-        ).toContain(DISABLED_SENSOR);
+        expect(wsMessages(hass, "config/entity_registry/get_entries")[0].entity_ids).toContain(DISABLED_SENSOR);
         expect(entries.some(entry => entry.entity_id === DISABLED_SENSOR)).toBe(false);
         expect(entries.map(entry => entry.entity_id)).toEqual(
             deviceEntityIds(hass, DEVICE).filter(entityId => entityId !== DISABLED_SENSOR),

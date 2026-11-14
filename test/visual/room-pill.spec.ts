@@ -41,7 +41,10 @@ const DARK_THEME = `
 
 type Theme = "light" | "dark";
 
-function config(mode: Partial<MapModeConfig>, overrides: Partial<XiaomiVacuumMapCardConfig> = {}): XiaomiVacuumMapCardConfig {
+function config(
+    mode: Partial<MapModeConfig>,
+    overrides: Partial<XiaomiVacuumMapCardConfig> = {},
+): XiaomiVacuumMapCardConfig {
     return {
         type: "custom:xiaomi-vacuum-map-card",
         entity: "vacuum.roborock_s7",
@@ -58,7 +61,9 @@ function config(mode: Partial<MapModeConfig>, overrides: Partial<XiaomiVacuumMap
 
 async function open(page: Page, theme: Theme, cardConfig: XiaomiVacuumMapCardConfig): Promise<void> {
     await page.goto("/");
-    await page.waitForFunction(() => (window as unknown as { visualHarness?: { ready: boolean } }).visualHarness?.ready);
+    await page.waitForFunction(
+        () => (window as unknown as { visualHarness?: { ready: boolean } }).visualHarness?.ready,
+    );
     if (theme === "dark") await page.addStyleTag({ content: DARK_THEME });
     await page.evaluate(input => (window as unknown as VisualWindow).visualHarness.mount(input), cardConfig);
     await expect(page.locator(CARD)).toBeVisible();
@@ -66,7 +71,10 @@ async function open(page: Page, theme: Theme, cardConfig: XiaomiVacuumMapCardCon
 
 async function select(page: Page, ids: string[]): Promise<void> {
     for (const id of ids) {
-        const point = await page.evaluate(roomId => (window as unknown as VisualWindow).visualHarness.roomPoint(roomId, 0.25, 0.5), id);
+        const point = await page.evaluate(
+            roomId => (window as unknown as VisualWindow).visualHarness.roomPoint(roomId, 0.25, 0.5),
+            id,
+        );
         await page.mouse.click(point.x, point.y);
     }
     await expect
@@ -163,7 +171,9 @@ for (const theme of ["light", "dark"] as const) {
                 const label = `${theme}, zoom ${zoom}, rotation ${rotation}`;
                 await open(page, theme, config({ cleaning_order: true }, { map_rotation: rotation }));
                 if (zoom !== 1) {
-                    const anchor = await page.evaluate(() => (window as unknown as VisualWindow).visualHarness.roomAnchor("1"));
+                    const anchor = await page.evaluate(() =>
+                        (window as unknown as VisualWindow).visualHarness.roomAnchor("1"),
+                    );
                     const result = await page.evaluate(
                         input => (window as unknown as VisualWindow).visualHarness.setZoom(input.zoom, input.anchor),
                         { zoom, anchor },
@@ -176,7 +186,8 @@ for (const theme of ["light", "dark"] as const) {
 
                 await expect(page.locator(`${CARD} .room-1-wrapper .room-pill .room-order`)).toHaveText("1");
                 await expect(page.locator(`${CARD} .room-1-wrapper .room-pill-name`)).toHaveText("Living room");
-                if (zoom === 1) await expect(page.locator(`${CARD} .room-2-wrapper .room-pill .room-order`)).toHaveText("2");
+                if (zoom === 1)
+                    await expect(page.locator(`${CARD} .room-2-wrapper .room-pill .room-order`)).toHaveText("2");
                 await expect(page.locator(`${CARD} .room-1-wrapper text.room-label`)).toHaveCount(0);
                 await expect(page.locator(`${CARD} .room-0-wrapper text.room-label`)).toHaveText("Kitchen");
 
@@ -202,7 +213,9 @@ for (const theme of ["light", "dark"] as const) {
                 const tipY = pill.box.y + pill.box.height + 5;
                 expect(Math.abs(tipY - anchor.y), `${label}: pointer tip on the anchor`).toBeLessThanOrEqual(1.5);
 
-                await expect(page.locator(CARD)).toHaveScreenshot(`room-pill-${theme}-zoom-${zoom}-rotation-${rotation}.png`);
+                await expect(page.locator(CARD)).toHaveScreenshot(
+                    `room-pill-${theme}-zoom-${zoom}-rotation-${rotation}.png`,
+                );
             }
         }
     });
@@ -223,10 +236,7 @@ test("the pill stays readable on a dark dashboard with transparent_background", 
     await open(
         page,
         "dark",
-        config(
-            { cleaning_order: true },
-            { map_source: { camera: "camera.vacuum_map", transparent_background: true } },
-        ),
+        config({ cleaning_order: true }, { map_source: { camera: "camera.vacuum_map", transparent_background: true } }),
     );
     await select(page, ["1"]);
     expectReadable(await measurePill(page, "1"), "dark + transparent_background");

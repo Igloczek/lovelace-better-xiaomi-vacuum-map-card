@@ -37,7 +37,10 @@ function findGenerateButton(root: ShadowRoot): HTMLElement {
     return button as HTMLElement;
 }
 
-async function generateRooms(editor: { element: { updateComplete?: Promise<unknown> }; shadowRoot: ShadowRoot }): Promise<void> {
+async function generateRooms(editor: {
+    element: { updateComplete?: Promise<unknown> };
+    shadowRoot: ShadowRoot;
+}): Promise<void> {
     findGenerateButton(editor.shadowRoot).click();
     await settle(editor.element);
 }
@@ -79,9 +82,9 @@ describe("editor room-config generation is idempotent", () => {
             expect(templatesOf(changed)).toEqual([...defaults, roomsTemplate]);
             const roomModes = (changed.map_modes ?? []).filter(mode => mode.template === roomsTemplate);
             expect(roomModes).toHaveLength(1);
-            expect((roomModes[0].predefined_selections ?? []).map(selection => String((selection as RoomConfig).id))).toEqual(
-                ["0", "1", "2"],
-            );
+            expect(
+                (roomModes[0].predefined_selections ?? []).map(selection => String((selection as RoomConfig).id)),
+            ).toEqual(["0", "1", "2"]);
         }
     });
 
@@ -91,7 +94,8 @@ describe("editor room-config generation is idempotent", () => {
         const baseConfig = fixtureConfig(fixture);
         const roomsTemplate = PlatformGenerator.getRoomsTemplate(baseConfig.vacuum_platform as string);
         expect(roomsTemplate).toBeDefined();
-        const defaultTemplate = PlatformGenerator.generateDefaultModes(baseConfig.vacuum_platform as string)[0].template;
+        const defaultTemplate = PlatformGenerator.generateDefaultModes(baseConfig.vacuum_platform as string)[0]
+            .template;
 
         const modes: MapModeConfig[] = [
             { template: defaultTemplate },
@@ -124,7 +128,8 @@ describe("editor room-config generation is idempotent", () => {
         const baseConfig = fixtureConfig(fixture);
         const roomsTemplate = PlatformGenerator.getRoomsTemplate(baseConfig.vacuum_platform as string);
         expect(roomsTemplate).toBeDefined();
-        const defaultTemplate = PlatformGenerator.generateDefaultModes(baseConfig.vacuum_platform as string)[0].template;
+        const defaultTemplate = PlatformGenerator.generateDefaultModes(baseConfig.vacuum_platform as string)[0]
+            .template;
 
         // The card reports index 0, which is a cleaning mode here, not the ROOM mode it meant.
         const config: XiaomiVacuumMapCardConfig = { ...baseConfig, map_modes: [{ template: defaultTemplate }] };
@@ -151,7 +156,8 @@ describe("editor room-config generation is idempotent", () => {
         const baseConfig = fixtureConfig(fixture);
         const roomsTemplate = PlatformGenerator.getRoomsTemplate(baseConfig.vacuum_platform as string);
         expect(roomsTemplate).toBeDefined();
-        const defaultTemplate = PlatformGenerator.generateDefaultModes(baseConfig.vacuum_platform as string)[0].template;
+        const defaultTemplate = PlatformGenerator.generateDefaultModes(baseConfig.vacuum_platform as string)[0]
+            .template;
 
         const config: XiaomiVacuumMapCardConfig = {
             ...baseConfig,

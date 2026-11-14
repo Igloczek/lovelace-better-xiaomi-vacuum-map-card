@@ -28,7 +28,10 @@ test("the card picker stub is built from the real hass", async ({ loggedIn: page
             ...hass,
             states: {
                 ...hass.states,
-                "camera.vacuum_map": { ...camera, attributes: { ...camera.attributes, calibration_points: calibration } },
+                "camera.vacuum_map": {
+                    ...camera,
+                    attributes: { ...camera.attributes, calibration_points: calibration },
+                },
             },
         };
         return { withoutCalibration, stub: Card.getStubConfig(calibrated) };
@@ -80,7 +83,9 @@ test("malformed YAML shows Home Assistant's error card with the field", async ({
         document.body.appendChild(element);
         await new Promise(resolve => setTimeout(resolve, 500));
         const errorCard = element.shadowRoot?.querySelector("hui-error-card");
-        const text = errorCard ? `${errorCard.shadowRoot?.textContent ?? ""} ${JSON.stringify(errorCard._config ?? {})}` : "";
+        const text = errorCard
+            ? `${errorCard.shadowRoot?.textContent ?? ""} ${JSON.stringify(errorCard._config ?? {})}`
+            : "";
         element.remove();
         return { hasErrorCard: !!errorCard, text };
     });

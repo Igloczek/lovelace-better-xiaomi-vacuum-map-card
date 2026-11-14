@@ -1,15 +1,6 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-    // The source imports extensionless Lit subpaths (`lit/decorators`). Rollup resolves them, but
-    // Vite enforces package "exports", so point the three used subpaths at their real files.
-    resolve: {
-        alias: [
-            { find: /^lit\/decorators$/, replacement: "lit/decorators.js" },
-            { find: /^lit\/directive$/, replacement: "lit/directive.js" },
-            { find: /^lit\/directives\/if-defined$/, replacement: "lit/directives/if-defined.js" },
-        ],
-    },
     test: {
         environment: "happy-dom",
         include: ["test/**/*.test.ts"],

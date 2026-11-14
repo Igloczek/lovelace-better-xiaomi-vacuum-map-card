@@ -37,7 +37,13 @@ export function parseCssColor(value: string | undefined): Rgb | undefined {
     if (text in NAMED) return [...NAMED[text]] as Rgb;
     const hex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/.exec(text);
     if (hex) {
-        const digits = hex[1].length === 3 ? hex[1].split("").map(d => d + d).join("") : hex[1].slice(0, 6);
+        const digits =
+            hex[1].length === 3
+                ? hex[1]
+                      .split("")
+                      .map(d => d + d)
+                      .join("")
+                : hex[1].slice(0, 6);
         return [0, 2, 4].map(i => parseInt(digits.slice(i, i + 2), 16)) as Rgb;
     }
     const rgb = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*[\d.]+%?\s*)?\)$/.exec(text);

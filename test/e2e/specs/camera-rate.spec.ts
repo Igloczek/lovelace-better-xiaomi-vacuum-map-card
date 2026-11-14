@@ -1,4 +1,16 @@
-import { expect, openDashboard, card, bumpCamera, cameraRequests, resetCamera, resetCameraRequests, serviceCall, shot, test, waitForCard } from "./helpers";
+import {
+    expect,
+    openDashboard,
+    card,
+    bumpCamera,
+    cameraRequests,
+    resetCamera,
+    resetCameraRequests,
+    serviceCall,
+    shot,
+    test,
+    waitForCard,
+} from "./helpers";
 
 /**
  * Camera request rate on the real instance with a controllable camera.
@@ -11,10 +23,12 @@ test("camera requests follow the refresh policy on a real instance", async ({ lo
     await waitForCard(page);
     const target = await card(page);
     await expect
-        .poll(async () => target.evaluate(element => {
-            const image = element.shadowRoot.getElementById("map-image-source") as HTMLImageElement;
-            return image?.complete && image.naturalWidth > 0;
-        }))
+        .poll(async () =>
+            target.evaluate(element => {
+                const image = element.shadowRoot.getElementById("map-image-source") as HTMLImageElement;
+                return image?.complete && image.naturalWidth > 0;
+            }),
+        )
         .toBe(true);
 
     await resetCamera(page);
@@ -22,7 +36,9 @@ test("camera requests follow the refresh policy on a real instance", async ({ lo
 
     // Real vacuum state changes re-render the card; they must not ask for a new snapshot.
     for (let index = 0; index < 6; index++) {
-        await serviceCall("vacuum", index % 2 === 0 ? "start" : "stop", { entity_id: "vacuum.demo_vacuum_0_ground_floor" });
+        await serviceCall("vacuum", index % 2 === 0 ? "start" : "stop", {
+            entity_id: "vacuum.demo_vacuum_0_ground_floor",
+        });
         await page.waitForTimeout(200);
     }
     // The policy reloads on a camera change or once per 5 s window, so a burst of ordinary entity
@@ -36,7 +52,9 @@ test("camera requests follow the refresh policy on a real instance", async ({ lo
     // per interval (about two), never one per update.
     await resetCameraRequests(page);
     for (let index = 0; index < 24; index++) {
-        await serviceCall("vacuum", index % 2 === 0 ? "start" : "stop", { entity_id: "vacuum.demo_vacuum_0_ground_floor" });
+        await serviceCall("vacuum", index % 2 === 0 ? "start" : "stop", {
+            entity_id: "vacuum.demo_vacuum_0_ground_floor",
+        });
         await page.waitForTimeout(500);
     }
     const intervalCount = (await cameraRequests(page)).total ?? 0;
@@ -69,7 +87,9 @@ test("camera requests follow the refresh policy on a real instance", async ({ lo
         Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
         document.dispatchEvent(new Event("visibilitychange"));
     });
-    await expect.poll(async () => ((await cameraRequests(page)).total ?? 0) - hiddenBefore, { timeout: 10_000 }).toBe(1);
+    await expect
+        .poll(async () => ((await cameraRequests(page)).total ?? 0) - hiddenBefore, { timeout: 10_000 })
+        .toBe(1);
 
     await shot(page, "11-camera-rate");
 });

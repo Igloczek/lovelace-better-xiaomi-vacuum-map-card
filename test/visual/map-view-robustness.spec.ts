@@ -459,7 +459,17 @@ test.describe("touch gestures", () => {
 
         await touchGesture(page, drag([centre], 80, 40));
         await touchGesture(page, twist(centre, 70, 60));
-        await touchGesture(page, drag([{ x: centre.x - 40, y: centre.y }, { x: centre.x + 40, y: centre.y }], 60, 0));
+        await touchGesture(
+            page,
+            drag(
+                [
+                    { x: centre.x - 40, y: centre.y },
+                    { x: centre.x + 40, y: centre.y },
+                ],
+                60,
+                0,
+            ),
+        );
 
         expect(await transformOf(page)).toBe(before);
         expect((await cardState(page)).mapRotation).toBe(0);
@@ -475,7 +485,17 @@ test.describe("touch gestures", () => {
         await touchGesture(page, drag([centre], 60, 0));
         expectCentre(await viewCentre(page), before, "after a one-finger drag");
 
-        await touchGesture(page, drag([{ x: centre.x - 40, y: centre.y }, { x: centre.x + 40, y: centre.y }], 60, 0));
+        await touchGesture(
+            page,
+            drag(
+                [
+                    { x: centre.x - 40, y: centre.y },
+                    { x: centre.x + 40, y: centre.y },
+                ],
+                60,
+                0,
+            ),
+        );
         const after = await viewCentre(page);
         // Dragging right by 60 px at zoom 2 moves the view 30 content px left: 7.5 % of 400 px.
         expect(before.x - after.x).toBeGreaterThan(0.05);
@@ -572,7 +592,9 @@ test.describe("horizontal layout at phone widths", () => {
                 };
             });
             expect(metrics.pageScroll, "no horizontal page scroll").toBeLessThanOrEqual(width);
-            expect(metrics.cardScroll, "nothing overflows the card sideways").toBeLessThanOrEqual(metrics.cardWidth + 1);
+            expect(metrics.cardScroll, "nothing overflows the card sideways").toBeLessThanOrEqual(
+                metrics.cardWidth + 1,
+            );
             expect(metrics.controls.right).toBeLessThanOrEqual(width + 0.5);
             expect(metrics.map.right).toBeLessThanOrEqual(metrics.controls.x + 0.5);
             // The map keeps at least 40 % of a phone-width card; the controls column is clamped.

@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle, MockHass } from "../harness";
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle, useHarnessClock, withState } from "../harness";
+import {
+    fixtureConfig,
+    fixtureHass,
+    loadSyntheticFixture,
+    mountCard,
+    settle,
+    useHarnessClock,
+    withState,
+} from "../harness";
 
 /**
  * Cleaning-order badges (upstream #959, issue #866).
@@ -213,7 +221,9 @@ describe("cleaning-order badges (#866, upstream #959)", () => {
         // The selected room's pill (badge + name) takes the icon's place: the icon is gone, and
         // the number appears once, in the pill's badge (Xiaomi Home app style).
         expect(roomElement(card, "1").querySelector(".room-icon-wrapper")).toBeNull();
-        expect(roomElement(card, "1").querySelector(".room-pill .room-pill-badge.room-order")?.textContent?.trim()).toBe("1");
+        expect(
+            roomElement(card, "1").querySelector(".room-pill .room-pill-badge.room-order")?.textContent?.trim(),
+        ).toBe("1");
         expect(roomElement(card, "1").querySelectorAll(".room-order")).toHaveLength(1);
     });
 

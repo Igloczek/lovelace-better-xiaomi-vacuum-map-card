@@ -67,9 +67,7 @@ describe("editor handlers", () => {
         expect(() => internals._platformChanged(select("Xiaomi Miio"))).not.toThrow();
         expect(() => internals._cameraChanged(select("camera.vacuum_map_2"))).not.toThrow();
         expect(() => internals._vacuumChanged(select("vacuum.other"))).not.toThrow();
-        expect(() =>
-            internals._valueChanged({ target: { configValue: "map_locked", checked: true } }),
-        ).not.toThrow();
+        expect(() => internals._valueChanged({ target: { configValue: "map_locked", checked: true } })).not.toThrow();
         expect(changes.length).toBeGreaterThanOrEqual(4);
         expect(config.vacuum_platform).toBe("Xiaomi Miio");
     });
@@ -99,7 +97,10 @@ describe("editor on other frontends", () => {
 
     it("renders for a malformed configuration", async () => {
         const fixture = loadSyntheticFixture();
-        const config = { ...fixtureConfig(fixture), map_source: "camera.vacuum_map" } as unknown as XiaomiVacuumMapCardConfig;
+        const config = {
+            ...fixtureConfig(fixture),
+            map_source: "camera.vacuum_map",
+        } as unknown as XiaomiVacuumMapCardConfig;
         const editor = await mountEditor(config, fixtureHass(fixture));
         await waitFor(() => editor.shadowRoot.querySelector(".card-config"));
         expect(editor.shadowRoot.querySelector(".card-config")).not.toBeNull();

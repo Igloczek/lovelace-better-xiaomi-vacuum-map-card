@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { HassEntity } from "home-assistant-js-websocket/dist/types";
+import type { HassEntity } from "home-assistant-js-websocket";
 
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import { mockHass, type MockEntityRegistryEntry, type MockHass, type MockHassOptions } from "./hass";

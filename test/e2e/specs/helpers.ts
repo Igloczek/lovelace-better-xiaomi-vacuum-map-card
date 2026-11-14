@@ -104,8 +104,7 @@ export async function card(page: Page, selector = CARD_SELECTOR): Promise<CardHa
     await locator.waitFor({ state: "attached", timeout: 120_000 });
     return {
         locator,
-        evaluate: <T, A>(fn: (element: any, arg: A) => T, arg?: A) =>
-            (locator.evaluate as any)(fn, arg) as Promise<T>,
+        evaluate: <T, A>(fn: (element: any, arg: A) => T, arg?: A) => (locator.evaluate as any)(fn, arg) as Promise<T>,
     };
 }
 
@@ -164,7 +163,6 @@ export async function shot(page: Page, name: string): Promise<string> {
     return file;
 }
 
-
 /** Sends one Home Assistant websocket command with the setup token. */
 export async function wsSend<T = unknown>(type: string, payload: Record<string, unknown> = {}): Promise<T> {
     const base = process.env.E2E_HA_URL || "http://localhost:8123";
@@ -198,9 +196,12 @@ export async function saveDashboardConfig(urlPath: string, config: unknown): Pro
     await wsSend("lovelace/config/save", { url_path: urlPath, config });
 }
 
-
 /** Calls a Home Assistant service through the real websocket API. */
-export async function serviceCall(domain: string, service: string, serviceData: Record<string, unknown> = {}): Promise<void> {
+export async function serviceCall(
+    domain: string,
+    service: string,
+    serviceData: Record<string, unknown> = {},
+): Promise<void> {
     await wsSend("call_service", { domain, service, service_data: serviceData });
 }
 

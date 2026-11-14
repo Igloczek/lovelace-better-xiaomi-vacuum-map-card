@@ -130,8 +130,10 @@ export class PlatformGenerator {
     }
 
     public static getPlatformName(platform: string | undefined): string {
-        return (platform ?? PlatformGenerator.XIAOMI_MIIO_PLATFORM)
-            .replace(PlatformGenerator.DEFAULT_PLATFORM, PlatformGenerator.XIAOMI_MIIO_PLATFORM);
+        return (platform ?? PlatformGenerator.XIAOMI_MIIO_PLATFORM).replace(
+            PlatformGenerator.DEFAULT_PLATFORM,
+            PlatformGenerator.XIAOMI_MIIO_PLATFORM,
+        );
     }
 
     public static getPlatformsDocumentationUrl(platform: string): string {
@@ -167,12 +169,15 @@ export class PlatformGenerator {
      * map with nothing to select.
      */
     public static generateDefaultModes(platform: string, cameraHasRooms = false): MapModeConfig[] {
-        const modes: MapModeConfig[] = this.getPlatformTemplate(platform).map_modes.default_templates
-            .map(dt => ({ template: dt }));
+        const modes: MapModeConfig[] = this.getPlatformTemplate(platform).map_modes.default_templates.map(dt => ({
+            template: dt,
+        }));
         if (!cameraHasRooms) return modes;
         const roomsTemplate = this.getRoomsTemplate(platform);
         const roomSelection = SelectionType[SelectionType.ROOM];
-        const hasRoomMode = modes.some(m => this.getModeTemplate(platform, m.template as string)?.selection_type === roomSelection);
+        const hasRoomMode = modes.some(
+            m => this.getModeTemplate(platform, m.template as string)?.selection_type === roomSelection,
+        );
         if (roomsTemplate !== undefined && !hasRoomMode && this.isSelfContainedTemplate(platform, roomsTemplate)) {
             modes.push({ template: roomsTemplate });
         }

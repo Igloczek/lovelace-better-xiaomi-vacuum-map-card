@@ -29,28 +29,40 @@ function roomsConfig(): XiaomiVacuumMapCardConfig {
 
 /** A detection of the camera's rooms, keyed on the geometry the card passes in. */
 function stubDetect(complete = true) {
-    return vi
-        .spyOn(RoomColorDetector, "detect")
-        .mockImplementation((image, rooms, converter): RoomColorDetection => {
-            const ids = Object.keys(rooms);
-            const width = (image as HTMLCanvasElement).width;
-            const height = (image as HTMLCanvasElement).height;
-            return {
-                imageData: { width, height, data: new Uint8ClampedArray(width * height * 4) },
-                regions: ids.map(id => ({ id, colorKey: 1, center: [10, 10], outline: [[0, 0], [20, 0], [20, 20], [0, 20]] })),
-                roomIdByColor: new Map(),
-                labels: new Int16Array(width * height).fill(-1),
-                labelRoomIds: ids,
-                geometryKey: RoomColorDetector.geometryKey(width, height, rooms, converter),
-                complete,
-            };
-        });
+    return vi.spyOn(RoomColorDetector, "detect").mockImplementation((image, rooms, converter): RoomColorDetection => {
+        const ids = Object.keys(rooms);
+        const width = (image as HTMLCanvasElement).width;
+        const height = (image as HTMLCanvasElement).height;
+        return {
+            imageData: { width, height, data: new Uint8ClampedArray(width * height * 4) },
+            regions: ids.map(id => ({
+                id,
+                colorKey: 1,
+                center: [10, 10],
+                outline: [
+                    [0, 0],
+                    [20, 0],
+                    [20, 20],
+                    [0, 20],
+                ],
+            })),
+            roomIdByColor: new Map(),
+            labels: new Int16Array(width * height).fill(-1),
+            labelRoomIds: ids,
+            geometryKey: RoomColorDetector.geometryKey(width, height, rooms, converter),
+            complete,
+        };
+    });
 }
 
 async function newSnapshot(card: CardHandle, rooms: Record<string, MapExtractorRoom>, stamp: string): Promise<void> {
     const camera = card.hass.states[FIXTURE.camera.entity_id];
     const next = withState(card.hass, FIXTURE.camera.entity_id, {
-        attributes: { ...camera.attributes, rooms, entity_picture: `${String(camera.attributes.entity_picture)}&t=${stamp}` },
+        attributes: {
+            ...camera.attributes,
+            rooms,
+            entity_picture: `${String(camera.attributes.entity_picture)}&t=${stamp}`,
+        },
         last_updated: stamp,
         last_changed: stamp,
     }).hass;

@@ -22,8 +22,8 @@ export const EVENT_LOVELACE_DOM_DETAIL = "xiaomi_vacuum_map_card";
 export const EMPTY_MAP_MODE: MapModeConfig = {
     run_immediately: true,
     selection_type: SelectionType[SelectionType.ROOM],
-    repeats_type: RepeatsType[RepeatsType.NONE]
-}
+    repeats_type: RepeatsType[RepeatsType.NONE],
+};
 
 export const MAP_VIEW_STORE_KEY = "xiaomi-vacuum-map-card.map-view";
 export const MAP_VIEW_STORE_LIMIT = 300;

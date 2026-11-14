@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { HassEntity } from "home-assistant-js-websocket/dist/types";
+import type { HassEntity } from "home-assistant-js-websocket";
 
 import { Tile } from "../../src/components/tile";
 
@@ -76,7 +76,12 @@ function hassWithLegacyEntityNameFormatter(version: string): MockHass & { format
 /** A hass whose formatter exists and passes the version gate but throws, like a future signature change. */
 function hassWithThrowingEntityNameFormatter(): MockHass & { formatEntityName: ReturnType<typeof vi.fn> } {
     const hass = fixtureHass(loadSyntheticFixture());
-    return { ...hass, formatEntityName: vi.fn(() => { throw new TypeError("formatter signature changed"); }) } as MockHass & {
+    return {
+        ...hass,
+        formatEntityName: vi.fn(() => {
+            throw new TypeError("formatter signature changed");
+        }),
+    } as MockHass & {
         formatEntityName: ReturnType<typeof vi.fn>;
     };
 }
@@ -121,10 +126,7 @@ describe("tile translations (#723)", () => {
     it("prefers an exact lower-case key over an earlier mixed-case key", async () => {
         // Master resolved the lower-cased value as an exact key, so `charging` wins over the
         // earlier `Charging`; the case-insensitive scan must not change that.
-        const rendered = await renderTile(
-            tile({ Charging: "A", charging: "B" }),
-            hassWithStatus("Charging"),
-        );
+        const rendered = await renderTile(tile({ Charging: "A", charging: "B" }), hassWithStatus("Charging"));
         expect(rendered.value).toBe("B");
     });
 });
@@ -159,8 +161,11 @@ describe("tile labels (#957)", () => {
         expect(hass.formatEntityName).not.toHaveBeenCalled();
     });
 
-    it("takes the resolver path on 2026.10 even though \"2026.10.3\" sorts below \"2026.4\" as text", async () => {
-        const hass = { ...hassWithEntityNameFormatter("Registry name"), config: { version: "2026.10.3" } } as MockHass & {
+    it('takes the resolver path on 2026.10 even though "2026.10.3" sorts below "2026.4" as text', async () => {
+        const hass = {
+            ...hassWithEntityNameFormatter("Registry name"),
+            config: { version: "2026.10.3" },
+        } as MockHass & {
             formatEntityName: ReturnType<typeof vi.fn>;
         };
         const rendered = await renderTile(labelTile(), hass);
