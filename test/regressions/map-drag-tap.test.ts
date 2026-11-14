@@ -68,6 +68,23 @@ describe("createTapGuard", () => {
         target.dispatchEvent(click(10, 10));
         expect(clicks()).toBe(0);
     });
+
+    it("forgets a pointer whose release it never saw", () => {
+        // With the map locked nothing captures the pointer, so a press that slides off the card and
+        // is released there never sends `pointerup` to the map. The next tap must still be a tap,
+        // even after the mouse hovered back over the map.
+        const { target, clicks } = guarded();
+        const primary = (type: string, x: number, y: number): PointerEvent =>
+            new PointerEvent(type, { bubbles: true, composed: true, clientX: x, clientY: y, pointerId: 1, isPrimary: true });
+        target.dispatchEvent(primary("pointerdown", 10, 10));
+        target.dispatchEvent(primary("pointermove", 200, 10));
+        target.dispatchEvent(primary("pointermove", 50, 50));
+
+        target.dispatchEvent(primary("pointerdown", 50, 50));
+        target.dispatchEvent(primary("pointerup", 50, 50));
+        target.dispatchEvent(click(50, 50));
+        expect(clicks()).toBe(1);
+    });
 });
 
 describe("dragging the map over a room", () => {
