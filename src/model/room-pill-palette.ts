@@ -85,10 +85,7 @@ export interface RoomPillColours {
 export interface RoomPillPalette {
     background: Rgb;
     text: Rgb;
-    /**
-     * Outline around the pill, in the text colour: whatever lies behind the pill contrasts with
-     * either the ring or the body, so the pill never melts into a room colour or the dashboard.
-     */
+    /** The pill's hairline edge, drawn from the text colour at low opacity. */
     ring: Rgb;
     badge: Rgb;
     badgeText: Rgb;
@@ -96,12 +93,29 @@ export interface RoomPillPalette {
     badgeRing: boolean;
 }
 
+/**
+ * The badge colour with a white glyph: the colour itself when white already reads on it at 4.5:1,
+ * otherwise the same hue darkened just enough. A white glyph on a vivid badge is the look the
+ * vendor app goes for; deepening keeps that look without the unreadable light-blue badge.
+ */
+function deepenForWhite(badge: Rgb): Rgb {
+    for (let factor = 1; factor >= 0; factor -= 0.01) {
+        const shade = badge.map(channel => Math.round(channel * factor)) as Rgb;
+        if (contrastRatio(WHITE, shade) >= WCAG_AA_TEXT_CONTRAST) return shade;
+    }
+    return BLACK;
+}
+
 /** Resolves the pill's colours from the raw theme values, correcting any unreadable pair. */
 export function resolveRoomPillPalette(colours: RoomPillColours): RoomPillPalette {
     const background = parseCssColor(colours.background) ?? DEFAULT_BACKGROUND;
     const text = readableOn(background, parseCssColor(colours.text) ?? DEFAULT_TEXT);
-    const badge = parseCssColor(colours.badge) ?? DEFAULT_BADGE;
-    const badgeText = readableOn(badge, parseCssColor(colours.badgeText));
+    const themeBadge = parseCssColor(colours.badge) ?? DEFAULT_BADGE;
+    const explicitGlyph = parseCssColor(colours.badgeText);
+    // An explicit glyph colour is kept (and corrected only if unreadable); otherwise the glyph is
+    // white and the badge is deepened under it.
+    const badge = explicitGlyph ? themeBadge : deepenForWhite(themeBadge);
+    const badgeText = explicitGlyph ? readableOn(badge, explicitGlyph) : WHITE;
     return {
         background,
         text,

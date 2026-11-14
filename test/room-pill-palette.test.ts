@@ -100,23 +100,34 @@ describe("resolveRoomPillPalette", () => {
         check(palette);
     });
 
-    it("draws the pill's ring in a colour that separates it from the map", () => {
-        // The ring is the pill's text colour: whatever lies behind the pill contrasts with either
-        // the ring or the body, so the pill never melts into a room or the background.
+    it("edges the pill with a hairline in its text colour", () => {
+        // The pill is set apart from the map by a soft shadow and a hairline drawn from the text
+        // colour at low opacity (src/model/map_objects/room.ts), not by a hard outline.
         for (const theme of [HA_LIGHT, HA_DARK]) {
             const palette = resolveRoomPillPalette(theme);
             expect(palette.ring).toEqual(palette.text);
-            for (let v = 0; v <= 255; v += 5) {
-                const behind: [number, number, number] = [v, v, v];
-                const best = Math.max(contrastRatio(behind, palette.ring), contrastRatio(behind, palette.background));
-                expect(best, `grey ${v}`).toBeGreaterThanOrEqual(3);
-            }
         }
+    });
+
+    it("deepens a theme badge until a white glyph reads on it, keeping its hue", () => {
+        // Home Assistant's #03a9f4 gives a white glyph only 2.8:1. The badge keeps its blue but is
+        // darkened just enough for white to reach 4.5:1, as the vendor app's white check intends.
+        const palette = resolveRoomPillPalette({ ...HA_LIGHT, badge: "#03a9f4" });
+        expect(palette.badgeText).toEqual([255, 255, 255]);
+        expect(contrastRatio(palette.badgeText, palette.badge)).toBeGreaterThanOrEqual(WCAG_AA_TEXT_CONTRAST);
+        expect(contrastRatio(palette.badgeText, palette.badge)).toBeLessThan(5.2);
+        const [r, g, b] = palette.badge;
+        expect(b).toBeGreaterThan(g);
+        expect(g).toBeGreaterThan(r);
+        expect(b / g).toBeCloseTo(0xf4 / 0xa9, 1);
+        // A badge that already reads with white is left as it is.
+        expect(resolveRoomPillPalette({ ...HA_LIGHT, badge: "#1565c0" }).badge).toEqual([0x15, 0x65, 0xc0]);
     });
 
     it("rings the badge when it would not stand out from the pill", () => {
         expect(resolveRoomPillPalette({ ...HA_DARK, badge: "#03a9f4" }).badgeRing).toBe(false);
-        expect(resolveRoomPillPalette({ ...HA_LIGHT, badge: "#03a9f4" }).badgeRing).toBe(true);
+        // The deepened HA blue stands out from a light pill as well.
+        expect(resolveRoomPillPalette({ ...HA_LIGHT, badge: "#03a9f4" }).badgeRing).toBe(false);
         expect(resolveRoomPillPalette({ ...HA_DARK, badge: "#2a2a2a" }).badgeRing).toBe(true);
     });
 });

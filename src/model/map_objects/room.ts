@@ -281,6 +281,7 @@ export class Room extends PredefinedMapObject {
             .room-pill {
                 --room-pill-height: calc(var(--map-card-internal-room-label-font-size) * 2);
                 --room-pill-pointer: 5px;
+                position: relative;
                 box-sizing: border-box;
                 display: flex;
                 align-items: center;
@@ -291,11 +292,13 @@ export class Room extends PredefinedMapObject {
                 border-radius: calc(var(--room-pill-height) / 2);
                 background: var(--room-pill-background);
                 color: var(--room-pill-text);
-                /* The ring is the text colour: whatever lies behind the pill contrasts with the
-                   ring or with the body, so the pill never melts into a room or the dashboard. */
-                box-shadow: 0 0 0 1.5px var(--room-pill-ring), 0 1px 4px rgba(0, 0, 0, 0.35);
+                /* Set apart from the map by depth, not a hard outline: a hairline from the text
+                   colour, and a soft two-layer shadow that also follows the pointer. */
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-pill-ring) 18%, transparent);
+                filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.2)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.14));
                 font-size: var(--map-card-internal-room-label-font-size);
                 font-weight: 600;
+                letter-spacing: 0.01em;
                 line-height: 1;
                 white-space: nowrap;
                 pointer-events: none;
@@ -314,15 +317,11 @@ export class Room extends PredefinedMapObject {
                 content: "";
                 position: absolute;
                 left: 50%;
-                top: 100%;
+                top: calc(100% - 0.5px);
                 transform: translateX(-50%);
                 border: var(--room-pill-pointer) solid transparent;
                 border-top-color: var(--room-pill-background);
                 border-bottom-width: 0;
-            }
-
-            .room-pill {
-                position: relative;
             }
 
             .room-pill-badge {
@@ -333,20 +332,28 @@ export class Room extends PredefinedMapObject {
                 flex: none;
                 min-width: calc(var(--room-pill-height) - 6px);
                 height: calc(var(--room-pill-height) - 6px);
-                padding: 0 4px;
+                padding: 0 5px;
                 border-radius: calc(var(--room-pill-height) / 2);
                 background: var(--room-pill-badge);
                 color: var(--room-pill-badge-text);
+                font-size: calc(var(--map-card-internal-room-label-font-size) - 1px);
                 font-weight: 700;
+                font-variant-numeric: tabular-nums;
+            }
+
+            /* The checkmark sits in a true circle, the same size as a one-digit number. */
+            .room-pill-badge.room-check {
+                width: calc(var(--room-pill-height) - 6px);
+                padding: 0;
             }
 
             .room-pill.badge-ring .room-pill-badge {
-                box-shadow: 0 0 0 1.5px var(--room-pill-text);
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-pill-text) 35%, transparent);
             }
 
             .room-pill-badge svg {
-                width: 75%;
-                height: 75%;
+                width: 13px;
+                height: 13px;
                 fill: currentColor;
             }
 

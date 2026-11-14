@@ -99,6 +99,7 @@ interface PillMeasure {
     badgeColour: string;
     badgeBackground: string;
     ring: string;
+    shadow: string;
     pointerEvents: string;
     hitIsPill: boolean;
 }
@@ -119,6 +120,7 @@ async function measurePill(page: Page, id: string): Promise<PillMeasure> {
             badgeColour: badgeStyle.color,
             badgeBackground: badgeStyle.backgroundColor,
             ring: style.boxShadow,
+            shadow: style.filter,
             pointerEvents: style.pointerEvents,
             hitIsPill: !!hit?.closest(".room-pill"),
         };
@@ -146,8 +148,9 @@ function contrast(a: string, b: string): number {
 function expectReadable(pill: PillMeasure, label: string): void {
     expect(contrast(pill.colour, pill.background), `${label}: name on pill`).toBeGreaterThanOrEqual(4.5);
     expect(contrast(pill.badgeColour, pill.badgeBackground), `${label}: glyph on badge`).toBeGreaterThanOrEqual(4.5);
-    // The ring in the text colour keeps the pill apart from the map behind it.
-    expect(pill.ring, `${label}: ring`).toContain(pill.colour.replace(/\s/g, " "));
+    // A hairline and a soft shadow keep the pill apart from the map behind it.
+    expect(pill.ring, `${label}: hairline`).not.toBe("none");
+    expect(pill.shadow, `${label}: shadow`).toContain("drop-shadow");
     expect(pill.pointerEvents, `${label}: pointer-events`).toBe("none");
     expect(pill.hitIsPill, `${label}: a tap on the pill reaches the room`).toBe(false);
 }

@@ -276,16 +276,16 @@ room without a name shows the badge alone. The rooms of a started run keep their
 stays upright and the same size at any zoom and rotation, and taps go through it to the room.
 
 The pill follows the theme: light with dark text in a light theme, dark with light text in a dark
-theme, like the card it sits on, with a thin ring in the text colour so it stands out on any room
-colour and on a light or dark dashboard. Colours can be changed with CSS variables on the card
+theme, like the card it sits on. A soft shadow and a hairline edge set it apart from any room
+colour and from a light or dark dashboard. Colours can be changed with CSS variables on the card
 (for example with `card_mod`):
 
 | Variable | Default | Colours |
 |---|---|---|
 | `--map-card-room-pill-background-color` | the theme's card background (`--card-background-color`) | the pill |
-| `--map-card-room-pill-text-color` | the theme's text colour (`--primary-text-color`) | the room name and the ring |
+| `--map-card-room-pill-text-color` | the theme's text colour (`--primary-text-color`) | the room name and the hairline edge |
 | `--map-card-room-pill-badge-color` | the card's primary colour (`--map-card-primary-color`, else `--slider-color`) | the badge |
-| `--map-card-room-pill-badge-text-color` | black or white, whichever reads better on the badge | the number or checkmark |
+| `--map-card-room-pill-badge-text-color` | white, on the badge colour deepened until white reads at 4.5:1 | the number or checkmark |
 
 Whatever these are set to, the card keeps the text readable: when a name or a badge glyph would
 contrast less than 4.5:1 with what is behind it (WCAG AA), it is drawn in black or white instead,
