@@ -93,17 +93,6 @@
 - The setup platforms' run button creates a notification with the coordinates; Home Assistant
   rejected the call before.
 - `[[point_x]]` and `[[point_y]]` are filled for a point mode with `INTERNAL` repeats.
-
-### Changed
-
-- `id_type: string` now sends room ids as strings; it had no effect before. A mode that sets it while
-  its integration needs numbers now sends `"13"` instead of `13`: remove `id_type` or set it to
-  `number`.
-
-### Documentation
-
-- `id_type` and Jinja templates in `service_call_schema` are documented, and the Deebot page names the
-  service it calls.
 - Rooms that share a fill colour are all detected. Valetudo and Dreame colour rooms from a
   four-colour palette, and Xiaomi Cloud Map Extractor's default palette repeats colours, so only
   one room per colour was drawn and selectable from the map before. A room never extends into
@@ -122,8 +111,6 @@
   configured room whose metadata entry is unusable keeps its configured outline instead of
   vanishing, and room colour detection reads the metadata the same way as the rest of the card
   (numeric text, lists keyed by room id).
-- The run is on the map from the moment **Start** sends the call, not only once the integration
-  answers; if the call fails the run is removed and the selection comes back in order.
 - The run shows the rooms that were sent, even if a room was tapped while Home Assistant was still
   answering the call.
 - `unavailable` or `unknown` from a polling integration no longer ends a run mid-clean.
