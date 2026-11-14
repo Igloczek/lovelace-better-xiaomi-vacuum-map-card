@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.1.0
+## 1.3.0
+
+Versions 1.1 and 1.2 are skipped: the repository keeps upstream's old `v1.1.x` and `v1.2.x` tags.
 
 ### Added
 

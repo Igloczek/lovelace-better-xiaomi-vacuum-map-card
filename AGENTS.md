@@ -43,3 +43,4 @@
 
 - `.github/workflows/release.yml` builds and uploads `xiaomi-vacuum-map-card.js` when a GitHub release is published. Check that workflow when changing release packaging.
 - Run `gh` in the authorized local environment, outside the sandbox.
+- Before creating a release, check that its tag does not exist yet (`git ls-remote --tags origin vX.Y.Z`). The repository keeps upstream's old tags (`v1.1.x`, `v1.2.x`, `v2.x`); `gh release create` on an existing tag publishes that old commit, and no release workflow run follows. Pick the next unused version instead.
