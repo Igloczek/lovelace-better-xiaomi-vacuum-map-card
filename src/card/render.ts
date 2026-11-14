@@ -84,20 +84,17 @@ export function showConfigErrors(card: XiaomiVacuumMapCard, errors: string[]): T
     errors.forEach(e => console.error(e));
     const errorCard = document.createElement("hui-error-card") as LovelaceCard;
     try {
-
         errorCard.setConfig({
             type: "error",
             error: errors[0],
             origConfig: card.config,
         });
         return html` ${errorCard} `;
-    }
-    catch {
+    } catch {
         return html`
             <pre style="padding: 10px; background-color: red;">${errors[0]}</pre>
         `;
     }
-
 }
 
 export function showOldConfig(card: XiaomiVacuumMapCard): TemplateResult {
@@ -122,7 +119,8 @@ export function showInvalidEntities(card: XiaomiVacuumMapCard, entities: string[
             <h1>${card._localize("validation.invalid_entities")}</h1>
             <ul>
                 ${entities.map(
-                    e => html` <li>
+                    e =>
+                        html` <li>
                         <pre>${e}</pre>
                     </li>`,
                 )}
@@ -135,7 +133,13 @@ export function showInvalidCalibrationWarning(card: XiaomiVacuumMapCard): Templa
     return html` <hui-warning>${card._localize("validation.invalid_calibration")}</hui-warning> `;
 }
 
-export function showToast(card: XiaomiVacuumMapCard, text: string, icon: string, successful: boolean, additionalText = ""): void {
+export function showToast(
+    card: XiaomiVacuumMapCard,
+    text: string,
+    icon: string,
+    successful: boolean,
+    additionalText = "",
+): void {
     ToastRenderer.showToast(
         card.shadowRoot,
         v => card._localize(v),

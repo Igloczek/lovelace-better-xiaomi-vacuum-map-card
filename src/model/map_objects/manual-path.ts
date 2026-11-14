@@ -6,7 +6,11 @@ import { Context } from "./context";
 import { MapObject } from "./map-object";
 
 export class PathPoint extends MapObject {
-    constructor(public x: number, public y: number, context: Context) {
+    constructor(
+        public x: number,
+        public y: number,
+        context: Context,
+    ) {
         super(context);
     }
 
@@ -37,7 +41,10 @@ export class PathPoint extends MapObject {
 }
 
 export class ManualPath extends MapObject {
-    constructor(public points: PathPoint[], context: Context) {
+    constructor(
+        public points: PathPoint[],
+        context: Context,
+    ) {
         super(context);
     }
 

@@ -145,10 +145,13 @@ export function advanceCardActiveRun(card: XiaomiVacuumMapCard, advance = true):
     if (next && card.connected) {
         // A quiet Home Assistant sends no further update, so the card re-checks the run on time.
         const delay = Math.max(0, nextActiveRoomRunDeadline(next) - Date.now());
-        card.activeRoomRunTimer = window.setTimeout(() => {
-            card.activeRoomRunTimer = undefined;
-            if (card.connected) advanceCardActiveRun(card);
-        }, Math.min(delay, 2 ** 31 - 1));
+        card.activeRoomRunTimer = window.setTimeout(
+            () => {
+                card.activeRoomRunTimer = undefined;
+                if (card.connected) advanceCardActiveRun(card);
+            },
+            Math.min(delay, 2 ** 31 - 1),
+        );
     }
     if (JSON.stringify(previous ?? null) !== JSON.stringify(next ?? null)) card.requestUpdate();
 }

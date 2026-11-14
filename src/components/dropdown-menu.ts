@@ -1,6 +1,6 @@
 import { css, CSSResultGroup, html, TemplateResult } from "lit";
 import { conditional } from "../utils";
-import { customElement, property, query } from "lit/decorators";
+import { customElement, property, query } from "lit/decorators.js";
 import { RootlessLitElement } from "./rootless-lit-element";
 import { HaDropdown } from "../types/fixes";
 
@@ -12,7 +12,6 @@ interface DropdownEntry {
 
 @customElement("xvmc-dropdown-menu")
 export class DropdownMenu<T extends DropdownEntry> extends RootlessLitElement {
-
     @property({ attribute: false })
     private values!: T[];
 
@@ -42,24 +41,25 @@ export class DropdownMenu<T extends DropdownEntry> extends RootlessLitElement {
                     ${conditional(
                         this.renderNameCollapsed,
                         () => html`
-                            <div class="dropdown-menu-button-text">${currentValue.name}</div>`
+                            <div class="dropdown-menu-button-text">${currentValue.name}</div>`,
                     )}
                 </div>
                 ${this.values.map(
-                    (mode, index) => html`
+                    (mode, index) =>
+                        html`
                         <div class="dropdown-list-item"
                              ?activated="${this.currentIndex === index}"
                              @click="${(): void => this.internalClick(index)}"
-                             title="${mode.tooltip ?? ''}"
+                             title="${mode.tooltip ?? ""}"
                         >
                             <div
                                 class="dropdown-menu-entry clickable ${this.currentIndex === index ? "selected" : ""}">
                                 <div
-                                    class="dropdown-menu-entry-button-wrapper ${index === 0
-                                        ? "first"
-                                        : ""} ${index === this.values.length - 1 ? "last" : ""} ${this.currentIndex === index
-                                        ? "selected"
-                                        : ""}">
+                                    class="dropdown-menu-entry-button-wrapper ${
+                                        index === 0 ? "first" : ""
+                                    } ${index === this.values.length - 1 ? "last" : ""} ${
+                                        this.currentIndex === index ? "selected" : ""
+                                    }">
                                     <paper-button
                                         class="dropdown-menu-entry-button ${this.currentIndex === index ? "selected" : ""}">
                                         <ha-icon icon="${mode.icon}"></ha-icon>

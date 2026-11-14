@@ -5,7 +5,7 @@ import { forwardHaptic } from "custom-card-helpers";
 import { Context } from "./context";
 import { deleteFromArray } from "../../utils";
 import { LabelConfig, RoomConfig } from "../../types/types";
-import {PredefinedMapObject} from "./predefined-map-object";
+import { PredefinedMapObject } from "./predefined-map-object";
 
 /**
  * Distance in CSS pixels between a room's label and the cleaning-order badge drawn above it when
@@ -86,12 +86,14 @@ export class Room extends PredefinedMapObject {
         const iconContent = order > 0 ? html`<span class="room-order">${order}</span>` : undefined;
         return svg`
             <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${this._stale ? "room-stale" : ""}
-            room-${`${this._config.id}`.replace(/[^a-zA-Z0-9_\-]/gm, "_")}-wrapper">
+            room-${`${this._config.id}`.replace(/[^a-zA-Z0-9_-]/gm, "_")}-wrapper">
                 <polygon class="room-outline ${this._imageOutline || this._stale || this._cardHitTest ? "" : "clickable"}"
                          points="${poly.map(p => p.join(", ")).join(" ")}"
-                         @click="${this._imageOutline || this._stale || this._cardHitTest
-                             ? undefined
-                             : async (): Promise<void> => this.click()}">
+                         @click="${
+                             this._imageOutline || this._stale || this._cardHitTest
+                                 ? undefined
+                                 : async (): Promise<void> => this.click()
+                         }">
                 </polygon>
                 ${this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", iconContent, !this._stale)}
                 ${this.renderOrderBadge(order)}

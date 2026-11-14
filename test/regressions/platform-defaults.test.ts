@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { HassEntity } from "home-assistant-js-websocket/dist/types";
+import type { HassEntity } from "home-assistant-js-websocket";
 
 import { validateConfig } from "../../src/config-validators";
 import { PlatformGenerator } from "../../src/model/generators/platform-generator";
@@ -84,7 +84,10 @@ interface PlatformWorld {
     config: XiaomiVacuumMapCardConfig;
 }
 
-function platformWorld(platform: string, sensorState: (index: number) => [string, Record<string, unknown>]): PlatformWorld {
+function platformWorld(
+    platform: string,
+    sensorState: (index: number) => [string, Record<string, unknown>],
+): PlatformWorld {
     const template = templateJson(platform);
     const vacuumAttributes: Record<string, unknown> = {
         status: "Charging",
@@ -114,12 +117,14 @@ function platformWorld(platform: string, sensorState: (index: number) => [string
         states[entityId] = state(entityId, value, attributes);
         entries.push(registry(entityId, uniqueIdFor(tile.unique_id_regex)));
     });
-    (template.icons ?? []).filter(icon => icon.unique_id_regex).forEach((icon, index) => {
-        const entityId = `select.robot_menu_${index}`;
-        const options = Object.keys(icon.icon_mapping ?? { low: "", high: "" });
-        states[entityId] = state(entityId, options[0], { [icon.available_values_attribute ?? "options"]: options });
-        entries.push(registry(entityId, uniqueIdFor(icon.unique_id_regex as string)));
-    });
+    (template.icons ?? [])
+        .filter(icon => icon.unique_id_regex)
+        .forEach((icon, index) => {
+            const entityId = `select.robot_menu_${index}`;
+            const options = Object.keys(icon.icon_mapping ?? { low: "", high: "" });
+            states[entityId] = state(entityId, options[0], { [icon.available_values_attribute ?? "options"]: options });
+            entries.push(registry(entityId, uniqueIdFor(icon.unique_id_regex as string)));
+        });
     const hass = mockHass({ states, entities: entries });
     const config: XiaomiVacuumMapCardConfig = {
         type: "custom:xiaomi-vacuum-map-card",

@@ -28,11 +28,26 @@ function rawSnapshot() {
     };
     return {
         raw_schema: 1,
-        ha_config: { version: "2026.11.1", latitude: 52.1, longitude: 21.0, location_name: "Home", external_url: "https://my.home.example" },
+        ha_config: {
+            version: "2026.11.1",
+            latitude: 52.1,
+            longitude: 21.0,
+            location_name: "Home",
+            external_url: "https://my.home.example",
+        },
         cards: [{ dashboard: "default", path: "views.0.cards.2", config: card }],
-        resources: [{ url: "/hacsfiles/lovelace-better-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js?hacstag=12345", type: "module" }],
+        resources: [
+            {
+                url: "/hacsfiles/lovelace-better-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js?hacstag=12345",
+                type: "module",
+            },
+        ],
         states: [
-            { entity_id: "vacuum.bartek_roborock", state: "docked", attributes: { friendly_name: "Bartek's Roborock", battery_level: 100 } },
+            {
+                entity_id: "vacuum.bartek_roborock",
+                state: "docked",
+                attributes: { friendly_name: "Bartek's Roborock", battery_level: 100 },
+            },
             {
                 entity_id: "image.bartek_roborock_downstairs",
                 state: "2026-11-14T10:00:00",
@@ -49,18 +64,57 @@ function rawSnapshot() {
             { entity_id: "light.unrelated", state: "on", attributes: {} },
         ],
         entity_registry: [
-            { entity_id: "vacuum.bartek_roborock", unique_id: `roborock.vacuum.${DUID}`, platform: "roborock", device_id: "dev123", translation_key: null },
-            { entity_id: "image.bartek_roborock_downstairs", unique_id: `${DUID}_map_0`, platform: "roborock", device_id: "dev123", translation_key: "map" },
-            { entity_id: "sensor.bartek_roborock_battery", unique_id: `battery_${DUID}`, platform: "roborock", device_id: "dev123", translation_key: "battery" },
-            { entity_id: "sensor.bartek_roborock_main_brush", unique_id: `main_brush_time_left_${DUID}`, platform: "roborock", device_id: "dev123", translation_key: "main_brush_time_left", name: "Brush of Bartek" },
+            {
+                entity_id: "vacuum.bartek_roborock",
+                unique_id: `roborock.vacuum.${DUID}`,
+                platform: "roborock",
+                device_id: "dev123",
+                translation_key: null,
+            },
+            {
+                entity_id: "image.bartek_roborock_downstairs",
+                unique_id: `${DUID}_map_0`,
+                platform: "roborock",
+                device_id: "dev123",
+                translation_key: "map",
+            },
+            {
+                entity_id: "sensor.bartek_roborock_battery",
+                unique_id: `battery_${DUID}`,
+                platform: "roborock",
+                device_id: "dev123",
+                translation_key: "battery",
+            },
+            {
+                entity_id: "sensor.bartek_roborock_main_brush",
+                unique_id: `main_brush_time_left_${DUID}`,
+                platform: "roborock",
+                device_id: "dev123",
+                translation_key: "main_brush_time_left",
+                name: "Brush of Bartek",
+            },
             { entity_id: "light.unrelated", unique_id: "x", platform: "hue", device_id: "other" },
         ],
         device_registry: [
-            { id: "dev123", manufacturer: "Roborock", model: "roborock.vacuum.a15", sw_version: "4.3.5", serial_number: "R1234567890", name_by_user: "Bartek's bot", connections: [["mac", "aa:bb:cc:dd:ee:ff"]] },
+            {
+                id: "dev123",
+                manufacturer: "Roborock",
+                model: "roborock.vacuum.a15",
+                sw_version: "4.3.5",
+                serial_number: "R1234567890",
+                name_by_user: "Bartek's bot",
+                connections: [["mac", "aa:bb:cc:dd:ee:ff"]],
+            },
             { id: "other", manufacturer: "Signify" },
         ],
         system_log: [
-            { level: "ERROR", name: "homeassistant.components.roborock", message: ["Failed to connect to 192.168.1.23 for bartek@example.com"], source: ["/home/bartek/x.py", 1], count: 2 },
+            {
+                level: "ERROR",
+                name: "homeassistant.components.roborock",
+                message: ["Failed to connect to 192.168.1.23 for bartek@example.com"],
+                source: ["/home/bartek/x.py", 1],
+                count: 2,
+            },
             { level: "ERROR", name: "homeassistant.components.hue", message: ["unrelated"], count: 1 },
         ],
         manifests: { roborock: { version: null, is_built_in: true } },
@@ -86,7 +140,21 @@ function filled(report) {
 describe("agent report collection", () => {
     it("finds the card inside nested stacks and sections, not other cards", () => {
         const found = findCards({
-            views: [{ sections: [{ cards: [{ type: "vertical-stack", cards: [{ type: "custom:xiaomi-vacuum-map-card", entity: "vacuum.a" }] }] }] }, { cards: [{ type: "entities" }] }],
+            views: [
+                {
+                    sections: [
+                        {
+                            cards: [
+                                {
+                                    type: "vertical-stack",
+                                    cards: [{ type: "custom:xiaomi-vacuum-map-card", entity: "vacuum.a" }],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                { cards: [{ type: "entities" }] },
+            ],
         });
         expect(found).toHaveLength(1);
         expect(found[0].path).toBe("views.0.sections.0.cards.0.cards.0");
@@ -121,12 +189,28 @@ describe("agent report redaction", () => {
         expect(text).not.toContain("Signify");
         expect(report.registry).toHaveLength(4);
         expect(report.logs.ha).toHaveLength(1);
-        expect(report.map).toMatchObject({ source_type: "camera", rooms_count: 2, calibration_points: 3, camera_integration: "roborock" });
+        expect(report.map).toMatchObject({
+            source_type: "camera",
+            rooms_count: 2,
+            calibration_points: 3,
+            camera_integration: "roborock",
+        });
         expect(report.card).toMatchObject({ version: "v1.0.1", install: "hacs", build: "fork" });
     });
 
     it("removes tokens, network identifiers, serials, personal names and home location", () => {
-        for (const leak of ["bartek", "Bartek", DUID, "R1234567890", "aa:bb:cc", "192.168.1.23", "example.com", "a".repeat(64), "52.1", "my.home.example"]) {
+        for (const leak of [
+            "bartek",
+            "Bartek",
+            DUID,
+            "R1234567890",
+            "aa:bb:cc",
+            "192.168.1.23",
+            "example.com",
+            "a".repeat(64),
+            "52.1",
+            "my.home.example",
+        ]) {
             expect(text).not.toContain(leak);
         }
         expect(report.states["vacuum.vacuum"].attributes.friendly_name).toBe("<friendly name>");
@@ -138,12 +222,12 @@ describe("agent report redaction", () => {
         expect(report.card_config.map_source.camera).toBe("image.map");
         expect(report.card_config.tiles[0].entity).toBe("sensor.battery");
         expect(Object.keys(report.states).sort()).toEqual(["image.map", "sensor.battery", "vacuum.vacuum"]);
-        expect(report.registry.map((e) => e.entity_id)).toContain("sensor.main_brush_time_left");
-        expect(report.registry.find((e) => e.entity_id === "sensor.main_brush_time_left").renamed).toBe(true);
+        expect(report.registry.map(e => e.entity_id)).toContain("sensor.main_brush_time_left");
+        expect(report.registry.find(e => e.entity_id === "sensor.main_brush_time_left").renamed).toBe(true);
     });
 
     it("keeps the unique_id words platform templates match", () => {
-        const ids = report.registry.map((e) => e.unique_id);
+        const ids = report.registry.map(e => e.unique_id);
         expect(ids).toContain("main_brush_time_left_ID1");
         expect(ids).toContain("battery_ID1");
         expect(ids).toContain("ID1_map_0");
@@ -154,7 +238,9 @@ describe("agent report redaction", () => {
     });
 
     it("lists what it redacted", () => {
-        expect(report.redactions).toEqual(expect.arrayContaining(["map image not collected", expect.stringMatching(/^entity ids aliased/)]));
+        expect(report.redactions).toEqual(
+            expect.arrayContaining(["map image not collected", expect.stringMatching(/^entity ids aliased/)]),
+        );
     });
 });
 
@@ -162,7 +248,13 @@ describe("agent report issue body", () => {
     const base = buildReport(rawSnapshot(), { cardVersion: "v1.0.1" });
 
     it("requires the narrative fields before filing", () => {
-        expect(missingFields(base)).toEqual(["agent.name", "problem.summary", "problem.expected", "problem.actual", "problem.reproduction"]);
+        expect(missingFields(base)).toEqual([
+            "agent.name",
+            "problem.summary",
+            "problem.expected",
+            "problem.actual",
+            "problem.reproduction",
+        ]);
         expect(missingFields(filled(base))).toEqual([]);
     });
 
@@ -178,12 +270,22 @@ describe("agent report issue body", () => {
     });
 
     it("flags an agent report whose data is missing or incomplete", () => {
-        expect(reviewIssue(`${MARKER}\nno data`)).toMatchObject({ isAgent: true, complete: false, error: "report data block not found" });
-        expect(reviewIssue(renderIssueBody(base))).toMatchObject({ isAgent: true, complete: false, missing: expect.arrayContaining(["problem.summary"]) });
+        expect(reviewIssue(`${MARKER}\nno data`)).toMatchObject({
+            isAgent: true,
+            complete: false,
+            error: "report data block not found",
+        });
+        expect(reviewIssue(renderIssueBody(base))).toMatchObject({
+            isAgent: true,
+            complete: false,
+            missing: expect.arrayContaining(["problem.summary"]),
+        });
     });
 
     it("leaves human reports unlabelled but still strips leaked secrets", () => {
-        const review = reviewIssue(`My config\n\`\`\`\ntoken: ${JWT}\nurl: http://user:pass@ha.local/api?access_token=abc123\n\`\`\``);
+        const review = reviewIssue(
+            `My config\n\`\`\`\ntoken: ${JWT}\nurl: http://user:pass@ha.local/api?access_token=abc123\n\`\`\``,
+        );
         expect(review.isAgent).toBe(false);
         expect(review.redactedBody).not.toContain(JWT);
         expect(review.redactedBody).not.toContain("user:pass");

@@ -26,10 +26,7 @@ export type LiveRoomMetadata = Record<string, unknown> | undefined | null;
  *   configuration may spell the same id as a number. Comparing by name is intentionally impossible
  *   here.
  */
-export function findStaleRoomIds(
-    configuredIds: readonly (string | number)[],
-    liveRooms: LiveRoomMetadata,
-): string[] {
+export function findStaleRoomIds(configuredIds: readonly (string | number)[], liveRooms: LiveRoomMetadata): string[] {
     const liveRoomIds = liveRooms ? Object.keys(liveRooms) : [];
     if (liveRoomIds.length === 0) return [];
     const liveRoomIdSet = new Set(liveRoomIds);

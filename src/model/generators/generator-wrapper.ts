@@ -20,22 +20,13 @@ export class GeneratorWrapper {
             itemsToOverride: T[],
             variables: VariablesStorage,
         ) => Promise<T[]>,
-
-
     ): Promise<T[]> {
         const itemsToIgnore = (itemsConfigs ?? []).filter(t => idExtractor(t) !== undefined);
         const itemsGenerated: Promise<T[]> =
             (itemsConfigs?.length ?? -1) === -1
-                ? generateFunction(
-                    hass,
-                    vacuumEntity,
-                    vacuumPlatform,
-                    language,
-                    itemsToIgnore,
-                    internalVariables,
-                )
+                ? generateFunction(hass, vacuumEntity, vacuumPlatform, language, itemsToIgnore, internalVariables)
                 : appendItems
-                    ? generateFunction(
+                  ? generateFunction(
                         hass,
                         vacuumEntity,
                         vacuumPlatform,
@@ -46,11 +37,14 @@ export class GeneratorWrapper {
                         const itemsIds = items.map(t => idExtractor(t) ?? "");
                         return [
                             ...items,
-                            ...(itemsConfigs ?? []).filter(t => !t.replace_config &&
-                                (idExtractor(t) === undefined || !itemsIds.includes(idExtractor(t)??""))),
+                            ...(itemsConfigs ?? []).filter(
+                                t =>
+                                    !t.replace_config &&
+                                    (idExtractor(t) === undefined || !itemsIds.includes(idExtractor(t) ?? "")),
+                            ),
                         ];
                     })
-                    : new Promise(resolve => resolve(itemsConfigs ?? []));
+                  : new Promise(resolve => resolve(itemsConfigs ?? []));
         return itemsGenerated.then(t => [...t].sort(sortFunction).filter(t => !(t.remove ?? false)));
     }
 }

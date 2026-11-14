@@ -29,9 +29,9 @@ export type HaElementTag = (typeof HA_ELEMENTS)[number];
  */
 export function withoutCustomElement(tag: string): () => void {
     const originalGet = customElements.get.bind(customElements);
-    const spy = vi.spyOn(customElements, "get").mockImplementation((name: string) =>
-        name === tag ? undefined : originalGet(name),
-    );
+    const spy = vi
+        .spyOn(customElements, "get")
+        .mockImplementation((name: string) => (name === tag ? undefined : originalGet(name)));
     return () => spy.mockRestore();
 }
 
@@ -133,9 +133,11 @@ function definePointerEvent(): void {
  * `pinch-zoom` calls while it stages its child. This is the one DOM gap the card genuinely hits.
  */
 function defineSvgPointMatrixTransform(): void {
-    const prototype = window.SVGPoint?.prototype as (SVGPoint & {
-        matrixTransform?: (matrix: SVGMatrix) => SVGPoint;
-    }) | undefined;
+    const prototype = window.SVGPoint?.prototype as
+        | (SVGPoint & {
+              matrixTransform?: (matrix: SVGMatrix) => SVGPoint;
+          })
+        | undefined;
     if (!prototype || typeof prototype.matrixTransform === "function") return;
     installedGlobalStubs.add("SVGPoint.matrixTransform");
     prototype.matrixTransform = function matrixTransform(this: SVGPoint, matrix: SVGMatrix): SVGPoint {
@@ -201,8 +203,9 @@ export function useHarnessClock(now: Date | string = "2026-11-01T10:00:00.000Z")
     vi.useFakeTimers({ now: new Date(now) });
 
     let hidden = false;
-    const descriptor = Object.getOwnPropertyDescriptor(Document.prototype, "hidden")
-        ?? Object.getOwnPropertyDescriptor(document, "hidden");
+    const descriptor =
+        Object.getOwnPropertyDescriptor(Document.prototype, "hidden") ??
+        Object.getOwnPropertyDescriptor(document, "hidden");
     Object.defineProperty(document, "hidden", {
         configurable: true,
         get: () => hidden,
@@ -266,9 +269,28 @@ export function teardownHarnessDom(): void {
 }
 
 /** Sets up a clean harness for one test. */
+/**
+ * happy-dom has no browser dialogs, and Vitest 5 no longer fills them in, so a card path that calls
+ * `window.alert` (the debug run) would throw. A silent stand-in keeps `vi.spyOn(window, "alert")`
+ * working in tests that check it.
+ */
+function stubBrowserDialogs(): void {
+    const dialogs: Record<string, () => unknown> = {
+        alert: () => undefined,
+        confirm: () => false,
+        prompt: () => null,
+    };
+    for (const [name, stub] of Object.entries(dialogs)) {
+        if (typeof (window as unknown as Record<string, unknown>)[name] !== "function") {
+            Object.defineProperty(window, name, { value: stub, configurable: true, writable: true });
+        }
+    }
+}
+
 export function setupHarness(): void {
     resetHarnessDom();
     stubHaElements();
+    stubBrowserDialogs();
 }
 
 export { HA_ELEMENTS };

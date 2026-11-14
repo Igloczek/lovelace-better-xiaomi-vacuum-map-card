@@ -13,7 +13,7 @@ test("unquoted y: in a YAML dashboard is applied, not parsed as a boolean", asyn
     await waitForCard(page);
     const target = await card(page);
 
-    await expect.poll(async () => (await target.evaluate(element => element.mapScale))).toBeCloseTo(1.5, 1);
+    await expect.poll(async () => await target.evaluate(element => element.mapScale)).toBeCloseTo(1.5, 1);
 
     const measured = await target.evaluate(element => {
         const zoomer = element.shadowRoot.getElementById("map-zoomer") as HTMLElement;

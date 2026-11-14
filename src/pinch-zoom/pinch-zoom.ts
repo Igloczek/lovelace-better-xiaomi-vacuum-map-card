@@ -74,7 +74,7 @@ function getAngle(a: Point, b?: Point): number {
 
 /** Shortest signed distance between two angles, in degrees. */
 function getAngleDiff(from: number, to: number): number {
-    return (((to - from + 180) % 360) + 360) % 360 - 180;
+    return ((((to - from + 180) % 360) + 360) % 360) - 180;
 }
 
 function getMidpoint(a: Point, b?: Point): Point {
@@ -521,9 +521,7 @@ export default class PinchZoom extends HTMLElement {
             this._rotating = true;
             angleDiff = this._pendingRotation;
         }
-        this.dispatchEvent(
-            new CustomEvent<RotateEventDetail>(ROTATE_EVENT, { bubbles: true, detail: { angleDiff } }),
-        );
+        this.dispatchEvent(new CustomEvent<RotateEventDetail>(ROTATE_EVENT, { bubbles: true, detail: { angleDiff } }));
     }
 
     private _endRotation() {

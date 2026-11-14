@@ -30,17 +30,24 @@ To add a new platform follow these steps:
 
 ## Building with npm
 
-To build this card run following commands:
+The card needs the Node version in [`.nvmrc`](.nvmrc). To build it, run:
 ```sh
 npm install
 npm run build
 ```
+
+The toolchain is the [Oxc](https://oxc.rs/) stack: Rolldown bundles and minifies
+(`rolldown.config.mjs`), `npm run lint` runs oxlint and `npm run format` runs oxfmt. TypeScript only
+type-checks (`npx tsc --noEmit`). The whole code base is oxfmt-formatted and CI fails on unformatted
+files, so run `npm run format` before committing. Lit `html`/`css` template contents are left as
+written (`embeddedLanguageFormatting: "off"`): their whitespace is part of what renders.
 
 ## Local checks
 
 Run these before opening a pull request:
 
 ```sh
+npm run format:check
 npm test
 npx tsc --noEmit
 npm run build

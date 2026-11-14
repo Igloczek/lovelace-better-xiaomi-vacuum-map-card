@@ -15,7 +15,9 @@ describe("roomIdAtImagePoint", () => {
     const scale = VACUUM_UNITS_PER_PIXEL;
     const converter = new CoordinatesConverter(syntheticMapCalibration(120, 80));
     // Room 1 is detected. Room 2 is an undetected grey room whose bounding box covers half of room 1.
-    const map = new SyntheticMap(120, 80).rect([10, 10, 59, 69], [230, 25, 75]).rect([62, 10, 109, 69], [128, 128, 128]);
+    const map = new SyntheticMap(120, 80)
+        .rect([10, 10, 59, 69], [230, 25, 75])
+        .rect([62, 10, 109, 69], [128, 128, 128]);
     const detection = RoomColorDetector.detectFromImageData(map, { "1": roomBounds([10, 10, 59, 69]) }, converter);
     const box = (left: number, top: number, right: number, bottom: number): Array<[number, number]> => [
         [left * scale, top * scale],

@@ -2,14 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { HarnessClock } from "../harness";
-import {
-    fixtureConfig,
-    fixtureHass,
-    loadSyntheticFixture,
-    mountCard,
-    useHarnessClock,
-    withState,
-} from "../harness";
+import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, useHarnessClock, withState } from "../harness";
 
 type CardWithDelayedWork = {
     _updateElements: (somethingChanged?: boolean) => void;

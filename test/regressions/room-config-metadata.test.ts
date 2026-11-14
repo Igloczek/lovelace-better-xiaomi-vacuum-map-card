@@ -24,7 +24,8 @@ async function roomsFor(rooms: unknown) {
     const fixture = loadSyntheticFixture();
     const base = fixtureHass(fixture);
     const hass = withState(base, CAMERA, {
-        attributes: cameraEntity({ calibration_points: syntheticCalibrationPoints(), attributes: { rooms } }).attributes,
+        attributes: cameraEntity({ calibration_points: syntheticCalibrationPoints(), attributes: { rooms } })
+            .attributes,
     }).hass;
     const config: XiaomiVacuumMapCardConfig = {
         ...fixtureConfig(fixture),
@@ -50,9 +51,22 @@ describe("room config from camera metadata", () => {
 
     it("uses an outline when the room has one and centres the label on it", async () => {
         const { rooms } = await roomsFor({
-            "2": { outline: [[0, 0], [200, 0], [200, 100], [0, 100]], name: "Hall" },
+            "2": {
+                outline: [
+                    [0, 0],
+                    [200, 0],
+                    [200, 100],
+                    [0, 100],
+                ],
+                name: "Hall",
+            },
         });
-        expect(rooms[0].outline).toEqual([[0, 0], [200, 0], [200, 100], [0, 100]]);
+        expect(rooms[0].outline).toEqual([
+            [0, 0],
+            [200, 0],
+            [200, 100],
+            [0, 100],
+        ]);
         expect([rooms[0].label?.x, rooms[0].label?.y]).toEqual([100, 50]);
     });
 

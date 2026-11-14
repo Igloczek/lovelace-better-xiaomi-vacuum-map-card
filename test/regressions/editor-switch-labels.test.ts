@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountEditor, useHarnessClock, withoutCustomElement } from "../harness";
+import {
+    fixtureConfig,
+    fixtureHass,
+    loadSyntheticFixture,
+    mountEditor,
+    useHarnessClock,
+    withoutCustomElement,
+} from "../harness";
 
 /**
  * The editor's labelled switches must stay readable on frontends that no longer define `ha-formfield`.
@@ -33,8 +40,8 @@ describe("editor switch labels", () => {
             expect(labels.join(" | ")).toMatch(/Map locked/i);
             expect(labels.join(" | ")).toMatch(/Remember zoom and position/i);
             // The switches themselves are still there and still carry their config keys.
-            const keys = Array.from(editor.shadowRoot.querySelectorAll("ha-switch")).map(element =>
-                (element as HTMLElement & { configValue?: string }).configValue,
+            const keys = Array.from(editor.shadowRoot.querySelectorAll("ha-switch")).map(
+                element => (element as HTMLElement & { configValue?: string }).configValue,
             );
             expect(keys).toContain("map_locked");
         } finally {

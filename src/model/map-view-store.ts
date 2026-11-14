@@ -45,7 +45,7 @@ function read(): MapViewStorage {
         }
         const parsed = JSON.parse(raw);
         return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as MapViewStorage) : {};
-    } catch (e) {
+    } catch {
         return {};
     }
 }
@@ -60,7 +60,7 @@ function write(storage: MapViewStorage): void {
                 .forEach(([key]) => delete storage[key]);
         }
         window.localStorage.setItem(MAP_VIEW_STORE_KEY, JSON.stringify(storage));
-    } catch (e) {
+    } catch {
         // storage unavailable or full - persisting the map view is best effort
     }
 }

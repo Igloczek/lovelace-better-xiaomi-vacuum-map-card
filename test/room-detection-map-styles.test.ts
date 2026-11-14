@@ -36,7 +36,8 @@ function boundsOf(points: PointType[]): Rect {
 
 function region(detection: RoomColorDetection | undefined, id: string) {
     const found = detection?.regions.find(candidate => candidate.id === id);
-    if (!found) throw new Error(`room ${id} was not detected (detected: ${detection?.regions.map(r => r.id).join(", ")})`);
+    if (!found)
+        throw new Error(`room ${id} was not detected (detected: ${detection?.regions.map(r => r.id).join(", ")})`);
     return found;
 }
 
@@ -53,7 +54,9 @@ function expectOutline(detection: RoomColorDetection | undefined, id: string, re
 /** The label point sits on the room itself, so the name and order badge are drawn over it. */
 function expectLabelInside(detection: RoomColorDetection | undefined, id: string): void {
     const [x, y] = region(detection, id).center;
-    expect(RoomColorDetector.roomIdAt(detection!, Math.floor(x), Math.floor(y)), `room ${id} label at ${x},${y}`).toBe(id);
+    expect(RoomColorDetector.roomIdAt(detection!, Math.floor(x), Math.floor(y)), `room ${id} label at ${x},${y}`).toBe(
+        id,
+    );
 }
 
 function expectTap(detection: RoomColorDetection | undefined, x: number, y: number, id: string | undefined): void {
@@ -252,7 +255,14 @@ describe("room shapes and neighbours", () => {
     it("labels an L-shaped room on itself, not on the room inside its bounding box", () => {
         const map = new SyntheticMap(160, 120);
         // Room 1 is an L around room 2: its bounding box is mostly room 2.
-        const lShape: Array<[number, number]> = [[10, 10], [150, 10], [150, 30], [30, 30], [30, 110], [10, 110]];
+        const lShape: Array<[number, number]> = [
+            [10, 10],
+            [150, 10],
+            [150, 30],
+            [30, 30],
+            [30, 110],
+            [10, 110],
+        ];
         map.polygon(lShape, [230, 25, 75]);
         map.rect([32, 32, 150, 110], [60, 180, 75]);
         const detection = detect(map, {
@@ -267,7 +277,16 @@ describe("room shapes and neighbours", () => {
 
     it("labels a U-shaped room on itself", () => {
         const map = new SyntheticMap(120, 100);
-        const uShape: Array<[number, number]> = [[10, 10], [30, 10], [30, 70], [90, 70], [90, 10], [110, 10], [110, 90], [10, 90]];
+        const uShape: Array<[number, number]> = [
+            [10, 10],
+            [30, 10],
+            [30, 70],
+            [90, 70],
+            [90, 10],
+            [110, 10],
+            [110, 90],
+            [10, 90],
+        ];
         map.polygon(uShape, [67, 99, 216]);
         const detection = detect(map, { "1": roomBounds([10, 10, 109, 89]) });
         expectLabelInside(detection, "1");
@@ -294,7 +313,9 @@ describe("room shapes and neighbours", () => {
 
     it("detects a tiny room next to a large one", () => {
         const map = new SyntheticMap(120, 80);
-        map.rect([10, 10, 99, 69], [230, 25, 75]).frame([101, 10, 110, 17], [80, 80, 80]).rect([102, 11, 109, 16], [60, 180, 75]);
+        map.rect([10, 10, 99, 69], [230, 25, 75])
+            .frame([101, 10, 110, 17], [80, 80, 80])
+            .rect([102, 11, 109, 16], [60, 180, 75]);
         const detection = detect(map, { "1": roomBounds([10, 10, 99, 69]), "2": roomBounds([102, 11, 109, 16]) });
         expectOutline(detection, "2", [102, 11, 109, 16]);
         expectTap(detection, 105, 13, "2");
@@ -363,7 +384,13 @@ describe("camera rooms metadata", () => {
     it("accepts bounds published as numeric text", () => {
         const text = (rect: Rect): MapExtractorRoom => {
             const bounds = roomBounds(rect);
-            return { ...bounds, x0: String(bounds.x0), y0: String(bounds.y0), x1: String(bounds.x1), y1: String(bounds.y1) } as unknown as MapExtractorRoom;
+            return {
+                ...bounds,
+                x0: String(bounds.x0),
+                y0: String(bounds.y0),
+                x1: String(bounds.x1),
+                y1: String(bounds.y1),
+            } as unknown as MapExtractorRoom;
         };
         const detection = detect(twoRoomMap(), { "1": text([10, 10, 59, 49]), "2": roomBounds([62, 10, 109, 49]) });
         expectOutline(detection, "1", [10, 10, 59, 49]);
@@ -381,7 +408,12 @@ describe("camera rooms metadata", () => {
 
     it("leaves rooms that bring their own outline to that outline", () => {
         const scale = VACUUM_UNITS_PER_PIXEL;
-        const outline = [[10 * scale, 10 * scale], [60 * scale, 10 * scale], [60 * scale, 50 * scale], [10 * scale, 50 * scale]];
+        const outline = [
+            [10 * scale, 10 * scale],
+            [60 * scale, 10 * scale],
+            [60 * scale, 50 * scale],
+            [10 * scale, 50 * scale],
+        ];
         const detection = detect(twoRoomMap(), {
             "1": { ...roomBounds([10, 10, 59, 49]), outline } as MapExtractorRoom,
             "2": roomBounds([62, 10, 109, 49]),
@@ -391,7 +423,9 @@ describe("camera rooms metadata", () => {
 
     it("follows a changed map: a re-detection after a re-map reflects the new image", () => {
         const before = twoRoomMap();
-        const after = new SyntheticMap(120, 60).rect([10, 10, 39, 49], [230, 25, 75]).rect([42, 10, 109, 49], [60, 180, 75]);
+        const after = new SyntheticMap(120, 60)
+            .rect([10, 10, 39, 49], [230, 25, 75])
+            .rect([42, 10, 109, 49], [60, 180, 75]);
         const rooms = { "1": roomBounds([10, 10, 59, 49]), "2": roomBounds([42, 10, 109, 49]) };
         expectTap(detect(before, rooms), 50, 30, "1");
         const detection = detect(after, { "1": roomBounds([10, 10, 39, 49]), "2": roomBounds([42, 10, 109, 49]) });
@@ -402,7 +436,9 @@ describe("camera rooms metadata", () => {
 
 describe("lossy camera images", () => {
     it("detects flat rooms through mild JPEG-like noise", () => {
-        const map = new SyntheticMap(120, 60).rect([10, 10, 59, 49], [230, 25, 75]).rect([62, 10, 109, 49], [60, 180, 75]);
+        const map = new SyntheticMap(120, 60)
+            .rect([10, 10, 59, 49], [230, 25, 75])
+            .rect([62, 10, 109, 49], [60, 180, 75]);
         map.noise(3, 7);
         const detection = detect(map, { "1": roomBounds([10, 10, 59, 49]), "2": roomBounds([62, 10, 109, 49]) });
         expectOutline(detection, "1", [10, 10, 59, 49]);

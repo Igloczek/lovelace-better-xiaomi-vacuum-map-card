@@ -44,7 +44,19 @@ function detectionOfRoom0(): RoomColorDetection {
     for (let y = 20; y < 70; y++) for (let x = 20; x < 80; x++) labels[y * WIDTH + x] = 0;
     return {
         imageData: { width: WIDTH, height: HEIGHT, data: new Uint8ClampedArray(WIDTH * HEIGHT * 4) },
-        regions: [{ id: "0", colorKey: 1, center: [50, 45], outline: [[20, 20], [80, 20], [80, 70], [20, 70]] }],
+        regions: [
+            {
+                id: "0",
+                colorKey: 1,
+                center: [50, 45],
+                outline: [
+                    [20, 20],
+                    [80, 20],
+                    [80, 70],
+                    [20, 70],
+                ],
+            },
+        ],
         roomIdByColor: new Map([[1, "0"]]),
         labels,
         labelRoomIds: ["0"],

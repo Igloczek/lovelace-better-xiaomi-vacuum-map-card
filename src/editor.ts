@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { css, CSSResultGroup, html, LitElement, TemplateResult } from "lit";
-import { customElement, property, state } from "lit/decorators";
+import { customElement, property, state } from "lit/decorators.js";
 import { fireEvent, LovelaceCardEditor } from "custom-card-helpers";
 
 import {
@@ -252,13 +252,15 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
                     <ha-button size="small" variant="brand" appearance="filled" @click="${() => XiaomiVacuumMapCardEditor._copyServiceCall()}">
                         ${this._localize("editor.label.copy_service_call")}
                     </ha-button>
-                    ${conditional(this._config?.debug == true,
-                            () => html`
+                    ${conditional(
+                        this._config?.debug == true,
+                        () => html`
                                 <ha-button size="small" variant="brand" appearance="filled"
                                            @click="${async () => this._copyEntityInfo(this.hass)}">
                                     ${this._localize("editor.label.copy_entity_info")}
                                 </ha-button>
-                            `)}
+                            `,
+                    )}
                 </div>
                 <div class="version">${this._localize("common.version")} ${CARD_VERSION}</div>
                 ${ToastRenderer.render("editor")}
@@ -317,7 +319,7 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
     private async loadCardHelpers(): Promise<void> {
         const loader = (window as any).loadCardHelpers;
         try {
-            this._helpers = typeof loader === "function" ? (await loader()) ?? {} : {};
+            this._helpers = typeof loader === "function" ? ((await loader()) ?? {}) : {};
         } catch {
             this._helpers = {};
         }
@@ -364,13 +366,15 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
         // Compare by template, not only by the index the card reported: the card and the editor
         // can hold different mode lists (e.g. the card has no `map_modes`, the editor already
         // generated them). A template match keeps repeated generation idempotent.
-        let roomsModeIndex = roomsTemplate
-            ? map_modes.findIndex(mode => mode.template === roomsTemplate)
-            : -1;
+        let roomsModeIndex = roomsTemplate ? map_modes.findIndex(mode => mode.template === roomsTemplate) : -1;
         // Fall back to the reported index only when it points at a ROOM selection: the lists can
         // differ, and replacing a cleaning mode there would corrupt it instead of adding rooms.
-        if (roomsModeIndex < 0 && reportedIndex >= 0 && reportedIndex < map_modes.length
-            && this._isRoomMode(map_modes[reportedIndex])) {
+        if (
+            roomsModeIndex < 0 &&
+            reportedIndex >= 0 &&
+            reportedIndex < map_modes.length &&
+            this._isRoomMode(map_modes[reportedIndex])
+        ) {
             roomsModeIndex = reportedIndex;
         }
         if (roomsModeIndex >= 0) {
@@ -418,7 +422,10 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
         if (mode.template === undefined) {
             return false;
         }
-        return PlatformGenerator.getModeTemplate(this._vacuum_platform, mode.template)?.selection_type === roomSelectionType;
+        return (
+            PlatformGenerator.getModeTemplate(this._vacuum_platform, mode.template)?.selection_type ===
+            roomSelectionType
+        );
     }
 
     private _handleServiceCall(e: Event): void {
@@ -455,7 +462,7 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
         );
     }
 
-    private _platformChanged(ev): void{
+    private _platformChanged(ev): void {
         if (!this._config || !this.hass) {
             return;
         }
@@ -468,16 +475,12 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
                 delete tmpConfig["calibration_source"];
             }
         } else {
-            if (!tmpConfig["calibration_source"]
-                && tmpConfig["map_source"]
-                && tmpConfig["map_source"]["camera"]
-            ) {
+            if (!tmpConfig["calibration_source"] && tmpConfig["map_source"] && tmpConfig["map_source"]["camera"]) {
                 tmpConfig["calibration_source"] = { camera: true };
             }
         }
         this._config = tmpConfig;
         fireEvent(this, "config-changed", { config: this._config });
-
     }
 
     private _cameraChanged(ev): void {
@@ -488,10 +491,11 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
         if (this._camera === value) return;
         const tmpConfig = { ...this._config };
         tmpConfig["map_source"] = { camera: value };
-        if (!PlatformGenerator.getCalibration(this._config.vacuum_platform)
-            && !tmpConfig["calibration_source"]
+        if (
+            !PlatformGenerator.getCalibration(this._config.vacuum_platform) &&
+            !tmpConfig["calibration_source"] &&
             // A cleared field or a camera that has no state yet has nothing to offer.
-            && "calibration_points" in (this.hass.states[value]?.attributes ?? {})
+            "calibration_points" in (this.hass.states[value]?.attributes ?? {})
         ) {
             tmpConfig["calibration_source"] = { camera: true };
         }

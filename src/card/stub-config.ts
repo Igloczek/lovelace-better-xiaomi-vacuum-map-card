@@ -69,10 +69,7 @@ function candidateFor(hass: HomeAssistantFixed, vacuumEntity: string): Candidate
  * platform template, its own device's map when it has one, and calibration from the camera or,
  * for a platform with built-in calibration, from the template.
  */
-export function generateConfig(
-    hass: HomeAssistantFixed,
-    vacuumEntity: string,
-): XiaomiVacuumMapCardConfig | undefined {
+export function generateConfig(hass: HomeAssistantFixed, vacuumEntity: string): XiaomiVacuumMapCardConfig | undefined {
     return candidateFor(hass, vacuumEntity)?.config;
 }
 

@@ -28,7 +28,7 @@ import * as zh from "./languages/zh.json";
 import * as zhHant from "./languages/zh-Hant.json";
 import { EntityConfig, Language, TranslatableString, XiaomiVacuumMapCardConfig } from "../types/types";
 import { HomeAssistantFixed } from "../types/fixes";
-import { HassEntity } from "home-assistant-js-websocket/dist/types";
+import { HassEntity } from "home-assistant-js-websocket";
 import { formatAttributeValue } from "./hass/entity_attributes";
 import { computeStateDisplay } from "./hass/compute_state_display";
 import { computeAttributeValueDisplay } from "./hass/compute_attribute_display";
@@ -48,6 +48,7 @@ const languages: Record<string, unknown> = {
     hu: hu,
     is: is,
     it: it,
+    lv: lv,
     "nb-NO": nbNo,
     nl: nl,
     pl: pl,
@@ -77,7 +78,7 @@ function localizeString(string: string, search = "", replace = "", lang: Languag
 
     try {
         translated = evaluateForLanguage(string, lang ?? defaultLang);
-    } catch (e) {
+    } catch {
         translated = evaluateForLanguage(string, defaultLang);
     }
 
@@ -93,7 +94,7 @@ function localizeString(string: string, search = "", replace = "", lang: Languag
 function evaluateForLanguage(string: string, lang: string): string | undefined {
     try {
         return string.split(".").reduce((o, i) => (o as Record<string, unknown>)[i], languages[lang]) as string;
-    } catch (_) {
+    } catch {
         return undefined;
     }
 }
@@ -118,37 +119,20 @@ export function localizeWithHass(
 export function localizeEntity(hass: HomeAssistantFixed, config: EntityConfig, entity: HassEntity): string {
     return "attribute" in config && config.attribute !== undefined
         ? entity.attributes[config.attribute] !== undefined
-            ? formatAttributeValue(
-                hass,
-                entity,
-                config.attribute,
-            )
+            ? formatAttributeValue(hass, entity, config.attribute)
             : hass.localize("state.default.unknown")
-        : computeStateDisplay(
-            hass.localize,
-            entity,
-            hass.locale,
-            hass.entities,
-        );
+        : computeStateDisplay(hass.localize, entity, hass.locale, hass.entities);
 }
 
 export function localizeStateForValue(hass: HomeAssistantFixed, entity: HassEntity, state: string): string {
-    return computeStateDisplay(
-        hass.localize,
-        entity,
-        hass.locale,
-        hass.entities,
-        state
-    )
+    return computeStateDisplay(hass.localize, entity, hass.locale, hass.entities, state);
 }
 
-export function localizeAttributeForValue(hass: HomeAssistantFixed, entity: HassEntity, attribute: string, value: string): string {
-    return computeAttributeValueDisplay(
-        hass.localize,
-        entity,
-        hass.locale,
-        hass.entities,
-        attribute,
-        value
-    )
+export function localizeAttributeForValue(
+    hass: HomeAssistantFixed,
+    entity: HassEntity,
+    attribute: string,
+    value: string,
+): string {
+    return computeAttributeValueDisplay(hass.localize, entity, hass.locale, hass.entities, attribute, value);
 }

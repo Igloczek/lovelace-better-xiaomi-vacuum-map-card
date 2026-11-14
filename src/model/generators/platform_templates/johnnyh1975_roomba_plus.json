@@ -1,9 +1,6 @@
 {
     "map_modes": {
-        "default_templates": [
-            "vacuum_clean_segment",
-            "vacuum_clean_segment_with_blocking"
-        ],
+        "default_templates": ["vacuum_clean_segment", "vacuum_clean_segment_with_blocking"],
         "templates": {
             "vacuum_clean_segment": {
                 "name": "Clean room",

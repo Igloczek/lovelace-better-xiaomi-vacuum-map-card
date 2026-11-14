@@ -23,7 +23,14 @@ const RUNS = 5;
 function largeMap(): { map: SyntheticMap; rooms: Record<string, MapExtractorRoom> } {
     const size = 1024;
     const map = new SyntheticMap(size, size, [19, 87, 148, 255]);
-    const palette: Rgb[] = [[240, 178, 122], [133, 193, 233], [217, 136, 128], [88, 214, 141], [187, 143, 206], [247, 220, 111]];
+    const palette: Rgb[] = [
+        [240, 178, 122],
+        [133, 193, 233],
+        [217, 136, 128],
+        [88, 214, 141],
+        [187, 143, 206],
+        [247, 220, 111],
+    ];
     const rooms: Record<string, MapExtractorRoom> = {};
     const columns = 5;
     const rows = 4;

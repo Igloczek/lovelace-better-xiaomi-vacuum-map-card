@@ -3,7 +3,6 @@
 import { fetchFrontendUserData } from "./frontend";
 import { HomeAssistantFixed } from "../../types/fixes";
 
-
 export enum NumberFormat {
     language = "language",
     system = "system",
@@ -68,7 +67,7 @@ export const getHassTranslations = async (
     language: string,
     category: TranslationCategory,
     integration?: string | string[],
-    config_flow?: boolean
+    config_flow?: boolean,
 ): Promise<Record<string, unknown>> => {
     const result = await hass.callWS<{ resources: Record<string, unknown> }>({
         type: "frontend/get_translations",
@@ -82,7 +81,7 @@ export const getHassTranslations = async (
 
 export const getHassTranslationsPre109 = async (
     hass: HomeAssistantFixed,
-    language: string
+    language: string,
 ): Promise<Record<string, unknown>> => {
     const result = await hass.callWS<{ resources: Record<string, unknown> }>({
         type: "frontend/get_translations",

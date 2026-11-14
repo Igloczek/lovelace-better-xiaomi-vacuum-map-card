@@ -65,9 +65,34 @@ const ROOM_MODE_METADATA = mode({ selection_type: "ROOM" });
 const ROOM_MODE_CONFIGURED = mode({
     selection_type: "ROOM",
     predefined_selections: [
-        { id: 0, outline: [[200, 200], [800, 200], [800, 700], [200, 700]] },
-        { id: 1, outline: [[1000, 200], [1700, 200], [1700, 700], [1000, 700]], state_entity: ROOM_ENTITY },
-        { id: 2, outline: [[200, 900], [800, 900], [800, 1300], [200, 1300]] },
+        {
+            id: 0,
+            outline: [
+                [200, 200],
+                [800, 200],
+                [800, 700],
+                [200, 700],
+            ],
+        },
+        {
+            id: 1,
+            outline: [
+                [1000, 200],
+                [1700, 200],
+                [1700, 700],
+                [1000, 700],
+            ],
+            state_entity: ROOM_ENTITY,
+        },
+        {
+            id: 2,
+            outline: [
+                [200, 900],
+                [800, 900],
+                [800, 1300],
+                [200, 1300],
+            ],
+        },
     ],
 } as never);
 
@@ -125,7 +150,10 @@ function baseHass(): MockHass {
     return hass;
 }
 
-function cardConfig(modes: MapModeConfig[], overrides: Partial<XiaomiVacuumMapCardConfig> = {}): XiaomiVacuumMapCardConfig {
+function cardConfig(
+    modes: MapModeConfig[],
+    overrides: Partial<XiaomiVacuumMapCardConfig> = {},
+): XiaomiVacuumMapCardConfig {
     return {
         ...fixtureConfig(loadSyntheticFixture()),
         map_modes: modes,
@@ -193,7 +221,9 @@ async function clickPoint(card: CardHandle, index: number): Promise<void> {
 async function tapMap(card: CardHandle, x: number, y: number): Promise<void> {
     const svg = card.shadowRoot.getElementById("svg-wrapper");
     if (!svg) throw new Error("the map overlay is not rendered");
-    svg.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, composed: true, button: 0, clientX: x, clientY: y }));
+    svg.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, composed: true, button: 0, clientX: x, clientY: y }),
+    );
     svg.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, composed: true, button: 0, clientX: x, clientY: y }));
     await settle(card.element);
 }
@@ -272,9 +302,35 @@ describe("ROOM selections across rebuilds", () => {
         const defaultMode = mode({
             selection_type: "ROOM",
             predefined_selections: [
-                { id: 0, outline: [[200, 200], [800, 200], [800, 700], [200, 700]], default_state: "selected" },
-                { id: 1, outline: [[1000, 200], [1700, 200], [1700, 700], [1000, 700]], state_entity: ROOM_ENTITY },
-                { id: 2, outline: [[200, 900], [800, 900], [800, 1300], [200, 1300]] },
+                {
+                    id: 0,
+                    outline: [
+                        [200, 200],
+                        [800, 200],
+                        [800, 700],
+                        [200, 700],
+                    ],
+                    default_state: "selected",
+                },
+                {
+                    id: 1,
+                    outline: [
+                        [1000, 200],
+                        [1700, 200],
+                        [1700, 700],
+                        [1000, 700],
+                    ],
+                    state_entity: ROOM_ENTITY,
+                },
+                {
+                    id: 2,
+                    outline: [
+                        [200, 900],
+                        [800, 900],
+                        [800, 1300],
+                        [200, 1300],
+                    ],
+                },
             ],
         } as never);
         const card = await mount([defaultMode], {}, withState(baseHass(), ROOM_ENTITY, { state: "on" }).hass);
@@ -473,7 +529,14 @@ describe("PREDEFINED_POINT selections across rebuilds", () => {
         await setState(card, POINT_ENTITY, { attributes: { friendly_name: "Sofa" } });
         expect(selection(card)).toEqual(POINT_A);
 
-        await setState(card, POINTS_SOURCE, { attributes: { points: [[1500, 1000], [1600, 1100]] } });
+        await setState(card, POINTS_SOURCE, {
+            attributes: {
+                points: [
+                    [1500, 1000],
+                    [1600, 1100],
+                ],
+            },
+        });
         expect(selection(card)).toEqual(POINT_A);
         expect(card.shadowRoot.querySelectorAll(".predefined-point-wrapper")).toHaveLength(4);
     });
@@ -541,7 +604,11 @@ describe("review findings (PR #31)", () => {
         const available = card.hass.states[CAMERA];
 
         // An HA restart or integration reload: the camera reports no attributes for a while.
-        await setState(card, CAMERA, { state: "unavailable", attributes: {}, last_updated: "2026-11-01T10:05:00.000Z" });
+        await setState(card, CAMERA, {
+            state: "unavailable",
+            attributes: {},
+            last_updated: "2026-11-01T10:05:00.000Z",
+        });
         await setState(card, CAMERA, { ...available, last_updated: "2026-11-01T10:06:00.000Z" });
 
         expect(roomOrder(card)).toEqual(["2", "0"]);
@@ -589,7 +656,9 @@ describe("review findings (PR #31)", () => {
         const config: XiaomiVacuumMapCardConfig = {
             ...base,
             preset_name: "First",
-            additional_presets: [{ ...base, preset_name: "Second", map_modes: [MANUAL_RECTANGLE_MODE, ROOM_MODE_METADATA] }],
+            additional_presets: [
+                { ...base, preset_name: "Second", map_modes: [MANUAL_RECTANGLE_MODE, ROOM_MODE_METADATA] },
+            ],
         };
         useHarnessClock();
         const card = await mountCard(config, baseHass());

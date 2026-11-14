@@ -43,17 +43,25 @@ function pointerOverlay() {
             '<svg viewBox="0 0 22 22" width="22" height="22"><path d="M3 2 L3 18 L7.5 13.8 L10.6 20.4 L13.4 19.1 L10.4 12.7 L16.6 12.7 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>';
         document.body.appendChild(cursor);
         const fingers = new Map();
-        window.addEventListener("mousemove", e => {
-            cursor.style.transform = `translate(${e.clientX - 3}px, ${e.clientY - 2}px)`;
-        }, true);
-        window.addEventListener("mousedown", e => {
-            const ripple = document.createElement("div");
-            ripple.className = "demo-ripple";
-            ripple.style.left = `${e.clientX}px`;
-            ripple.style.top = `${e.clientY}px`;
-            document.body.appendChild(ripple);
-            setTimeout(() => ripple.remove(), 500);
-        }, true);
+        window.addEventListener(
+            "mousemove",
+            e => {
+                cursor.style.transform = `translate(${e.clientX - 3}px, ${e.clientY - 2}px)`;
+            },
+            true,
+        );
+        window.addEventListener(
+            "mousedown",
+            e => {
+                const ripple = document.createElement("div");
+                ripple.className = "demo-ripple";
+                ripple.style.left = `${e.clientX}px`;
+                ripple.style.top = `${e.clientY}px`;
+                document.body.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 500);
+            },
+            true,
+        );
         const touches = e => {
             cursor.style.visibility = e.touches.length ? "hidden" : "visible";
             const live = new Set();
@@ -94,7 +102,12 @@ async function main() {
 
     // Without the flag the headless screencast is captured in CSS pixels, not device pixels.
     const browser = await chromium.launch({ args: [`--force-device-scale-factor=${DPR}`] });
-    const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: DPR, hasTouch: true, colorScheme: "dark" });
+    const context = await browser.newContext({
+        viewport: VIEWPORT,
+        deviceScaleFactor: DPR,
+        hasTouch: true,
+        colorScheme: "dark",
+    });
     await context.addInitScript(
         ([tokens, base]) => {
             localStorage.setItem(
@@ -114,7 +127,8 @@ async function main() {
     await page.evaluate(async () => {
         const hass = document.querySelector("home-assistant").hass;
         await hass.callService("vacuum", "return_to_base", { entity_id: "vacuum.robot_vacuum" });
-        for (const key of Object.keys(localStorage)) if (/xiaomi|xvmc|map.?view/i.test(key)) localStorage.removeItem(key);
+        for (const key of Object.keys(localStorage))
+            if (/xiaomi|xvmc|map.?view/i.test(key)) localStorage.removeItem(key);
     });
     await page.waitForFunction(
         () => document.querySelector("home-assistant").hass.states["vacuum.robot_vacuum"].state === "docked",
@@ -176,7 +190,10 @@ async function main() {
             return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, w: canvas.width, h: canvas.height };
         });
         if (!geometry.w || !geometry.h) throw new Error("the map canvas has no size");
-        return { x: geometry.x + (x * 2 * geometry.width) / geometry.w, y: geometry.y + (y * 2 * geometry.height) / geometry.h };
+        return {
+            x: geometry.x + (x * 2 * geometry.width) / geometry.w,
+            y: geometry.y + (y * 2 * geometry.height) / geometry.h,
+        };
     };
     const selectMode = async name => {
         await clickOn(page.locator(`${CARD} .map-controls .dropdown-menu-button`), 600);
@@ -221,20 +238,24 @@ async function main() {
     const mapBox = await page.locator(`${CARD} #map-zoomer`).boundingBox();
     const pivot = { x: mapBox.x + mapBox.width / 2, y: mapBox.y + mapBox.height / 2 };
     const radius = 70;
-    const fingersAt = angle => [0, Math.PI].map((offset, id) => ({
-        x: pivot.x + Math.cos(angle + offset) * radius,
-        y: pivot.y + Math.sin(angle + offset) * radius,
-        id,
-        radiusX: 12,
-        radiusY: 12,
-        force: 1,
-    }));
+    const fingersAt = angle =>
+        [0, Math.PI].map((offset, id) => ({
+            x: pivot.x + Math.cos(angle + offset) * radius,
+            y: pivot.y + Math.sin(angle + offset) * radius,
+            id,
+            radiusX: 12,
+            radiusY: 12,
+            force: 1,
+        }));
     const start = -0.5;
     const twist = 0.75;
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: fingersAt(start) });
     await sleep(250);
     for (let i = 1; i <= 45; i++) {
-        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: fingersAt(start + twist * ease(i / 45)) });
+        await cdp.send("Input.dispatchTouchEvent", {
+            type: "touchMove",
+            touchPoints: fingersAt(start + twist * ease(i / 45)),
+        });
         await sleep(22);
     }
     await sleep(250);
@@ -244,7 +265,10 @@ async function main() {
 
     // 3. Zones: add one, move it and resize it.
     await selectMode("Zone cleanup");
-    await clickOn(page.locator(`${CARD} .map-actions-item`).filter({ has: page.locator('ha-icon[icon="mdi:plus"]') }), 700);
+    await clickOn(
+        page.locator(`${CARD} .map-actions-item`).filter({ has: page.locator('ha-icon[icon="mdi:plus"]') }),
+        700,
+    );
     const zone = page.locator(`${CARD} polygon.manual-rectangle`).first();
     const zoneCenter = await center(zone);
     const target = await mapPoint(450, 130);
@@ -260,7 +284,13 @@ async function main() {
 
     // 5. Draw a path for it to follow.
     await selectMode("Path");
-    for (const [x, y] of [[90, 120], [250, 120], [250, 220], [450, 270], [640, 300]]) {
+    for (const [x, y] of [
+        [90, 120],
+        [250, 120],
+        [250, 220],
+        [450, 270],
+        [640, 300],
+    ]) {
         await click(...Object.values(await mapPoint(x, y)), 280);
     }
     await sleep(900);
@@ -297,10 +327,25 @@ async function main() {
     execFileSync(
         "ffmpeg",
         [
-            "-y", "-v", "error",
-            "-f", "concat", "-safe", "0", "-i", listFile,
-            "-vf", `crop=${crop.w}:${crop.h}:${crop.x}:${crop.y},fps=30,format=yuv420p`,
-            "-c:v", "libx264", "-preset", "slow", "-crf", "24", "-movflags", "+faststart",
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            listFile,
+            "-vf",
+            `crop=${crop.w}:${crop.h}:${crop.x}:${crop.y},fps=30,format=yuv420p`,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "slow",
+            "-crf",
+            "24",
+            "-movflags",
+            "+faststart",
             TARGET,
         ],
         { stdio: "inherit" },

@@ -38,13 +38,13 @@ async function gh(method, path, body) {
     return res.status === 204 || res.status === 404 ? null : res.json();
 }
 
-const labels = new Set((issue.labels ?? []).map((l) => (typeof l === "string" ? l : l.name)));
-const addLabel = async (name) => {
+const labels = new Set((issue.labels ?? []).map(l => (typeof l === "string" ? l : l.name)));
+const addLabel = async name => {
     if (labels.has(name)) return;
     labels.add(name);
     await gh("POST", `/issues/${issue.number}/labels`, { labels: [name] });
 };
-const removeLabel = async (name) => {
+const removeLabel = async name => {
     if (!labels.has(name)) return;
     labels.delete(name);
     await gh("DELETE", `/issues/${issue.number}/labels/${encodeURIComponent(name)}`);
@@ -54,7 +54,7 @@ const removeLabel = async (name) => {
 async function upsertBotComment(kind, text) {
     const marker = `${BOT_MARKER}<!-- ${kind} -->`;
     const comments = (await gh("GET", `/issues/${issue.number}/comments?per_page=100`)) ?? [];
-    const existing = comments.find((c) => c.body?.includes(marker));
+    const existing = comments.find(c => c.body?.includes(marker));
     const body = `${marker}\n${text}`;
     if (existing) await gh("PATCH", `/issues/comments/${existing.id}`, { body });
     else await gh("POST", `/issues/${issue.number}/comments`, { body });
@@ -62,7 +62,7 @@ async function upsertBotComment(kind, text) {
 async function deleteBotComment(kind) {
     const marker = `${BOT_MARKER}<!-- ${kind} -->`;
     const comments = (await gh("GET", `/issues/${issue.number}/comments?per_page=100`)) ?? [];
-    for (const c of comments.filter((c) => c.body?.includes(marker))) await gh("DELETE", `/issues/comments/${c.id}`);
+    for (const c of comments.filter(c => c.body?.includes(marker))) await gh("DELETE", `/issues/comments/${c.id}`);
 }
 
 const target = comment ?? issue;
@@ -75,9 +75,13 @@ if (review.redactedBody) {
     await addLabel(REDACTED_LABEL);
     await upsertBotComment(
         "redacted",
-        `🔒 Removed what looked like secrets from this ${comment ? "comment" : "issue"} (${Object.entries(review.secretHits)
+        `🔒 Removed what looked like secrets from this ${comment ? "comment" : "issue"} (${Object.entries(
+            review.secretHits,
+        )
             .map(([k, n]) => `${k} ×${n}`)
-            .join(", ")}). The original is still in the edit history until a maintainer deletes that revision, so revoke any Home Assistant token that was posted (Profile → Security → Long-lived access tokens).`,
+            .join(
+                ", ",
+            )}). The original is still in the edit history until a maintainer deletes that revision, so revoke any Home Assistant token that was posted (Profile → Security → Long-lived access tokens).`,
     );
 }
 
@@ -97,7 +101,7 @@ if (review.isAgent) {
                 "🤖 This agent report does not validate yet, so it is not labelled `agent-report`.",
                 "",
                 review.error ? `- ${review.error}` : null,
-                ...review.missing.map((f) => `- missing \`${f}\``),
+                ...review.missing.map(f => `- missing \`${f}\``),
                 "",
                 "To fix it, give your agent this instruction:",
                 "",
@@ -105,11 +109,16 @@ if (review.isAgent) {
                 `${prompt} — complete the missing fields and edit the report.`,
                 "```",
             ]
-                .filter((l) => l !== null)
+                .filter(l => l !== null)
                 .join("\n"),
         );
     }
-} else if (!comment && event.action === "opened" && issue.user?.type !== "Bot" && !["OWNER", "MEMBER", "COLLABORATOR"].includes(issue.author_association)) {
+} else if (
+    !comment &&
+    event.action === "opened" &&
+    issue.user?.type !== "Bot" &&
+    !["OWNER", "MEMBER", "COLLABORATOR"].includes(issue.author_association)
+) {
     await upsertBotComment(
         "nudge",
         [

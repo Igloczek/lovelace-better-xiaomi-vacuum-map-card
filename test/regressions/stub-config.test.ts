@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { HassEntity } from "home-assistant-js-websocket/dist/types";
+import type { HassEntity } from "home-assistant-js-websocket";
 
 import { validateConfig } from "../../src/config-validators";
 import { XiaomiVacuumMapCard } from "../../src/xiaomi-vacuum-map-card";

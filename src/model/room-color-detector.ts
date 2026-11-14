@@ -237,7 +237,7 @@ export class RoomColorDetector {
             if (!isCanvas) context.drawImage(image, 0, 0);
             const imageData = context.getImageData(0, 0, imageWidth, imageHeight);
             return this.detectFromImageData(imageData, rooms, converter);
-        } catch (_error) {
+        } catch {
             // A remote image without canvas access cannot be segmented; callers keep their normal room config.
             return undefined;
         }
@@ -303,9 +303,18 @@ export class RoomColorDetector {
             // While scoring, any room that could have this colour is a barrier: a same-coloured
             // neighbour behind a thin wall must not merge into the patch.
             const barriers = candidate.others.filter(other => other.colorKeys.includes(colorKey));
-            const area = this._closeRoomArea(colorKey, foreign, candidate.bounds, barriers.map(other => other.bounds), imageData);
+            const area = this._closeRoomArea(
+                colorKey,
+                foreign,
+                candidate.bounds,
+                barriers.map(other => other.bounds),
+                imageData,
+            );
             const components = this._components(area, candidate.bounds);
-            const barrierIds = barriers.map(other => other.id).sort().join("\n");
+            const barrierIds = barriers
+                .map(other => other.id)
+                .sort()
+                .join("\n");
             return components
                 .map(component => ({
                     candidate,
@@ -336,7 +345,9 @@ export class RoomColorDetector {
         const secondRound: RoomOption[] = [];
         candidates.forEach(candidate => {
             if (assignedRooms.has(candidate.id)) return;
-            candidate.colorKeys.slice(nextKey.get(candidate.id)).forEach(colorKey => secondRound.push(...optionsFor(candidate, colorKey)));
+            candidate.colorKeys
+                .slice(nextKey.get(candidate.id))
+                .forEach(colorKey => secondRound.push(...optionsFor(candidate, colorKey)));
         });
         if (secondRound.length > 0) assign(secondRound);
         if (chosen.length === 0) return undefined;
@@ -365,10 +376,21 @@ export class RoomColorDetector {
                     ? chosenColor.get(other.id) === option.colorKey
                     : other.colorKeys.includes(option.colorKey),
             );
-            const reuse = sameColors && barriers.map(other => other.id).sort().join("\n") === option.barrierIds;
+            const reuse =
+                sameColors &&
+                barriers
+                    .map(other => other.id)
+                    .sort()
+                    .join("\n") === option.barrierIds;
             const area = reuse
                 ? option.area
-                : this._closeRoomArea(option.colorKey, foreign, option.candidate.bounds, barriers.map(other => other.bounds), imageData);
+                : this._closeRoomArea(
+                      option.colorKey,
+                      foreign,
+                      option.candidate.bounds,
+                      barriers.map(other => other.bounds),
+                      imageData,
+                  );
             const components = reuse ? option.components : this._components(area, option.candidate.bounds);
             const label = labelRoomIds.push(option.candidate.id) - 1;
             labelBounds.push(option.candidate.bounds);
@@ -386,7 +408,15 @@ export class RoomColorDetector {
             imageData.height,
         );
         chosen.forEach((option, label) =>
-            this._labelSecondary(finalAreas[label], finalComponents[label], option, label, labels, reserved, imageWidth),
+            this._labelSecondary(
+                finalAreas[label],
+                finalComponents[label],
+                option,
+                label,
+                labels,
+                reserved,
+                imageWidth,
+            ),
         );
 
         const grow: GrowLimits = {
@@ -403,7 +433,14 @@ export class RoomColorDetector {
         const regions: DetectedRoomColor[] = [];
         const roomIdByColor = new Map<number, string>();
         chosen.forEach((option, label) => {
-            const region = this._extractRegion(option.candidate.id, option.colorKey, label, finalAreas[label], outlineLabels, imageWidth);
+            const region = this._extractRegion(
+                option.candidate.id,
+                option.colorKey,
+                label,
+                finalAreas[label],
+                outlineLabels,
+                imageWidth,
+            );
             if (!region) return;
             regions.push(region);
             if (!roomIdByColor.has(option.colorKey)) roomIdByColor.set(option.colorKey, option.candidate.id);
@@ -428,12 +465,22 @@ export class RoomColorDetector {
         return (area.bounds.top + y) * imageWidth + area.bounds.left + x;
     }
 
-    private static _getEntry(room: CameraRoom, imageData: ImageDataLike, converter: CoordinatesConverter): RoomEntry | undefined {
+    private static _getEntry(
+        room: CameraRoom,
+        imageData: ImageDataLike,
+        converter: CoordinatesConverter,
+    ): RoomEntry | undefined {
         const polygon = room.outline.map(point => converter.vacuumToMap(point[0], point[1]));
         if (polygon.some(point => !Number.isFinite(point[0]) || !Number.isFinite(point[1]))) return undefined;
         const bounds = this._getBounds(polygon, imageData.width, imageData.height);
         if (!bounds) return undefined;
-        return { id: room.id, bounds, polygon, detectable: room.fromBounds, colorKeys: this._colorKeysIn(bounds, imageData) };
+        return {
+            id: room.id,
+            bounds,
+            polygon,
+            detectable: room.fromBounds,
+            colorKeys: this._colorKeysIn(bounds, imageData),
+        };
     }
 
     /** The colours that cover at least 8% of a room's bounds, most frequent first. */
@@ -532,7 +579,8 @@ export class RoomColorDetector {
             const bottom = Math.min(other.bottom, bounds.bottom);
             for (let y = top; y <= bottom; y++) {
                 for (let x = left; x <= right; x++) {
-                    const inOwn = x >= roomBounds.left && x <= roomBounds.right && y >= roomBounds.top && y <= roomBounds.bottom;
+                    const inOwn =
+                        x >= roomBounds.left && x <= roomBounds.right && y >= roomBounds.top && y <= roomBounds.bottom;
                     if (!inOwn || ownsOverlap) otherOwned[(y - bounds.top) * width + x - bounds.left] = 1;
                 }
             }
@@ -624,7 +672,12 @@ export class RoomColorDetector {
                     inside++;
                 }
                 if (solidAt[index]) solid = true;
-                if ((clipLeft && x === 0) || (clipTop && y === 0) || (clipRight && x === width - 1) || (clipBottom && y === height - 1)) {
+                if (
+                    (clipLeft && x === 0) ||
+                    (clipTop && y === 0) ||
+                    (clipRight && x === width - 1) ||
+                    (clipBottom && y === height - 1)
+                ) {
                     clipped = true;
                 }
             }
@@ -686,7 +739,10 @@ export class RoomColorDetector {
             const imageY = area.bounds.top + y;
             const imageIndex = imageY * imageWidth + imageX;
             const inside =
-                imageX >= roomBounds.left && imageX <= roomBounds.right && imageY >= roomBounds.top && imageY <= roomBounds.bottom;
+                imageX >= roomBounds.left &&
+                imageX <= roomBounds.right &&
+                imageY >= roomBounds.top &&
+                imageY <= roomBounds.bottom;
             const rank = area.distance[index] * 2 + (inside ? 0 : 1);
             if (rank < priority[imageIndex]) {
                 labels[imageIndex] = label;
@@ -712,7 +768,8 @@ export class RoomColorDetector {
     ): void {
         const chosen = this._findChosen(components, option);
         components.forEach(component => {
-            if (component === chosen || component.clipped || component.inside * 10 < component.pixels.length * 9) return;
+            if (component === chosen || component.clipped || component.inside * 10 < component.pixels.length * 9)
+                return;
             const imageIndexes = component.pixels.map(index => this._toImageIndex(area, index, imageWidth));
             if (imageIndexes.some(index => reserved[index] || (labels[index] >= 0 && labels[index] !== label))) return;
             imageIndexes.forEach(index => {
@@ -848,7 +905,8 @@ export class RoomColorDetector {
         }
         const colors: Array<[number, number, number]> = [];
         groups.forEach(group => {
-            if (group.count * 10 >= total) colors.push([group.red / group.count, group.green / group.count, group.blue / group.count]);
+            if (group.count * 10 >= total)
+                colors.push([group.red / group.count, group.green / group.count, group.blue / group.count]);
         });
         return (offset: number): boolean =>
             data[offset + 3] < 128 ||
@@ -978,7 +1036,14 @@ export class RoomColorDetector {
      * The Chebyshev depth of a pixel inside the mask (0 when it is outside), counted up to `limit`:
      * how many square rings around it lie fully in the mask, plus one.
      */
-    private static _squareDepth(mask: Uint8Array, width: number, height: number, x: number, y: number, limit: number): number {
+    private static _squareDepth(
+        mask: Uint8Array,
+        width: number,
+        height: number,
+        x: number,
+        y: number,
+        limit: number,
+    ): number {
         if (x < 0 || y < 0 || x >= width || y >= height || !mask[y * width + x]) return 0;
         for (let ring = 1; ring <= limit; ring++) {
             if (x - ring < 0 || y - ring < 0 || x + ring >= width || y + ring >= height) return ring;
@@ -1057,7 +1122,10 @@ export class RoomColorDetector {
             maxY = Math.max(maxY, y);
         }
         const shorterSide = Math.min(maxX - minX + 1, maxY - minY + 1);
-        if (this._squareDepth(mask, width, height, centroidX, centroidY, Math.ceil(shorterSide / 4)) >= shorterSide / 4) {
+        if (
+            this._squareDepth(mask, width, height, centroidX, centroidY, Math.ceil(shorterSide / 4)) >=
+            shorterSide / 4
+        ) {
             return centroid;
         }
         const outside = new Uint8Array(mask.length);
@@ -1287,9 +1355,13 @@ export class RoomColorDetector {
             let farthestDistance = threshold;
             for (let index = start + 1; index < end; index++) {
                 const point = points[index];
-                const position = lengthSquared === 0
-                    ? 0
-                    : Math.max(0, Math.min(1, ((point[0] - first[0]) * dx + (point[1] - first[1]) * dy) / lengthSquared));
+                const position =
+                    lengthSquared === 0
+                        ? 0
+                        : Math.max(
+                              0,
+                              Math.min(1, ((point[0] - first[0]) * dx + (point[1] - first[1]) * dy) / lengthSquared),
+                          );
                 const nearestX = first[0] + position * dx;
                 const nearestY = first[1] + position * dy;
                 const distanceX = point[0] - nearestX;

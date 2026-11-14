@@ -95,7 +95,8 @@ export function advanceActiveRoomRun(
     // At the deadline only `cleaning` is accepted: a vacuum that was already cleaning and took the
     // new rooms without a new report. A `returning` or `paused` still shown then is the previous
     // job, and the command was ignored.
-    if (now - run.startedAt > ACTIVE_ROOM_RUN_START_GRACE_MS) return vacuumState === "cleaning" ? { ...run, seenActive: true } : undefined;
+    if (now - run.startedAt > ACTIVE_ROOM_RUN_START_GRACE_MS)
+        return vacuumState === "cleaning" ? { ...run, seenActive: true } : undefined;
     return run;
 }
 

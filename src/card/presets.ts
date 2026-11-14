@@ -170,7 +170,7 @@ export function getModes(card: XiaomiVacuumMapCard, config: CardPresetConfig) {
     return (
         (config.map_modes?.length ?? -1) === -1 || vacuumPlatform.startsWith("Setup")
             ? PlatformGenerator.generateDefaultModes(vacuumPlatform, cameraHasRooms(card, config))
-            : config.map_modes ?? [EMPTY_MAP_MODE]
+            : (config.map_modes ?? [EMPTY_MAP_MODE])
     ).map(m => new MapMode(vacuumPlatform, m, card.config.language));
 }
 
@@ -196,8 +196,7 @@ export function refreshDefaultModes(card: XiaomiVacuumMapCard): void {
     // Runs on every hass update, so compare template names before building any mode.
     const platform = PlatformGenerator.getPlatformName(preset.vacuum_platform);
     const present = new Set(card.modes.map(m => m.config.template));
-    const missing = PlatformGenerator.generateDefaultModes(platform, true)
-        .filter(m => !present.has(m.template));
+    const missing = PlatformGenerator.generateDefaultModes(platform, true).filter(m => !present.has(m.template));
     if (missing.length === 0) return;
     const hadModes = card.modes.length > 0;
     card.modes = [...card.modes, ...missing.map(m => new MapMode(platform, m, card.config.language))];
@@ -220,7 +219,7 @@ export function executePresetsActivation(card: XiaomiVacuumMapCard) {
 
 export function setPreset(card: XiaomiVacuumMapCard, config: CardPresetConfig): void {
     card.currentPreset = config;
-    card.watchedEntities = getWatchedEntities({type: "", ...config});
+    card.watchedEntities = getWatchedEntities({ type: "", ...config });
 }
 
 export function updateCalibration(card: XiaomiVacuumMapCard, config: CardPresetConfig): void {

@@ -87,7 +87,14 @@ describe("createTapGuard", () => {
         // even after the mouse hovered back over the map.
         const { target, clicks } = guarded();
         const primary = (type: string, x: number, y: number): PointerEvent =>
-            new PointerEvent(type, { bubbles: true, composed: true, clientX: x, clientY: y, pointerId: 1, isPrimary: true });
+            new PointerEvent(type, {
+                bubbles: true,
+                composed: true,
+                clientX: x,
+                clientY: y,
+                pointerId: 1,
+                isPrimary: true,
+            });
         target.dispatchEvent(primary("pointerdown", 10, 10));
         target.dispatchEvent(primary("pointermove", 200, 10));
         target.dispatchEvent(primary("pointermove", 50, 50));

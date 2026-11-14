@@ -6,14 +6,7 @@ import { setMapView } from "../../src/model/map-view-store";
 import { RoomColorDetector } from "../../src/model/room-color-detector";
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle, FixtureBundle, HarnessClock, MockHass } from "../harness";
-import {
-    fixtureConfig,
-    fixtureHass,
-    loadSyntheticFixture,
-    mountCard,
-    useHarnessClock,
-    withState,
-} from "../harness";
+import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, useHarnessClock, withState } from "../harness";
 
 interface MapRefreshFixture {
     card: CardHandle;
@@ -282,10 +275,13 @@ describe("map refresh policy in the card", () => {
         // without a camera state write — is still inside the window and must not fetch a snapshot.
         await clock.advance(1000);
         elapsed += 1000;
-        await applyHass(card, withState(card.hass, vacuumId, {
-            state: "docked",
-            last_updated: "2026-11-01T10:00:06.000Z",
-        }).hass);
+        await applyHass(
+            card,
+            withState(card.hass, vacuumId, {
+                state: "docked",
+                last_updated: "2026-11-01T10:00:06.000Z",
+            }).hass,
+        );
         tracker.check(elapsed);
         expect(tracker.count).toBe(1);
 

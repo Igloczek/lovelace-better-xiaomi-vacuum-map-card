@@ -1,4 +1,14 @@
-import { bumpCamera, card, expect, openDashboard, serviceCall, shot, test, waitForCard, type CardHandle } from "./helpers";
+import {
+    bumpCamera,
+    card,
+    expect,
+    openDashboard,
+    serviceCall,
+    shot,
+    test,
+    waitForCard,
+    type CardHandle,
+} from "./helpers";
 
 /**
  * Selection state across rebuilds on a real instance.
@@ -28,7 +38,9 @@ function badges(target: CardHandle): Promise<Record<string, string>> {
 /** A screen point inside a room, off-centre towards a vertex so the label is not the target. */
 function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: number } | null> {
     return target.evaluate((element, roomId: string) => {
-        const outline = element.shadowRoot.querySelector(`.room-${roomId}-wrapper .room-outline`) as SVGPolygonElement | null;
+        const outline = element.shadowRoot.querySelector(
+            `.room-${roomId}-wrapper .room-outline`,
+        ) as SVGPolygonElement | null;
         const matrix = outline?.getScreenCTM();
         if (!outline || !matrix || outline.points.numberOfItems === 0) return null;
         const svg = outline.ownerSVGElement!;
@@ -39,7 +51,10 @@ function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: numb
             point.y = outline.points.getItem(index).y;
             screen.push(point.matrixTransform(matrix));
         }
-        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), { x: 0, y: 0 });
+        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), {
+            x: 0,
+            y: 0,
+        });
         const vertex = screen[0];
         return { x: centre.x + (vertex.x - centre.x) * 0.6, y: centre.y + (vertex.y - centre.y) * 0.6 };
     }, id);

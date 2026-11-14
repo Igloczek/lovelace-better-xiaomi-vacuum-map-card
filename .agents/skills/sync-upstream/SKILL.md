@@ -90,6 +90,12 @@ For every conflict:
    tests. Only then remove the fork divergence, move the row to **Superseded differences** in
    `FORK.md`, and record the upstream commit.
 
+The fork's code base is formatted with oxfmt (4-space indent, 120 columns) and upstream's is not,
+so most upstream hunks conflict on whitespace alone. Resolve them on content: take upstream's change,
+then run `npm run format` on the touched files instead of hand-matching indentation. Merge with
+`-X ignore-space-change` to let git drop pure re-indentation conflicts; never use it to skip reading
+a real conflict.
+
 Shared files are the normal case, not the exception. Reapply fork changes to:
 
 - `src/xiaomi-vacuum-map-card.ts` and `src/card/` — upstream keeps the whole card in one file; the
@@ -110,6 +116,7 @@ Shared files are the normal case, not the exception. Reapply fork changes to:
 Run the full local gate set:
 
 ```sh
+npm run format:check
 npm run lint
 npx tsc --noEmit
 npm test

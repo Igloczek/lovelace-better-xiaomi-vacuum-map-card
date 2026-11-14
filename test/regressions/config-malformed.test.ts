@@ -23,39 +23,70 @@ const MALFORMED: [string, Record<string, unknown>][] = [
     ["map_modes is a string", { map_modes: "vacuum_clean_zone" }],
     ["map_modes has a null item", { map_modes: [null] }],
     ["map_modes item is a string", { map_modes: ["vacuum_clean_zone"] }],
-    ["predefined_selections is an object", {
-        map_modes: [{ template: "vacuum_clean_segment", predefined_selections: { id: 1 } }],
-    }],
-    ["predefined_selections has a null room", {
-        map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [null] }],
-    }],
-    ["room id is null", {
-        map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [{ id: null }] }],
-    }],
-    ["room outline is a string", {
-        map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [{ id: 1, outline: "1,2" }] }],
-    }],
-    ["room outline has a null point", {
-        map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [{ id: 1, outline: [null] }] }],
-    }],
-    ["zones is a number", {
-        map_modes: [{ template: "vacuum_clean_zone_predefined", predefined_selections: [{ zones: 5 }] }],
-    }],
-    ["zone is a string", {
-        map_modes: [{ template: "vacuum_clean_zone_predefined", predefined_selections: [{ zones: ["1,2,3,4"] }] }],
-    }],
+    [
+        "predefined_selections is an object",
+        {
+            map_modes: [{ template: "vacuum_clean_segment", predefined_selections: { id: 1 } }],
+        },
+    ],
+    [
+        "predefined_selections has a null room",
+        {
+            map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [null] }],
+        },
+    ],
+    [
+        "room id is null",
+        {
+            map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [{ id: null }] }],
+        },
+    ],
+    [
+        "room outline is a string",
+        {
+            map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [{ id: 1, outline: "1,2" }] }],
+        },
+    ],
+    [
+        "room outline has a null point",
+        {
+            map_modes: [{ template: "vacuum_clean_segment", predefined_selections: [{ id: 1, outline: [null] }] }],
+        },
+    ],
+    [
+        "zones is a number",
+        {
+            map_modes: [{ template: "vacuum_clean_zone_predefined", predefined_selections: [{ zones: 5 }] }],
+        },
+    ],
+    [
+        "zone is a string",
+        {
+            map_modes: [{ template: "vacuum_clean_zone_predefined", predefined_selections: [{ zones: ["1,2,3,4"] }] }],
+        },
+    ],
     ["icons is an object", { icons: { icon: "mdi:play" } }],
     ["tiles is a string", { tiles: "battery" }],
     ["icon conditions is an object", { icons: [{ icon: "mdi:play", conditions: { entity: "x" } }] }],
     ["additional_presets is an object", { additional_presets: { entity: "vacuum.x" } }],
     ["additional_presets has a null item", { additional_presets: [null] }],
     ["vacuum_platform is a number", { vacuum_platform: 5 }],
-    ["service_call_schema is a string", {
-        map_modes: [{ name: "x", icon: "mdi:x", selection_type: "MANUAL_RECTANGLE", service_call_schema: "vacuum.start" }],
-    }],
-    ["selection_type is unknown", {
-        map_modes: [{ name: "x", icon: "mdi:x", selection_type: "ZONE", service_call_schema: { service: "vacuum.start" } }],
-    }],
+    [
+        "service_call_schema is a string",
+        {
+            map_modes: [
+                { name: "x", icon: "mdi:x", selection_type: "MANUAL_RECTANGLE", service_call_schema: "vacuum.start" },
+            ],
+        },
+    ],
+    [
+        "selection_type is unknown",
+        {
+            map_modes: [
+                { name: "x", icon: "mdi:x", selection_type: "ZONE", service_call_schema: { service: "vacuum.start" } },
+            ],
+        },
+    ],
     ["conditions is an object", { conditions: { entity: "vacuum.x" } }],
 ];
 
@@ -130,8 +161,14 @@ describe("empty values master accepted stay accepted", () => {
         ["selection_type: null", { map_modes: [{ ...zone, selection_type: null }] }],
         ["selection_type: empty", { map_modes: [{ ...zone, selection_type: "" }] }],
         ["repeats_type: empty", { map_modes: [{ ...zone, repeats_type: "" }] }],
-        ["predefined_selections: null", { map_modes: [{ template: "vacuum_clean_segment", predefined_selections: null }] }],
-        ["calibration_source: null on a built-in-calibration platform", { vacuum_platform: "Roomba", calibration_source: null }],
+        [
+            "predefined_selections: null",
+            { map_modes: [{ template: "vacuum_clean_segment", predefined_selections: null }] },
+        ],
+        [
+            "calibration_source: null on a built-in-calibration platform",
+            { vacuum_platform: "Roomba", calibration_source: null },
+        ],
         ["icons: null", { icons: null }],
         ["tiles: null", { tiles: null }],
     ])("%s", (_name, patch) => {
@@ -144,9 +181,14 @@ describe("empty values master accepted stay accepted", () => {
         ["repeats_type: 1", { map_modes: [{ ...zone, repeats_type: 1 }] }, "Invalid repeats type: 1"],
         ["selection_type: ZONE", { map_modes: [{ ...zone, selection_type: "ZONE" }] }, "Invalid selection type: ZONE"],
         // Master accepted this and then showed "Invalid calibration": dreame has no built-in calibration.
-        ["calibration_source: null where calibration is needed", {
-            vacuum_platform: "Tasshack/dreame-vacuum", calibration_source: null,
-        }, "Missing property: calibration_source"],
+        [
+            "calibration_source: null where calibration is needed",
+            {
+                vacuum_platform: "Tasshack/dreame-vacuum",
+                calibration_source: null,
+            },
+            "Missing property: calibration_source",
+        ],
     ])("%s is reported with its value", (_name, patch, message) => {
         expect(validateConfig(config(patch))).toEqual([message]);
     });

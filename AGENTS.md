@@ -36,7 +36,8 @@
 
 - Run `npm test` (Vitest with a happy-dom harness) for unit and DOM tests, and `npm run test:e2e` for the real-Home-Assistant suite (see `test/e2e/README.md`).
 - Run `npm run check:map-scale` for the zoom/rotation scale regression check and `npm run check:docs` for documentation links.
-- Run `npm run build` for linting and the production bundle; `npx tsc --noEmit` is an additional type check.
+- Run `npm run build` for linting (oxlint) and the production bundle (Rolldown); `npx tsc --noEmit` is an additional type check.
+- Run `npm run format` (oxfmt) before committing; CI fails on unformatted files. Lit template contents are deliberately not formatted.
 - Use `npm start` for the development bundle. `CONTRIBUTING.md` documents loading it into a Home Assistant instance.
 
 ## GitHub releases

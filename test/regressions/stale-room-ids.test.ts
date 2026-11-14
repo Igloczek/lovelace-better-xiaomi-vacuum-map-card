@@ -58,9 +58,7 @@ function roomsConfig(selections: RoomConfig[]): XiaomiVacuumMapCardConfig {
 }
 
 /** Mounts with the camera metadata a re-map would leave behind (`3,4,5` instead of `0,1,2`). */
-async function mountAfterRemap(
-    selections: RoomConfig[],
-): Promise<{ card: CardHandle; hass: MockHass }> {
+async function mountAfterRemap(selections: RoomConfig[]): Promise<{ card: CardHandle; hass: MockHass }> {
     useHarnessClock();
     const hass = withState(fixtureHass(BEFORE_FIXTURE), SHIFTED_CAMERA.entity_id, {
         attributes: SHIFTED_CAMERA.attributes,

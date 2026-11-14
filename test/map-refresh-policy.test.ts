@@ -90,7 +90,11 @@ describe("map refresh policy", () => {
 
     it("freezes the URL while the document is hidden, even when the camera and interval changed", () => {
         const first = decide(T0);
-        const changedCamera = { ...CAMERA, lastUpdated: "2026-11-01T10:00:03.000Z", entityPicture: "/api/camera_proxy/new" };
+        const changedCamera = {
+            ...CAMERA,
+            lastUpdated: "2026-11-01T10:00:03.000Z",
+            entityPicture: "/api/camera_proxy/new",
+        };
         const hiddenCamera = decide(T0 + MAP_REFRESH_INTERVAL_MS, first.state, changedCamera, true);
 
         expect(hiddenCamera.changed).toBe(false);
@@ -155,7 +159,13 @@ describe("map refresh policy", () => {
     it("holds a camera change while the current snapshot is still loading", () => {
         const first = decide(T0);
         const changed = { ...CAMERA, lastUpdated: "2026-11-01T10:00:01.000Z" };
-        const held = decideMapRefresh({ camera: changed, previous: first.state, now: T0 + 1000, hidden: false, loadingSince: T0 });
+        const held = decideMapRefresh({
+            camera: changed,
+            previous: first.state,
+            now: T0 + 1000,
+            hidden: false,
+            loadingSince: T0,
+        });
 
         expect(held.changed).toBe(false);
         expect(held.state).toBe(first.state);
@@ -175,7 +185,13 @@ describe("map refresh policy", () => {
     it("never holds a switch to a different camera behind the old camera's download", () => {
         const first = decide(T0);
         const other = { ...CAMERA, cameraId: "camera.other_map" };
-        const switched = decideMapRefresh({ camera: other, previous: first.state, now: T0 + 100, hidden: false, loadingSince: T0 });
+        const switched = decideMapRefresh({
+            camera: other,
+            previous: first.state,
+            now: T0 + 100,
+            hidden: false,
+            loadingSince: T0,
+        });
 
         expect(switched.changed).toBe(true);
     });
@@ -189,7 +205,13 @@ describe("map refresh policy", () => {
     });
 
     it("honours an explicit interval", () => {
-        const first = decideMapRefresh({ camera: CAMERA, previous: undefined, now: T0, intervalMs: 1000, hidden: false });
+        const first = decideMapRefresh({
+            camera: CAMERA,
+            previous: undefined,
+            now: T0,
+            intervalMs: 1000,
+            hidden: false,
+        });
         expect(first.changed).toBe(true);
         const beforeInterval = decideMapRefresh({
             camera: CAMERA,

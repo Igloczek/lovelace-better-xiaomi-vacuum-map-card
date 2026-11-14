@@ -25,13 +25,18 @@ async function openRunCard(page: Page): Promise<CardHandle> {
     await openDashboard(page, DASHBOARD);
     await waitForCard(page);
     const target = await card(page);
-    await expect.poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length)).toBeGreaterThanOrEqual(3);
+    await expect
+        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length))
+        .toBeGreaterThanOrEqual(3);
     return target;
 }
 
 /** The vacuum state Home Assistant's frontend currently shows. */
 function shownState(page: Page): Promise<string | undefined> {
-    return page.evaluate(entity => (document.querySelector("home-assistant") as any)?.hass?.states[entity]?.state, VACUUM);
+    return page.evaluate(
+        entity => (document.querySelector("home-assistant") as any)?.hass?.states[entity]?.state,
+        VACUUM,
+    );
 }
 
 function attribute(page: Page, name: string): Promise<unknown> {
@@ -44,7 +49,9 @@ function attribute(page: Page, name: string): Promise<unknown> {
 /** A point inside room `id`, off its centre (the centre carries the label). */
 async function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: number }> {
     const point = await target.evaluate((element, roomId: string) => {
-        const outline = element.shadowRoot.querySelector(`.room-${roomId}-wrapper .room-outline`) as SVGPolygonElement | null;
+        const outline = element.shadowRoot.querySelector(
+            `.room-${roomId}-wrapper .room-outline`,
+        ) as SVGPolygonElement | null;
         const matrix = outline?.getScreenCTM();
         if (!outline || !matrix || outline.points.numberOfItems === 0) return null;
         const svg = outline.ownerSVGElement!;
@@ -55,7 +62,10 @@ async function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y
             p.y = outline.points.getItem(index).y;
             screen.push(p.matrixTransform(matrix));
         }
-        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), { x: 0, y: 0 });
+        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), {
+            x: 0,
+            y: 0,
+        });
         return { x: centre.x + (screen[0].x - centre.x) * 0.6, y: centre.y + (screen[0].y - centre.y) * 0.6 };
     }, id);
     if (!point) throw new Error(`room ${id} has no outline on screen`);
@@ -75,7 +85,9 @@ function selected(target: CardHandle): Promise<string[]> {
 /** Rooms drawn as part of the run in progress. */
 function running(target: CardHandle): Promise<string[]> {
     return target.evaluate(element =>
-        ["0", "1", "2"].filter(id => element.shadowRoot.querySelector(`.room-${id}-wrapper`)?.classList.contains("running")),
+        ["0", "1", "2"].filter(id =>
+            element.shadowRoot.querySelector(`.room-${id}-wrapper`)?.classList.contains("running"),
+        ),
     );
 }
 
@@ -146,7 +158,9 @@ test.describe("the run after Start, with a misbehaving vacuum", () => {
 
         await expect.poll(() => selected(target)).toEqual(["2", "0"]);
         expect(await running(target)).toEqual([]);
-        expect(await page.evaluate(() => window.localStorage.getItem("xiaomi-vacuum-map-card.active-room-run"))).toBeNull();
+        expect(
+            await page.evaluate(() => window.localStorage.getItem("xiaomi-vacuum-map-card.active-room-run")),
+        ).toBeNull();
         expect(await shownState(page)).toBe("docked");
     });
 

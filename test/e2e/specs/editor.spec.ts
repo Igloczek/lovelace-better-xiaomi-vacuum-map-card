@@ -40,11 +40,21 @@ test("card editor renders, edits the title and generates rooms", async ({ logged
     expect(roomIds(await dialogConfig())).toEqual([]);
 
     const fields = await editor.evaluate((element: any) => ({
-        inputs: [...element.shadowRoot.querySelectorAll("ha-input")].map((input: Element) => input.getAttribute("label")),
-        textfields: [...element.shadowRoot.querySelectorAll("ha-textfield")].map((input: Element) => input.getAttribute("label")),
-        buttons: [...element.shadowRoot.querySelectorAll("ha-button")].map((button: Element) => (button.textContent ?? "").trim()),
-        switchLabels: [...element.shadowRoot.querySelectorAll("ha-formfield")].map((field: Element) => field.getAttribute("label")),
-        fallbackLabels: [...element.shadowRoot.querySelectorAll(".switch-fallback-label")].map((label: Element) => (label.textContent ?? "").trim()),
+        inputs: [...element.shadowRoot.querySelectorAll("ha-input")].map((input: Element) =>
+            input.getAttribute("label"),
+        ),
+        textfields: [...element.shadowRoot.querySelectorAll("ha-textfield")].map((input: Element) =>
+            input.getAttribute("label"),
+        ),
+        buttons: [...element.shadowRoot.querySelectorAll("ha-button")].map((button: Element) =>
+            (button.textContent ?? "").trim(),
+        ),
+        switchLabels: [...element.shadowRoot.querySelectorAll("ha-formfield")].map((field: Element) =>
+            field.getAttribute("label"),
+        ),
+        fallbackLabels: [...element.shadowRoot.querySelectorAll(".switch-fallback-label")].map((label: Element) =>
+            (label.textContent ?? "").trim(),
+        ),
     }));
     expect(fields.inputs).toContain("Title (optional)");
     expect(fields.textfields).toEqual([]);

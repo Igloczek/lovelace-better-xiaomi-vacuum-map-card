@@ -85,9 +85,7 @@ export function getAllEntitiesFromTheSameDevice(
     // A hass without a connection (a preview, or a half-initialized card) cannot be memoized:
     // `WeakMap.set(undefined, ...)` throws. A throwaway map keeps this path single-file without
     // catching, and the lookup still resolves (or fails) exactly as it would uncached.
-    const cache = hass.connection
-        ? cacheFor(hass.connection)
-        : new Map<string, Promise<EntityRegistryEntry[]>>();
+    const cache = hass.connection ? cacheFor(hass.connection) : new Map<string, Promise<EntityRegistryEntry[]>>();
     const cached = cache.get(key);
     if (cached) return cached;
 
@@ -126,16 +124,11 @@ async function loadEntitiesForDevice(
  * registry and fetch each entry of the device. This is the original implementation and is only
  * reached after `get_entries` rejects, so a current install never pays for the full registry.
  */
-async function loadFromFullRegistry(
-    hass: HomeAssistantFixed,
-    deviceId: string,
-): Promise<EntityRegistryEntry[]> {
+async function loadFromFullRegistry(hass: HomeAssistantFixed, deviceId: string): Promise<EntityRegistryEntry[]> {
     const registry = await hass.callWS<{ entity_id: string; device_id?: string }[]>({
         type: "config/entity_registry/list",
     });
-    const entityIds = registry
-        .filter(entry => entry.device_id === deviceId)
-        .map(entry => entry.entity_id);
+    const entityIds = registry.filter(entry => entry.device_id === deviceId).map(entry => entry.entity_id);
     const entries = await Promise.all(
         entityIds.map(entityId =>
             hass.callWS<EntityRegistryEntry>({

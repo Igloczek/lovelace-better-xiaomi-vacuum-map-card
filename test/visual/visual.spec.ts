@@ -342,9 +342,7 @@ test("a stored view beats the configured default after a remount", async ({ page
     const storedEntryCount = (): Promise<number> =>
         page.evaluate(
             () =>
-                Object.keys(
-                    JSON.parse(window.localStorage.getItem("xiaomi-vacuum-map-card.map-view") ?? "{}"),
-                ).length,
+                Object.keys(JSON.parse(window.localStorage.getItem("xiaomi-vacuum-map-card.map-view") ?? "{}")).length,
         );
     await expect.poll(storedEntryCount).toBeGreaterThan(0);
 
@@ -372,9 +370,9 @@ test("room hit-testing selects the clicked room at zoom 1", async ({ page }) => 
     );
     await page.mouse.click(point.x, point.y);
 
-    await expect.poll(() => page.evaluate(() => (window as unknown as VisualWindow).visualHarness.selectedRoomIds())).toEqual([
-        "1",
-    ]);
+    await expect
+        .poll(() => page.evaluate(() => (window as unknown as VisualWindow).visualHarness.selectedRoomIds()))
+        .toEqual(["1"]);
     await expect(page.locator(`${CARD} .room-1-wrapper.selected`)).toHaveCount(1);
     await expect(page.locator(`${CARD} .room-0-wrapper.selected`)).toHaveCount(0);
     await expect(page.locator(`${CARD} .room-2-wrapper.selected`)).toHaveCount(0);
@@ -464,7 +462,12 @@ for (const zoom of [1, 2.5] as const) {
             // sides. Room 1 covers image x 100..170 and y 20..70; rotation 90 turns image x into
             // screen y and image y into reversed screen x. No room reaches the background, however
             // close the tap.
-            const backgroundPoints: Array<[number, number]> = [[135, 75], [135, 15], [95, 45], [175, 45]];
+            const backgroundPoints: Array<[number, number]> = [
+                [135, 75],
+                [135, 15],
+                [95, 45],
+                [175, 45],
+            ];
             let backgroundTaps = 0;
             for (const [imageX, imageY] of backgroundPoints) {
                 const [fractionX, fractionY] =
@@ -510,7 +513,13 @@ const STALE_ROOM_OVER_LIVE_ONE: RoomConfig = {
 
 function staleRoomConfig(): XiaomiVacuumMapCardConfig {
     return cardConfig({
-        map_modes: [{ template: "vacuum_clean_segment", cleaning_order: true, predefined_selections: [STALE_ROOM_OVER_LIVE_ONE] }],
+        map_modes: [
+            {
+                template: "vacuum_clean_segment",
+                cleaning_order: true,
+                predefined_selections: [STALE_ROOM_OVER_LIVE_ONE],
+            },
+        ],
     });
 }
 
@@ -546,9 +555,7 @@ test("a stale room's icon does not block the live room it overlaps", async ({ pa
     // The stale outline and the icon are pointer-transparent, and the icon is not a `.clickable`
     // element: either one alone was enough to swallow the click in the first review round.
     expect(
-        await page
-            .locator(`${CARD} .room-9-wrapper`)
-            .evaluate(element => getComputedStyle(element).pointerEvents),
+        await page.locator(`${CARD} .room-9-wrapper`).evaluate(element => getComputedStyle(element).pointerEvents),
     ).toBe("none");
     expect(
         await page
@@ -636,12 +643,7 @@ function horizontalConfig(overrides: Partial<XiaomiVacuumMapCardConfig> = {}): X
             { template: "vacuum_clean_zone" },
             { template: "vacuum_goto" },
         ],
-        icons: [
-            { icon: "mdi:robot-vacuum" },
-            { icon: "mdi:battery" },
-            { icon: "mdi:map-marker" },
-            { icon: "mdi:cog" },
-        ],
+        icons: [{ icon: "mdi:robot-vacuum" }, { icon: "mdi:battery" }, { icon: "mdi:map-marker" }, { icon: "mdi:cog" }],
         tiles: HORIZONTAL_TILES,
         ...overrides,
     });
@@ -666,10 +668,7 @@ async function setContainerWidth(page: Page, width: number): Promise<void> {
 /** Lets the browser re-layout and paint after a viewport or container change. */
 function nextLayout(page: Page): Promise<void> {
     return page.evaluate(
-        () =>
-            new Promise<void>(resolve =>
-                requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-            ),
+        () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
     );
 }
 
@@ -750,14 +749,12 @@ test("layout geometry at 400 and 800 px", async ({ page }) => {
         await setContainerWidth(page, width);
         await mount(page, cardConfig({ title: "Vertical" }));
         const vertical = await layoutBoxes(page);
-        expect(
-            vertical.controls.y,
-            `vertical at ${width}px: controls must start below the map`,
-        ).toBeGreaterThanOrEqual(vertical.map.y + vertical.map.height - 1);
-        expect(
-            vertical.controls.y,
-            `vertical at ${width}px: controls must not overlap the map`,
-        ).toBeGreaterThanOrEqual(vertical.map.y);
+        expect(vertical.controls.y, `vertical at ${width}px: controls must start below the map`).toBeGreaterThanOrEqual(
+            vertical.map.y + vertical.map.height - 1,
+        );
+        expect(vertical.controls.y, `vertical at ${width}px: controls must not overlap the map`).toBeGreaterThanOrEqual(
+            vertical.map.y,
+        );
 
         await mount(page, horizontalConfig());
         expectSideBySide(await layoutBoxes(page), `horizontal at ${width}px`);
@@ -774,9 +771,7 @@ for (const width of HORIZONTAL_WIDTHS) {
         // The map keeps a usable size at every width: the clamped controls column never squeezes
         // it out, and the whole card stays inside the page.
         expect(boxes.map.width).toBeGreaterThan(120);
-        const pageOverflow = await page.evaluate(
-            () => document.documentElement.scrollWidth - window.innerWidth,
-        );
+        const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         expect(pageOverflow, `horizontal at ${width}px must not overflow the page`).toBeLessThanOrEqual(1);
 
         const controlsMetrics = await page.locator(`${CARD} .controls-wrapper`).evaluate(element => ({
@@ -935,9 +930,9 @@ test("horizontal layout keeps room, mode and tile interactions", async ({ page }
         (window as unknown as VisualWindow).visualHarness.roomPoint("1", 0.25, 0.5),
     );
     await page.mouse.click(point.x, point.y);
-    await expect.poll(() => page.evaluate(() => (window as unknown as VisualWindow).visualHarness.selectedRoomIds())).toEqual([
-        "1",
-    ]);
+    await expect
+        .poll(() => page.evaluate(() => (window as unknown as VisualWindow).visualHarness.selectedRoomIds()))
+        .toEqual(["1"]);
     await expect(page.locator(`${CARD} .room-1-wrapper.selected`)).toHaveCount(1);
 
     // Clicking a tile still runs its action path without an error (the page-error check in
@@ -978,4 +973,3 @@ test("horizontal layout keeps room, mode and tile interactions", async ({ page }
         }),
     ).toBe(1);
 });
-

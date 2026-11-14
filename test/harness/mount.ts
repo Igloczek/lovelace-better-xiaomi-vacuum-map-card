@@ -172,10 +172,7 @@ export async function mountCard(
 }
 
 /** Mounts the card editor and waits until its form is rendered. */
-export async function mountEditor(
-    config: XiaomiVacuumMapCardConfig,
-    hass: MockHass,
-): Promise<EditorHandle> {
+export async function mountEditor(config: XiaomiVacuumMapCardConfig, hass: MockHass): Promise<EditorHandle> {
     await ensureEditorElementDefined();
     const element = document.createElement("xiaomi-vacuum-map-card-editor") as XiaomiVacuumMapCardEditor;
     trackMountedElement(element);

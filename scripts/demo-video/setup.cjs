@@ -53,7 +53,13 @@ async function authenticate(onboarding) {
         const created = await api("/api/onboarding/users", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ client_id: CLIENT_ID, name: "Demo", username: USERNAME, password: PASSWORD, language: "en" }),
+            body: JSON.stringify({
+                client_id: CLIENT_ID,
+                name: "Demo",
+                username: USERNAME,
+                password: PASSWORD,
+                language: "en",
+            }),
         });
         if (created.status !== 200) throw new Error(`onboarding failed: ${created.status}`);
         const token = await exchange(created.body.auth_code);
@@ -70,7 +76,11 @@ async function authenticate(onboarding) {
     const flow = await api("/auth/login_flow", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ client_id: CLIENT_ID, handler: ["homeassistant", null], redirect_uri: `${BASE}/?auth_callback=1` }),
+        body: JSON.stringify({
+            client_id: CLIENT_ID,
+            handler: ["homeassistant", null],
+            redirect_uri: `${BASE}/?auth_callback=1`,
+        }),
     });
     const step = await api(`/auth/login_flow/${flow.body.flow_id}`, {
         method: "POST",
@@ -120,7 +130,12 @@ const CARD = {
     vacuum_platform: "Xiaomi Miio",
     map_source: { camera: "camera.ground_floor_map" },
     calibration_source: { camera: true },
-    map_modes: [roomsMode, { template: "vacuum_clean_zone" }, { template: "vacuum_goto" }, { template: "vacuum_follow_path" }],
+    map_modes: [
+        roomsMode,
+        { template: "vacuum_clean_zone" },
+        { template: "vacuum_goto" },
+        { template: "vacuum_follow_path" },
+    ],
     additional_presets: [
         {
             preset_name: "First floor",

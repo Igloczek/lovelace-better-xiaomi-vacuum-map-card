@@ -22,13 +22,13 @@ jobs:
     if: ${{ !github.event.issue.pull_request && github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: scripts/agent-report
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
 
       - name: Review the report
         run: node scripts/agent-report/ci-issue.mjs

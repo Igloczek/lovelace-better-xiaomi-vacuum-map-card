@@ -43,7 +43,11 @@ export class MapMode {
     public predefinedSelections: PredefinedSelectionConfig[];
     public variables: VariablesStorage;
 
-    constructor(vacuumPlatform: string, public readonly config: MapModeConfig, language: Language) {
+    constructor(
+        vacuumPlatform: string,
+        public readonly config: MapModeConfig,
+        language: Language,
+    ) {
         this.name = config.name ?? localize("map_mode.invalid", language);
         this.icon = config.icon ?? "mdi:help";
         this.idType = config.id_type;
@@ -105,8 +109,8 @@ export class MapMode {
     /** The schema for a Home Assistant version: a template's legacy schema, or the current one. */
     public getServiceCallSchema(haVersion: string | undefined): ServiceCallSchema {
         return (
-            this.legacyServiceCallSchemas.find(legacy => isHaVersionBefore(haVersion, legacy.beforeHaVersion))?.schema ??
-            this.serviceCallSchema
+            this.legacyServiceCallSchemas.find(legacy => isHaVersionBefore(haVersion, legacy.beforeHaVersion))
+                ?.schema ?? this.serviceCallSchema
         );
     }
 
@@ -180,12 +184,14 @@ export class MapMode {
         if (!config.icon && templateValue.icon) this.icon = templateValue.icon;
         if (!config.selection_type && templateValue.selection_type)
             this.selectionType = SelectionType[templateValue.selection_type];
-        if (!config.id_type && templateValue.id_type)
-            this.idType = templateValue.id_type;
+        if (!config.id_type && templateValue.id_type) this.idType = templateValue.id_type;
         if (!config.max_selections && templateValue.max_selections) this.maxSelections = templateValue.max_selections;
         if (config.coordinates_rounding === undefined && templateValue.coordinates_rounding !== undefined)
             this.coordinatesRounding = templateValue.coordinates_rounding;
-        if (config.coordinates_to_meters_divider === undefined && templateValue.coordinates_to_meters_divider !== undefined)
+        if (
+            config.coordinates_to_meters_divider === undefined &&
+            templateValue.coordinates_to_meters_divider !== undefined
+        )
             this.coordinatesToMetersDivider = templateValue.coordinates_to_meters_divider;
         if (config.run_immediately === undefined && templateValue.run_immediately !== undefined)
             this.runImmediately = templateValue.run_immediately;
@@ -224,7 +230,9 @@ export class MapMode {
 
     /** True for the selection types whose selection is one point, `[x, y]` or `[x, y, repeats]`. */
     public isPointSelection(): boolean {
-        return this.selectionType === SelectionType.MANUAL_POINT || this.selectionType === SelectionType.PREDEFINED_POINT;
+        return (
+            this.selectionType === SelectionType.MANUAL_POINT || this.selectionType === SelectionType.PREDEFINED_POINT
+        );
     }
 
     private _applyData(

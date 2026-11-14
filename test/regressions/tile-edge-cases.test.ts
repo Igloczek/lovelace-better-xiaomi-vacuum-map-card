@@ -96,7 +96,12 @@ describe("numeric tiles with a non-numeric value", () => {
 describe("tile icons", () => {
     it("an icon_source pointing at a missing entity does not break the tile", async () => {
         const rendered = await renderTile(
-            { entity: VACUUM, attribute: "battery_level", icon_source: "sensor.removed.attributes.icon", label: "Battery" },
+            {
+                entity: VACUUM,
+                attribute: "battery_level",
+                icon_source: "sensor.removed.attributes.icon",
+                label: "Battery",
+            },
             fixtureHass(loadSyntheticFixture()),
         );
         expect(rendered.label).toBe("Battery");
@@ -146,7 +151,10 @@ describe("registry entries with an unusual unique_id", () => {
             { entity_id: "sensor.odd_null", device_id: "device-roborock-s7", unique_id: null as unknown as string },
             { entity_id: "sensor.cleaning_time_ok", device_id: "device-roborock-s7", unique_id: "cleaning_time_abc" },
         ]);
-        const next = withState(hass, "sensor.cleaning_time_ok", { state: "30", attributes: { unit_of_measurement: "min" } }).hass;
+        const next = withState(hass, "sensor.cleaning_time_ok", {
+            state: "30",
+            attributes: { unit_of_measurement: "min" },
+        }).hass;
         const tiles = await TilesGenerator.generate(next, VACUUM, "Roborock", "en", [], {});
         expect(tiles.map(t => t.tile_id)).toContain("cleaning_time");
         await expect(IconListGenerator.generate(next, VACUUM, "Roborock", "en", [], {})).resolves.toBeDefined();

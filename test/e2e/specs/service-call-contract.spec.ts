@@ -43,7 +43,8 @@ test("every templated mode renders in Home Assistant and matches its integration
         try {
             const call = await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed);
             const errors = checkContract(testCase, call);
-            if (errors.length) failures.push(`${testCase.name}: ${errors.join("; ")} ${JSON.stringify(call.serviceData)}`);
+            if (errors.length)
+                failures.push(`${testCase.name}: ${errors.join("; ")} ${JSON.stringify(call.serviceData)}`);
         } catch (e) {
             failures.push(`${testCase.name}: ${(e as Error).message}`);
         }
@@ -93,10 +94,10 @@ test("Home Assistant's vacuum.send_command schema accepts every send_command tem
 });
 
 test("a template error is reported by Home Assistant and rejects instead of hanging", async () => {
-    await expect(evaluateJinjaTemplate(hass as unknown as HomeAssistantFixed, '{"a": "{{ [\\"13\\"] | length }}"}')).rejects.toThrow(
-        /TemplateSyntaxError/,
-    );
-    await expect(evaluateJinjaTemplate(hass as unknown as HomeAssistantFixed, "{{ states('" + ENTITY_ID + "') }}")).resolves.toBe(
-        "unknown",
-    );
+    await expect(
+        evaluateJinjaTemplate(hass as unknown as HomeAssistantFixed, '{"a": "{{ [\\"13\\"] | length }}"}'),
+    ).rejects.toThrow(/TemplateSyntaxError/);
+    await expect(
+        evaluateJinjaTemplate(hass as unknown as HomeAssistantFixed, "{{ states('" + ENTITY_ID + "') }}"),
+    ).resolves.toBe("unknown");
 });

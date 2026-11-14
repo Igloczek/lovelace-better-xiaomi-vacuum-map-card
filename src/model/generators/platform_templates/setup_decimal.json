@@ -1,10 +1,6 @@
 {
     "map_modes": {
-        "default_templates": [
-            "setup_zone",
-            "setup_point",
-            "setup_outline"
-        ],
+        "default_templates": ["setup_zone", "setup_point", "setup_outline"],
         "templates": {
             "setup_zone": {
                 "name": "map_mode.setup_zone",

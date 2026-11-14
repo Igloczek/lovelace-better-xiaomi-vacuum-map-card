@@ -136,9 +136,7 @@ function renderedRotation(card: CardHandle): string {
     return cardElement.style.getPropertyValue("--map-rotation").trim();
 }
 
-async function mountWithView(
-    overrides: Partial<XiaomiVacuumMapCardConfig> = {},
-): Promise<MapFixture> {
+async function mountWithView(overrides: Partial<XiaomiVacuumMapCardConfig> = {}): Promise<MapFixture> {
     const clock = useHarnessClock();
     const fixture = loadSyntheticFixture();
     const config = defaultViewConfig(overrides);
@@ -300,8 +298,7 @@ describe("configured default map view in the card", () => {
         "keeps the current view when the map key changes mid-session (persistence %s)",
         async persist => {
             const { card, clock, hass } = await mountWithView({ persist_map_view: persist });
-            const keyOf = (): string =>
-                (card.element as unknown as { _getMapViewKey: () => string })._getMapViewKey();
+            const keyOf = (): string => (card.element as unknown as { _getMapViewKey: () => string })._getMapViewKey();
             const keyBefore = keyOf();
 
             // A user pan/zoom. With persistence on it is the stored view for the current key.

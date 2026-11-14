@@ -2,30 +2,26 @@ import { css, CSSResultGroup, html, TemplateResult } from "lit";
 import { hasAction } from "custom-card-helpers";
 
 import { actionHandler } from "../action-handler-directive";
-import {
-    ActionHandlerFunctionCreator,
-    IconActionConfig,
-} from "../types/types";
-import { customElement, property } from "lit/decorators";
+import { ActionHandlerFunctionCreator, IconActionConfig } from "../types/types";
+import { customElement, property } from "lit/decorators.js";
 import { RootlessLitElement } from "./rootless-lit-element";
 
 @customElement("xvmc-single-icon")
 export class SingleIcon extends RootlessLitElement {
-
-    @property({attribute: false})
+    @property({ attribute: false })
     private config!: IconActionConfig;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private isInEditor!: boolean;
 
-    @property({attribute: false})
+    @property({ attribute: false })
     private onAction!: ActionHandlerFunctionCreator;
 
     public render(): TemplateResult {
         return html`
             <paper-button
                 class="single-icon clickable ripple"
-                .title=${this.isInEditor ? `icon_id: ${this.config.icon_id}` : this.config.tooltip ?? ""}
+                .title=${this.isInEditor ? `icon_id: ${this.config.icon_id}` : (this.config.tooltip ?? "")}
                 @action=${this.onAction(this.config)}
                 .actionHandler=${actionHandler({
                     hasHold: hasAction(this.config?.hold_action),

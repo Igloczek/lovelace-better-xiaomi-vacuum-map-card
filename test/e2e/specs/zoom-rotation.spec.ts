@@ -27,8 +27,8 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
         element._setRotation(90);
         await element.updateComplete;
     });
-    await expect.poll(async () => (await target.evaluate(element => element.mapRotation))).toBe(90);
-    await expect.poll(async () => (await target.evaluate(element => element.mapScale))).toBeCloseTo(2.5, 1);
+    await expect.poll(async () => await target.evaluate(element => element.mapRotation)).toBe(90);
+    await expect.poll(async () => await target.evaluate(element => element.mapScale)).toBeCloseTo(2.5, 1);
     await page.waitForTimeout(500);
     expect(await target.evaluate(element => !!element.roomColorDetection)).toBe(true);
 
@@ -40,7 +40,9 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
      */
     const roomEdgeSamples = (roomId: string) =>
         target.evaluate((element, id) => {
-            const polygon = element.shadowRoot.querySelector(`.room-${id}-wrapper .room-outline`) as SVGPolygonElement | null;
+            const polygon = element.shadowRoot.querySelector(
+                `.room-${id}-wrapper .room-outline`,
+            ) as SVGPolygonElement | null;
             if (!polygon) return null;
             const points = polygon.points;
             const matrix = polygon.getScreenCTM();
@@ -53,7 +55,10 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
                 point.y = points.getItem(index).y;
                 screen.push(point.matrixTransform(matrix));
             }
-            const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), { x: 0, y: 0 });
+            const centre = screen.reduce(
+                (acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }),
+                { x: 0, y: 0 },
+            );
             const inside: Array<{ x: number; y: number }> = [];
             const outside: Array<{ x: number; y: number }> = [];
             for (let index = 0; index < screen.length; index++) {
@@ -83,7 +88,13 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
         if (x < 2 || y < 2 || x >= png.width - 2 || y >= png.height - 2) return null;
         // A room can extend past the map viewport into the controls area, where the pixels are not
         // the map: only points inside both the map and the captured card are meaningful.
-        if (point.x < mapBox.left + 2 || point.x > mapBox.right - 2 || point.y < mapBox.top + 2 || point.y > mapBox.bottom - 2) return null;
+        if (
+            point.x < mapBox.left + 2 ||
+            point.x > mapBox.right - 2 ||
+            point.y < mapBox.top + 2 ||
+            point.y > mapBox.bottom - 2
+        )
+            return null;
         const offset = (png.width * Math.round(y) + Math.round(x)) * 4;
         return [png.data[offset], png.data[offset + 1], png.data[offset + 2]];
     };
@@ -91,7 +102,9 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
         Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
 
     const selectedIds = async (): Promise<string[]> =>
-        (await target.evaluate(element => element.selectedRooms.map((room: any) => String(room.toVacuum())))) as string[];
+        (await target.evaluate(element =>
+            element.selectedRooms.map((room: any) => String(room.toVacuum())),
+        )) as string[];
 
     const bringIntoView = async (roomId: string): Promise<{ x: number; y: number }> => {
         for (let attempt = 0; attempt < 5; attempt++) {
@@ -99,16 +112,31 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
             expect(points, `room ${roomId} must be rendered`).not.toBeNull();
             const box = await target.evaluate(element => {
                 const rect = (element.shadowRoot.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
-                return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2 };
+                return {
+                    left: rect.left,
+                    top: rect.top,
+                    right: rect.right,
+                    bottom: rect.bottom,
+                    cx: rect.left + rect.width / 2,
+                    cy: rect.top + rect.height / 2,
+                };
             });
             const point = points!.centre;
             const inside =
-                point.x > box.left + 40 && point.x < box.right - 40 && point.y > box.top + 40 && point.y < box.bottom - 40;
+                point.x > box.left + 40 &&
+                point.x < box.right - 40 &&
+                point.y > box.top + 40 &&
+                point.y < box.bottom - 40;
             if (inside) return points!.inside[0];
             await target.evaluate(
                 (element, delta) => {
                     const zoomer = element.shadowRoot.getElementById("map-zoomer");
-                    zoomer.setTransform({ scale: zoomer.scale, x: zoomer.x + delta.dx, y: zoomer.y + delta.dy, allowChangeEvent: true });
+                    zoomer.setTransform({
+                        scale: zoomer.scale,
+                        x: zoomer.x + delta.dx,
+                        y: zoomer.y + delta.dy,
+                        allowChangeEvent: true,
+                    });
                 },
                 { dx: box.cx - point.x, dy: box.cy - point.y },
             );
@@ -150,7 +178,9 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
         });
 
         const polygonBox = await target.evaluate((element, id) => {
-            const polygon = element.shadowRoot.querySelector(`.room-${id}-wrapper .room-outline`) as SVGPolygonElement | null;
+            const polygon = element.shadowRoot.querySelector(
+                `.room-${id}-wrapper .room-outline`,
+            ) as SVGPolygonElement | null;
             if (!polygon) return null;
             const rect = polygon.getBoundingClientRect();
             return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
@@ -164,7 +194,11 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
         let maxX = -Infinity;
         let maxY = -Infinity;
         for (let y = Math.max(0, Math.floor(expected.top)); y < Math.min(png.height, Math.ceil(expected.bottom)); y++) {
-            for (let x = Math.max(0, Math.floor(expected.left)); x < Math.min(png.width, Math.ceil(expected.right)); x++) {
+            for (
+                let x = Math.max(0, Math.floor(expected.left));
+                x < Math.min(png.width, Math.ceil(expected.right));
+                x++
+            ) {
                 const offset = (png.width * y + x) * 4;
                 const pixel: [number, number, number] = [png.data[offset], png.data[offset + 1], png.data[offset + 2]];
                 if (distance(pixel, colour) > 60) continue;
