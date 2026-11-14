@@ -9,6 +9,7 @@ import {
     expectedVacuumState,
     isActiveRoomRunLocked,
     loadActiveRoomRun,
+    isActiveRoomRunOnMap,
     nextActiveRoomRunDeadline,
 } from "../../src/model/active-room-run";
 import { setCurrentMode } from "../../src/card/selection";
@@ -22,6 +23,7 @@ import {
     settle,
     useHarnessClock,
     waitFor,
+    selectPreset,
     withState,
 } from "../harness";
 
@@ -137,6 +139,25 @@ describe("expectedVacuumState", () => {
         expect(expectedVacuumState(pending, "error", AFTER_START)).toBe("error");
         expect(expectedVacuumState(run(), "returning")).toBe("returning");
         expect(expectedVacuumState(run({ seenActive: true }), "paused")).toBe("paused");
+    });
+});
+
+describe("isActiveRoomRunOnMap", () => {
+    it("matches the map the run was started on", () => {
+        expect(isActiveRoomRunOnMap(run({ map: "a" }), "a", undefined)).toBe(true);
+        expect(isActiveRoomRunOnMap(run({ map: "a" }), "b", undefined)).toBe(false);
+    });
+
+    it("tells apart the maps one camera reports by their map id, when both sides know it", () => {
+        expect(isActiveRoomRunOnMap(run({ map: "a", mapId: "map_id=1" }), "a", "map_id=1")).toBe(true);
+        expect(isActiveRoomRunOnMap(run({ map: "a", mapId: "map_id=1" }), "a", "map_id=2")).toBe(false);
+        // A camera that is unavailable for a moment reports no attributes; that is not another map.
+        expect(isActiveRoomRunOnMap(run({ map: "a", mapId: "map_id=1" }), "a", undefined)).toBe(true);
+        expect(isActiveRoomRunOnMap(run({ map: "a" }), "a", "map_id=2")).toBe(true);
+    });
+
+    it("shows a run stored before runs knew their map on any map", () => {
+        expect(isActiveRoomRunOnMap(run(), "b", "map_id=2")).toBe(true);
     });
 });
 
@@ -591,6 +612,109 @@ describe("the run on the map after Start", () => {
         await settle(card.element);
         expect(playIcons()).toBe(1);
         // The run itself stays pending (the start may still be on its way) and unlocked.
+        expect(badges(card)).toEqual({ "2": "1", "0": "2" });
+    });
+});
+
+const FIRST_FLOOR_CAMERA = "camera.vacuum_first_floor";
+
+/**
+ * One vacuum, one preset per floor, each with its own camera and the same ROOM template, as in a
+ * multi-floor Xiaomi, Roborock or Dreame setup. Those vacuums number the segments of every map
+ * from 16 again, so the second floor's camera here reports the very same room ids as the first.
+ */
+function floorsConfig(secondCamera = FIRST_FLOOR_CAMERA): Partial<XiaomiVacuumMapCardConfig> {
+    const base = cardConfig();
+    return {
+        preset_name: "Ground floor",
+        additional_presets: [
+            {
+                ...base,
+                preset_name: "First floor",
+                map_source: { camera: secondCamera },
+                calibration_source: { camera: true },
+            },
+        ],
+    };
+}
+
+function floorsHass(): MockHass {
+    const fixture = loadSyntheticFixture();
+    return withState(fixtureHass(fixture), FIRST_FLOOR_CAMERA, {
+        attributes: { ...fixture.camera.attributes },
+        last_updated: fixture.camera.last_updated,
+        last_changed: fixture.camera.last_changed,
+    }).hass;
+}
+
+describe("the run on a card with one preset per map", () => {
+    afterEach(() => window.localStorage.removeItem(ACTIVE_ROOM_RUN_STORE_KEY));
+
+    it("shows and locks the run only on the map it was started on", async () => {
+        useHarnessClock();
+        const card = await mount(floorsConfig(), floorsHass());
+        await startRun(card);
+        await setVacuumState(card, "cleaning");
+        expect(badges(card)).toEqual({ "2": "1", "0": "2" });
+
+        await selectPreset(card, 1);
+        await card.fireMapLoad();
+        // The first floor's rooms share the run's ids but are other rooms: no pills, no lock.
+        expect(badges(card)).toEqual({});
+        expect(highlighted(card)).toEqual([]);
+        await clickRoom(card, "1");
+        expect(selectedRoomIds(card)).toEqual(["1"]);
+        // Selecting there does not end the run on the ground floor.
+        expect(loadActiveRoomRun(VACUUM)?.roomIds).toEqual(["2", "0"]);
+
+        await selectPreset(card, 0);
+        await card.fireMapLoad();
+        expect(badges(card)).toEqual({ "2": "1", "0": "2" });
+    });
+
+    it("shows the run on every preset that shows the same camera map", async () => {
+        useHarnessClock();
+        const card = await mount(floorsConfig(loadSyntheticFixture().camera.entity_id));
+        await startRun(card);
+        await setVacuumState(card, "cleaning");
+
+        await selectPreset(card, 1);
+        await card.fireMapLoad();
+        expect(badges(card)).toEqual({ "2": "1", "0": "2" });
+        await clickRoom(card, "1");
+        expect(selectedRoomIds(card)).toEqual([]);
+    });
+
+    it("hides the run when the same camera reports another map", async () => {
+        // A multi-map vacuum with one camera: the camera names the map it shows.
+        useHarnessClock();
+        const fixture = loadSyntheticFixture();
+        const camera = fixture.camera.entity_id;
+        const hass = withState(fixtureHass(fixture), camera, {
+            attributes: { ...fixture.camera.attributes, map_name: "Ground floor" },
+        }).hass;
+        const card = await mount({}, hass);
+        await startRun(card);
+        await setVacuumState(card, "cleaning");
+        expect(badges(card)).toEqual({ "2": "1", "0": "2" });
+
+        await card.updateHass(
+            withState(card.hass, camera, { attributes: { ...fixture.camera.attributes, map_name: "First floor" } })
+                .hass,
+        );
+        await settle(card.element);
+        expect(badges(card)).toEqual({});
+        await clickRoom(card, "1");
+        expect(selectedRoomIds(card)).toEqual(["1"]);
+    });
+
+    it("keeps showing a run stored before runs knew their map", async () => {
+        useHarnessClock();
+        const stored: ActiveRoomRun = { ...run(), startedAt: Date.now() };
+        window.localStorage.setItem(ACTIVE_ROOM_RUN_STORE_KEY, JSON.stringify({ [VACUUM]: stored }));
+        const card = await mount(floorsConfig(), floorsHass());
+        await selectPreset(card, 1);
+        await card.fireMapLoad();
         expect(badges(card)).toEqual({ "2": "1", "0": "2" });
     });
 });

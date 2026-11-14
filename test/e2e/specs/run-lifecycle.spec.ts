@@ -21,8 +21,8 @@ async function resetVacuum(activity = "docked"): Promise<void> {
     await configure({ lag: 0, room_seconds: 4, return_seconds: 3, fail_next: false, available: true, poll_seconds: 2 });
 }
 
-async function openRunCard(page: Page): Promise<CardHandle> {
-    await openDashboard(page, DASHBOARD);
+async function openRunCard(page: Page, dashboard = DASHBOARD): Promise<CardHandle> {
+    await openDashboard(page, dashboard);
     await waitForCard(page);
     const target = await card(page);
     await expect
@@ -89,6 +89,23 @@ function running(target: CardHandle): Promise<string[]> {
             element.shadowRoot.querySelector(`.room-${id}-wrapper`)?.classList.contains("running"),
         ),
     );
+}
+
+/** Switches the card to the next or previous preset with a real tap on the preset selector arrow. */
+async function switchPreset(page: Page, target: CardHandle, direction: "previous" | "next"): Promise<void> {
+    const arrows = target.locator.locator("xvmc-preset-selector .preset-selector-icon-wrapper");
+    await arrows.nth(direction === "next" ? 1 : 0).click();
+    await expect
+        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length))
+        .toBeGreaterThanOrEqual(3);
+    await page.waitForTimeout(500);
+}
+
+function presetName(target: CardHandle): Promise<string | undefined> {
+    return target.locator
+        .locator("xvmc-preset-selector .preset-label")
+        .textContent()
+        .then(text => text?.trim());
 }
 
 function numbers(target: CardHandle): Promise<number> {
@@ -202,6 +219,32 @@ test.describe("the run after Start, with a misbehaving vacuum", () => {
 
         await expect.poll(() => shownState(page), { timeout: 40_000 }).toBe("docked");
         expect(await attribute(page, "job_rooms")).toEqual([]);
+    });
+
+    test("a run stays on the map it was started on", async ({ loggedIn: page }) => {
+        // One preset per floor for the same vacuum, both with the same ROOM mode and room ids.
+        test.setTimeout(90_000);
+        await resetVacuum();
+        await configure({ room_seconds: 60 });
+        const target = await openRunCard(page, "/e2e-run-floors/floors");
+        expect(await presetName(target)).toBe("Ground floor");
+        await tapRoom(page, target, "2");
+        await pressStart(page, target);
+        await expect.poll(() => shownState(page), { timeout: 20_000 }).toBe("cleaning");
+        expect(await running(target)).toEqual(["2"]);
+
+        await switchPreset(page, target, "next");
+        expect(await presetName(target)).toBe("First floor");
+        // The first floor's room 2 is another room: not shown as running, and taps select.
+        expect(await running(target)).toEqual([]);
+        await tapRoom(page, target, "1");
+        expect(await selected(target)).toEqual(["1"]);
+        await shot(page, "16-run-other-floor");
+
+        await switchPreset(page, target, "previous");
+        expect(await running(target)).toEqual(["2"]);
+        await tapRoom(page, target, "1");
+        expect(await selected(target)).toEqual([]);
     });
 
     test("a second tab shows the run the first started", async ({ loggedIn: page }) => {

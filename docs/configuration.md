@@ -301,6 +301,14 @@ state is `unavailable` or `unknown`, the run stays on the map but a tap on a roo
 selection instead. The run ends as soon as the vacuum is done (docked, idle, error), after three
 minutes if it never starts, and in any case after 12 hours.
 
+The run belongs to the map it was started on. On a card with one preset per floor, each with its
+own camera (or image), the run is shown and locks the rooms only on its own floor; on the other
+floors the rooms stay free to select, even where they have the same ids, as the segments of
+multi-floor Xiaomi, Roborock and Dreame maps do. Presets and cards that show the same camera share
+the run. A camera that switches between the maps of a multi-map vacuum shows the run only while it
+reports the same map id attribute (`map_id`, `map_name`, `selected_map`, `current_map`, `map_slot`,
+`map_index`, `pmap_id`) as at **Start**; a camera that reports none of them counts as one map.
+
 Only `cleaning` reported after **Start** counts as the start: a different state than the one
 shown when you pressed it, or the same state changed again (a new `last_changed`). A polling
 integration can still show the previous job, then report its trip home and dock, before it reports

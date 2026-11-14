@@ -278,6 +278,26 @@ function runCard() {
     };
 }
 
+/**
+ * The run card with a second preset for the same vacuum on another map, as a card with one preset
+ * per floor has. The second map is the fixture image by URL, with the same room ids: multi-floor
+ * Xiaomi, Roborock and Dreame vacuums number every map's segments the same way.
+ */
+function floorsCard() {
+    const base = runCard();
+    return {
+        ...base,
+        preset_name: "Ground floor",
+        additional_presets: [
+            {
+                ...base,
+                preset_name: "First floor",
+                map_source: { image: "/api/map_fixture/image" },
+            },
+        ],
+    };
+}
+
 async function main() {
     if (process.argv.includes("--reset")) {
         fs.rmSync(TOKEN_FILE, { force: true });
@@ -313,6 +333,15 @@ async function main() {
             config: {
                 title: "E2E run",
                 views: [{ title: "Run", path: "run", cards: [runCard()] }],
+            },
+        },
+        {
+            // run-lifecycle.spec.ts: a run on one preset's map is neither shown nor locking on another.
+            url_path: "e2e-run-floors",
+            title: "E2E run floors",
+            config: {
+                title: "E2E run floors",
+                views: [{ title: "Floors", path: "floors", cards: [floorsCard()] }],
             },
         },
         {
