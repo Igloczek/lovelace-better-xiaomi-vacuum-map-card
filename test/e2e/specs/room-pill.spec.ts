@@ -56,18 +56,18 @@ function readPill(target: CardHandle, id: string): Promise<PillReading | null> {
     }, id);
 }
 
+function luminance(value: string): number {
+    const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(value);
+    if (!match) throw new Error(`not an rgb colour: ${value}`);
+    return [match[1], match[2], match[3]]
+        .map(Number)
+        .map(v => v / 255)
+        .map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)))
+        .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+}
+
 function contrast(a: string, b: string): number {
-    const channels = (value: string): number[] => {
-        const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(value);
-        if (!match) throw new Error(`not an rgb colour: ${value}`);
-        return [match[1], match[2], match[3]].map(Number);
-    };
-    const lum = (value: string): number =>
-        channels(value)
-            .map(v => v / 255)
-            .map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)))
-            .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
-    const [l1, l2] = [lum(a), lum(b)].sort((x, y) => y - x);
+    const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x);
     return (l1 + 0.05) / (l2 + 0.05);
 }
 
@@ -94,6 +94,9 @@ async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<voi
     for (const [pill, label] of [[first, "Bedroom"], [second, "Kitchen"]] as const) {
         expect(contrast(pill.colour, pill.background), `${scheme} ${label}: name`).toBeGreaterThanOrEqual(4.5);
         expect(contrast(pill.badgeColour, pill.badgeBackground), `${scheme} ${label}: badge`).toBeGreaterThanOrEqual(4.5);
+        // The pill follows the theme in the expected direction: light on light, dark on dark.
+        if (scheme === "light") expect(luminance(pill.background), `${scheme} ${label}: light pill`).toBeGreaterThan(0.7);
+        else expect(luminance(pill.background), `${scheme} ${label}: dark pill`).toBeLessThan(0.2);
     }
     expect(await readPill(target, "1"), "an unselected room keeps its plain label").toBeNull();
     await shot(page, `17-room-pill-${scheme}`);

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     contrastRatio,
     parseCssColor,
+    relativeLuminance,
     resolveRoomPillPalette,
     WCAG_AA_TEXT_CONTRAST,
 } from "../src/model/room-pill-palette";
@@ -13,8 +14,8 @@ import {
  * CSS custom properties; a pair that would fall short is corrected rather than shown.
  */
 
-const HA_LIGHT = { background: "#212121", text: "#ffffff", badge: "#03a9f4" };
-const HA_DARK = { background: "#e1e1e1", text: "#1c1c1c", badge: "#03a9f4" };
+const HA_LIGHT = { background: "#ffffff", text: "#212121", badge: "#03a9f4" };
+const HA_DARK = { background: "#1c1c1c", text: "#e1e1e1", badge: "#03a9f4" };
 
 describe("contrastRatio", () => {
     it("matches the WCAG reference values", () => {
@@ -58,6 +59,13 @@ describe("resolveRoomPillPalette", () => {
             expect(palette.background).toEqual(parseCssColor(theme.background));
             expect(palette.text).toEqual(parseCssColor(theme.text));
         }
+    });
+
+    it("keeps the pill light in a light theme and dark in a dark one", () => {
+        // A dark pill on a light dashboard (and the reverse) looks like a mistake next to Home
+        // Assistant's own tooltips and cards, however readable it is.
+        expect(relativeLuminance(resolveRoomPillPalette(HA_LIGHT).background)).toBeGreaterThan(0.8);
+        expect(relativeLuminance(resolveRoomPillPalette(HA_DARK).background)).toBeLessThan(0.1);
     });
 
     it("never draws dark on dark or light on light, whatever the theme or override says", () => {
@@ -107,7 +115,8 @@ describe("resolveRoomPillPalette", () => {
     });
 
     it("rings the badge when it would not stand out from the pill", () => {
-        expect(resolveRoomPillPalette({ ...HA_LIGHT, badge: "#03a9f4" }).badgeRing).toBe(false);
-        expect(resolveRoomPillPalette({ ...HA_LIGHT, badge: "#2a2a2a" }).badgeRing).toBe(true);
+        expect(resolveRoomPillPalette({ ...HA_DARK, badge: "#03a9f4" }).badgeRing).toBe(false);
+        expect(resolveRoomPillPalette({ ...HA_LIGHT, badge: "#03a9f4" }).badgeRing).toBe(true);
+        expect(resolveRoomPillPalette({ ...HA_DARK, badge: "#2a2a2a" }).badgeRing).toBe(true);
     });
 });

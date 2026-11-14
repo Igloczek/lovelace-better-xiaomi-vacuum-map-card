@@ -19,9 +19,9 @@ const WCAG_UI_CONTRAST = 3;
 const BLACK: Rgb = [0, 0, 0];
 const WHITE: Rgb = [255, 255, 255];
 
-/** Used when a theme colour cannot be read: Home Assistant's light-theme text and accent. */
-const DEFAULT_BACKGROUND: Rgb = [0x21, 0x21, 0x21];
-const DEFAULT_TEXT: Rgb = WHITE;
+/** Used when a theme colour cannot be read: Home Assistant's default light card, text and accent. */
+const DEFAULT_BACKGROUND: Rgb = WHITE;
+const DEFAULT_TEXT: Rgb = [0x21, 0x21, 0x21];
 const DEFAULT_BADGE: Rgb = [0x03, 0xa9, 0xf4];
 
 const NAMED: Record<string, Rgb> = { white: WHITE, black: BLACK };

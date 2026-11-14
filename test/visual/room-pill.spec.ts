@@ -131,13 +131,15 @@ function rgb(value: string): [number, number, number] {
     return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
+function luminance(colour: string): number {
+    return rgb(colour)
+        .map(v => v / 255)
+        .map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)))
+        .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+}
+
 function contrast(a: string, b: string): number {
-    const lum = (c: [number, number, number]): number =>
-        c
-            .map(v => v / 255)
-            .map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)))
-            .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
-    const [l1, l2] = [lum(rgb(a)), lum(rgb(b))].sort((x, y) => y - x);
+    const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x);
     return (l1 + 0.05) / (l2 + 0.05);
 }
 
@@ -177,6 +179,13 @@ for (const theme of ["light", "dark"] as const) {
 
                 const pill = await measurePill(page, "1");
                 expectReadable(pill, label);
+                // The pill follows the theme the way the card does: a light body on a light
+                // dashboard, a dark one on a dark dashboard, never the other way round.
+                if (theme === "light") {
+                    expect(luminance(pill.background), `${label}: light pill`).toBeGreaterThan(0.7);
+                } else {
+                    expect(luminance(pill.background), `${label}: dark pill`).toBeLessThan(0.2);
+                }
 
                 // Upright and the same size on screen at every zoom and rotation.
                 expect(pill.box.width, `${label}: upright`).toBeGreaterThan(pill.box.height);

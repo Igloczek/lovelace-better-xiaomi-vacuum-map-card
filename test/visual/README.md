@@ -64,9 +64,10 @@ therefore pass, and the measured values currently land exactly on the rectangle.
 
 `room-pill.spec.ts` covers the selected-room pill. In the light and the dark theme, at zoom 1 and
 2.5 and rotation 0 and 90, it asserts geometry and computed colours, not only pixels: the pill's
-name and the badge glyph reach 4.5:1 against their backgrounds, the pill is ringed in its text
-colour, ignores pointer events (a tap at its centre reaches the room), stays upright and the same
-size within 1 px, and its pointer tip lands on the room label's anchor within 1.5 px. Further cases
+name and the badge glyph reach 4.5:1 against their backgrounds, the pill is light in the light
+theme and dark in the dark one, it is ringed in its text colour, ignores pointer events (a tap at
+its centre reaches the room), stays upright and the same size within 1 px, and its pointer tip
+lands on the room label's anchor within 1.5 px. Further cases
 cover the checkmark when the order is off, a dark dashboard with `transparent_background`, and
 `--map-card-room-pill-*` overrides that pair unreadable colours, which the card must correct. Each
 geometry case also takes a screenshot (`room-pill-<theme>-zoom-<z>-rotation-<r>.png`,

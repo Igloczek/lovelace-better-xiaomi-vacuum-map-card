@@ -275,15 +275,15 @@ pointer at the room. A room with an icon shows its icon until it is selected and
 room without a name shows the badge alone. The rooms of a started run keep their pills. The pill
 stays upright and the same size at any zoom and rotation, and taps go through it to the room.
 
-The pill follows the theme: dark with light text in a light theme, light with dark text in a dark
-theme, with a thin ring in the text colour so it stands out on any room colour and on a light or
-dark dashboard. Colours can be changed with CSS variables on the card (for example with
-`card_mod`):
+The pill follows the theme: light with dark text in a light theme, dark with light text in a dark
+theme, like the card it sits on, with a thin ring in the text colour so it stands out on any room
+colour and on a light or dark dashboard. Colours can be changed with CSS variables on the card
+(for example with `card_mod`):
 
 | Variable | Default | Colours |
 |---|---|---|
-| `--map-card-room-pill-background-color` | the theme's text colour (`--primary-text-color`) | the pill |
-| `--map-card-room-pill-text-color` | the theme's card background (`--card-background-color`) | the room name and the ring |
+| `--map-card-room-pill-background-color` | the theme's card background (`--card-background-color`) | the pill |
+| `--map-card-room-pill-text-color` | the theme's text colour (`--primary-text-color`) | the room name and the ring |
 | `--map-card-room-pill-badge-color` | the card's primary colour (`--map-card-primary-color`, else `--slider-color`) | the badge |
 | `--map-card-room-pill-badge-text-color` | black or white, whichever reads better on the badge | the number or checkmark |
 
