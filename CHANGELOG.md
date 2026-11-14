@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+
+- A selected room's name turns into a pill, as in the Xiaomi Home app: a round badge next to the
+  room name, with a small pointer at the room. The badge shows the room's place in the cleaning
+  order where the platform follows it, and a checkmark elsewhere. Rooms of a started run keep their
+  pills; a room with an icon shows the pill instead of the icon while selected. The pill follows
+  the theme (dark in a light theme, light in a dark one), stays readable on every room colour, and
+  its colours can be changed with the `--map-card-room-pill-*` CSS variables; whatever they are set
+  to, the name and the badge glyph stay at 4.5:1 contrast or better. See
+  [Selected room label](docs/configuration.md#selected-room-label).
+
 ### Fixed
 
 - With the map locked, a press that slid off the card and was released there made the card drop the
