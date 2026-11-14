@@ -32,6 +32,12 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 
 ## Next
 
+- **Same-coloured interlocking rooms.** When two touching rooms share a fill colour and their
+  bounding boxes interlock (two L-shaped rooms around a hallway), colour detection still gives part
+  of one room to the other. Master already did (it then missed one of the rooms entirely); the
+  four-colour map palettes avoid it, but a palette that repeats colours on touching rooms does not.
+  Needs a synthetic fixture with same-coloured interlocking L rooms and a fix that splits by the
+  rooms' metadata shape rather than only their bounds.
 - **Roborock status and battery templates.** The generic duration handling is in place; the
   Roborock-specific tile templates need a real Roborock-core registry dump (the `unique_id`
   patterns and the status strings) before the regexes can be trusted.
