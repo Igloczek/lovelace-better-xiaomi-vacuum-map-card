@@ -97,14 +97,20 @@ export function startActiveRoomRun(card: XiaomiVacuumMapCard, run: ActiveRoomRun
 /**
  * The hass object the icons' conditions read. While a started run is not yet reported (a polling
  * integration lags ~30 s), the vacuum reads as the state it is about to report, so the play icon
- * does not offer `vacuum.start`, a full clean, for a job that is already starting. Tiles keep
+ * does not offer `vacuum.start`, a full clean, for a job that is already starting. The same holds
+ * while the run button's call is still in flight. Tiles keep
  * showing the real state.
  */
 export function getIconHass(card: XiaomiVacuumMapCard, preset: CardPresetConfig): HomeAssistantFixed {
-    const run = card.activeRoomRun;
     const stateObj = card.hass?.states[preset.entity];
-    if (!run || run.entity !== preset.entity || !stateObj) return card.hass;
-    const expected = expectedVacuumState(run, stateObj.state, stateObj.last_changed);
+    if (!stateObj) return card.hass;
+    // While the run button's call waits for Home Assistant's answer nothing is stored yet, but the
+    // start is just as pending: a slow integration answers only after the device replied.
+    const pending: ActiveRoomRun | undefined = card.serviceCallInFlight
+        ? { entity: preset.entity, roomIds: [], startedAt: Date.now(), seenActive: false }
+        : card.activeRoomRun;
+    if (!pending || pending.entity !== preset.entity) return card.hass;
+    const expected = expectedVacuumState(pending, stateObj.state, stateObj.last_changed);
     if (expected === undefined || expected === stateObj.state) return card.hass;
     return { ...card.hass, states: { ...card.hass.states, [preset.entity]: { ...stateObj, state: expected } } };
 }

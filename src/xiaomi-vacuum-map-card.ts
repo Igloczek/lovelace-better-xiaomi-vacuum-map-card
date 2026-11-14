@@ -169,8 +169,11 @@ export class XiaomiVacuumMapCard extends LitElement {
     readonly mapTapGuard = createTapGuard();
     /** The room run started from this card, shown on the map until the vacuum finishes it. */
     activeRoomRun?: ActiveRoomRun;
-    /** True while the run button's service call waits for Home Assistant's answer. */
-    serviceCallInFlight = false;
+    /**
+     * True while the run button's service call waits for Home Assistant's answer. A state, so the
+     * icons re-render: they treat the vacuum as starting meanwhile (see `getIconHass`).
+     */
+    @state() serviceCallInFlight = false;
     /** Re-checks `activeRoomRun` when it would change without a further state update. */
     activeRoomRunTimer?: number;
     selectedPredefinedPoints: PredefinedPoint[] = [];

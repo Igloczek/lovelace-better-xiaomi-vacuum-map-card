@@ -11,6 +11,7 @@
   defaults, so rooms can be cleaned without generating a config. Platforms whose room template
   needs hand-written variables or takes room names keep their defaults. A camera that is briefly
   unavailable keeps the mode and the selection.
+
 ### Changed
 
 - Rooms are numbered only where the integration makes the vacuum clean them in the order they
@@ -22,6 +23,9 @@
   [cleaning order per platform](docs/platforms.md#cleaning-order-per-platform).
 - A run is no longer locked while the vacuum is paused or `unavailable`; a tap starts a new
   selection.
+- `id_type: string` now sends room ids as strings; it had no effect before. A mode that sets it while
+  its integration needs numbers now sends `"13"` instead of `13`: remove `id_type` or set it to
+  `number`.
 
 ### Fixed
 
@@ -135,6 +139,11 @@
 - While a start is pending, the icons treat the vacuum as cleaning, so the play icon does not offer
   a full clean during the ~30 s a polling integration needs to report the start; a new `docked` or
   `error` report shows the real state again at once.
+
+### Documentation
+
+- `id_type` and Jinja templates in `service_call_schema` are documented, and the Deebot page names the
+  service it calls.
 
 ## 1.0.7
 

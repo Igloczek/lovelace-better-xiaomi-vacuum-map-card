@@ -14,7 +14,7 @@ import {
 import { setCurrentMode } from "../../src/card/selection";
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle, MockHass } from "../harness";
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle, useHarnessClock, withState } from "../harness";
+import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle, useHarnessClock, waitFor, withState } from "../harness";
 
 /**
  * What happens after Start, for every state sequence a vacuum and its integration can produce.
@@ -362,6 +362,66 @@ describe("the run on the map after Start", () => {
         await settle(card.element);
         expect(badges(card)).toEqual({ "2": "1", "0": "2" });
         expect(loadActiveRoomRun(VACUUM)?.roomIds).toEqual(["2", "0"]);
+    });
+
+    it("hides the start control while the service call is still in flight", async () => {
+        // Nothing is stored until Home Assistant answers; a slow xiaomi_miot answer must not leave
+        // the play icon (a full clean) tappable meanwhile.
+        useHarnessClock();
+        const hass = fixtureHass(loadSyntheticFixture());
+        let resolveCall!: () => void;
+        vi.mocked(hass.callService).mockImplementation(
+            () => new Promise<undefined>(resolve => (resolveCall = () => resolve(undefined))),
+        );
+        const card = await mount(
+            {
+                icons: [
+                    {
+                        icon: "mdi:play-box",
+                        icon_id: "test_start",
+                        conditions: [{ entity: VACUUM, value_not: "cleaning" }],
+                        tap_action: { action: "call-service", service: "vacuum.start" },
+                    },
+                ],
+            },
+            hass,
+        );
+        const playIcons = (): number => card.shadowRoot.querySelectorAll('ha-icon[icon="mdi:play-box"]').length;
+        await setVacuumState(card, "docked");
+        expect(playIcons()).toBe(1);
+        await startRun(card);
+        expect(loadActiveRoomRun(VACUUM)).toBeUndefined();
+        expect(playIcons()).toBe(0);
+        resolveCall();
+        await settle(card.element);
+        expect(playIcons()).toBe(0);
+    });
+
+    it("counts a start reported before Home Assistant answered the call", async () => {
+        // A fast integration reports `cleaning` while the call is still being answered. The run's
+        // baseline is the state shown when the call went out, so that `cleaning` is its start.
+        useHarnessClock();
+        const hass = withState(fixtureHass(loadSyntheticFixture()), VACUUM, {
+            state: "docked",
+            last_changed: BEFORE_START,
+            last_updated: BEFORE_START,
+        }).hass;
+        let card!: CardHandle;
+        vi.mocked(hass.callService).mockImplementation(async () => {
+            await card.updateHass(
+                withState(card.hass, VACUUM, { state: "cleaning", last_changed: AFTER_START, last_updated: AFTER_START }).hass,
+            );
+            return undefined;
+        });
+        card = await mount({}, hass);
+        await startRun(card);
+        // The mocked call renders the card before it resolves; wait until the run is stored.
+        await waitFor(() => loadActiveRoomRun(VACUUM), { label: "the run is stored" });
+        await settle(card.element);
+        expect(loadActiveRoomRun(VACUUM)?.seenActive).toBe(true);
+        await clickRoom(card, "1");
+        expect(selectedRoomIds(card)).toEqual([]);
+        expect(badges(card)).toEqual({ "2": "1", "0": "2" });
     });
 
     it("drops the run and gives the selection back, in order, when the service call fails", async () => {
