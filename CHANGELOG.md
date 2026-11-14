@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- On a card with one preset per floor, a started room run is shown and locks the rooms only on the
+  floor it was started on. Other floors' rooms could not be selected while the vacuum was cleaning,
+  and where they shared the run's room ids (multi-floor Xiaomi, Roborock and Dreame maps do) they
+  showed the run's pills. See [Selected room label](docs/configuration.md#selected-room-label).
+
 ## 1.2.0
 
 ### Changed

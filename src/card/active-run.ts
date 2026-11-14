@@ -6,6 +6,7 @@ import {
     clearActiveRoomRunIf,
     expectedVacuumState,
     isActiveRoomRunLocked,
+    isActiveRoomRunOnMap,
     loadActiveRoomRun,
     nextActiveRoomRunDeadline,
     roomRunModeKey,
@@ -16,6 +17,7 @@ import { SelectionType } from "../model/map_mode/selection-type";
 import type { CardPresetConfig } from "../types/types";
 import type { HomeAssistantFixed } from "../types/fixes";
 import type { XiaomiVacuumMapCard } from "../xiaomi-vacuum-map-card";
+import { getCameraReportedMapId } from "./map-view";
 
 const modeKeys = new WeakMap<MapMode, string>();
 
@@ -32,13 +34,30 @@ export function getRoomRunModeKey(mode: MapMode): string {
     return key;
 }
 
-/** The run in progress for the current vacuum, if it belongs to the ROOM mode shown. */
+/**
+ * The map the current preset shows: its source (camera entity, else image URL), and the map id the
+ * camera reports, if any. Only the source is configuration; presets and cards showing the same
+ * camera show the same map, so they share its run, and a camera that switches between the maps of
+ * a multi-map vacuum tells them apart by its map id attribute.
+ */
+function getShownMap(card: XiaomiVacuumMapCard): { map: string; mapId: string | undefined } {
+    const source = card._getCurrentPreset()?.map_source;
+    const camera = source?.camera;
+    return {
+        map: roomRunModeKey(camera ? ["camera", camera] : ["image", source?.image ?? ""]),
+        mapId: camera ? getCameraReportedMapId(card._hass?.states[camera]?.attributes) : undefined,
+    };
+}
+
+/** The run in progress for the current vacuum, if it belongs to the map and ROOM mode shown. */
 function getShownRoomRun(card: XiaomiVacuumMapCard): ActiveRoomRun | undefined {
     const run = card.activeRoomRun;
     const mode = card._getCurrentMode();
     if (!run || !mode || mode.selectionType !== SelectionType.ROOM) return undefined;
     if (run.entity !== card._getCurrentPreset()?.entity) return undefined;
-    return run.mode === undefined || run.mode === getRoomRunModeKey(mode) ? run : undefined;
+    if (run.mode !== undefined && run.mode !== getRoomRunModeKey(mode)) return undefined;
+    const { map, mapId } = getShownMap(card);
+    return isActiveRoomRunOnMap(run, map, mapId) ? run : undefined;
 }
 
 /** The order of the run in progress for the current vacuum, while its ROOM mode is shown. */
@@ -74,12 +93,15 @@ export function prepareActiveRoomRun(
     mode: MapMode,
 ): ActiveRoomRun {
     const stateObj = card._hass?.states[entity];
+    const { map, mapId } = getShownMap(card);
     return {
         entity,
         roomIds,
         startedAt: Date.now(),
         seenActive: false,
         mode: getRoomRunModeKey(mode),
+        map,
+        ...(mapId !== undefined ? { mapId } : {}),
         reportedState: stateObj?.state,
         reportedChangedAt: stateObj?.last_changed,
     };

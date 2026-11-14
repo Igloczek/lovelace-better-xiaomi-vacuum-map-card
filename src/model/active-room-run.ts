@@ -24,6 +24,19 @@ export interface ActiveRoomRun {
      */
     mode?: string;
     /**
+     * Identity of the map the run was started on (`roomRunMapKey` of the preset's camera entity or
+     * image). A card can show one vacuum on several maps, one preset per floor, with the same ROOM
+     * mode; multi-floor Xiaomi, Roborock and Dreame vacuums reuse their segment ids on every map, so
+     * a run is shown, and locks the rooms, only on its own map. Runs stored before this field
+     * existed match any map.
+     */
+    map?: string;
+    /**
+     * The map id the camera reported at Start (`map_name`, `map_id`... as `attribute=value`), for a
+     * camera that shows one of several maps. Compared only while the camera reports one.
+     */
+    mapId?: string;
+    /**
      * The vacuum's state and its `last_changed` when the call was sent. That report predates the
      * command: a polling integration may still show the previous job. `last_changed` moves only
      * when the state itself changes; `last_updated` also moves on every attribute change (battery,
@@ -152,6 +165,17 @@ export function roomRunModeKey(parts: unknown): string {
     return (hash >>> 0).toString(36);
 }
 
+/**
+ * Whether a run belongs to the map shown: the same map source, and, when the camera reports which
+ * of several maps it shows both at Start and now, the same map id. A camera without attributes for
+ * a moment (unavailable) is not another map. A run without a map predates the field.
+ */
+export function isActiveRoomRunOnMap(run: ActiveRoomRun, map: string, mapId: string | undefined): boolean {
+    if (run.map === undefined) return true;
+    if (run.map !== map) return false;
+    return run.mapId === undefined || mapId === undefined || run.mapId === mapId;
+}
+
 type ActiveRoomRunStorage = Record<string, ActiveRoomRun>;
 
 /**
@@ -185,6 +209,8 @@ function isActiveRoomRun(value: unknown): value is ActiveRoomRun {
         typeof run.startedAt === "number" &&
         typeof run.seenActive === "boolean" &&
         (run.mode === undefined || typeof run.mode === "string") &&
+        (run.map === undefined || typeof run.map === "string") &&
+        (run.mapId === undefined || typeof run.mapId === "string") &&
         (run.reportedState === undefined || typeof run.reportedState === "string") &&
         (run.reportedChangedAt === undefined || typeof run.reportedChangedAt === "string")
     );

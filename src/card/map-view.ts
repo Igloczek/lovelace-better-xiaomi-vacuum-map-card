@@ -363,6 +363,23 @@ export function getMapViewCardKey(card: XiaomiVacuumMapCard): string {
     return card.mapViewCardKey;
 }
 
+/**
+ * The map a camera says it shows, from the first map id attribute it reports (`map_id`,
+ * `map_name`...), as `attribute=value`; undefined when it reports none.
+ */
+export function getCameraReportedMapId(attributes: Record<string, unknown> | undefined): string | undefined {
+    for (const attribute of MAP_VIEW_ID_ATTRIBUTES) {
+        const value = attributes?.[attribute];
+        if (value !== null && value !== undefined && ["string", "number", "boolean"].includes(typeof value)) {
+            const asString = String(value);
+            if (asString.length > 0) {
+                return `${attribute}=${asString.length > 32 ? hashString(asString) : asString}`;
+            }
+        }
+    }
+    return undefined;
+}
+
 export function getMapViewMapId(card: XiaomiVacuumMapCard, camera: string): string {
     if (!camera || !card.hass) {
         return "";
@@ -372,14 +389,9 @@ export function getMapViewMapId(card: XiaomiVacuumMapCard, camera: string): stri
         return "";
     }
     const attributes = state.attributes ?? {};
-    for (const attribute of MAP_VIEW_ID_ATTRIBUTES) {
-        const value = attributes[attribute];
-        if (value !== null && value !== undefined && ["string", "number", "boolean"].includes(typeof value)) {
-            const asString = String(value);
-            if (asString.length > 0) {
-                return `${attribute}=${asString.length > 32 ? hashString(asString) : asString}`;
-            }
-        }
+    const reported = getCameraReportedMapId(attributes);
+    if (reported !== undefined) {
+        return reported;
     }
     const calibrationPoints = attributes.calibration_points;
     if (Array.isArray(calibrationPoints) && calibrationPoints.length > 0) {
