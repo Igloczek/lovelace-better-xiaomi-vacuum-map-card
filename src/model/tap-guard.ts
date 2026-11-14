@@ -15,7 +15,8 @@ export interface TapGuard {
 /**
  * Suppresses the `click` that ends a drag, a pinch or a rotate. A gesture counts as a drag when any
  * pointer moved more than TAP_MOVE_TOLERANCE_PX from where it went down, or when a second pointer
- * joined it. The flag resets on the next gesture's first pointer down.
+ * joined it. The flag resets on the next gesture's first pointer down, which also forgets a pointer
+ * whose release the map never saw.
  */
 export function createTapGuard(): TapGuard {
     const starts = new Map<number, { x: number; y: number }>();
@@ -24,6 +25,10 @@ export function createTapGuard(): TapGuard {
         pointerDown: {
             capture: true,
             handleEvent: (event: PointerEvent): void => {
+                // A primary pointer goes down only when no other pointer is down, so anything still
+                // tracked is a pointer whose release never reached the map (the map is locked, so
+                // nothing captured it, and it was released off the card).
+                if (event.isPrimary) starts.clear();
                 if (starts.size === 0) dragged = false;
                 starts.set(event.pointerId, { x: event.clientX, y: event.clientY });
                 if (starts.size > 1) dragged = true;

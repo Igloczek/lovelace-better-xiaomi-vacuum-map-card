@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- With the map locked, a press that slid off the card and was released there made the card drop the
+  next room tap as if it ended a drag.
+
 ## 1.3.0
 
 Versions 1.1 and 1.2 are skipped: the repository keeps upstream's old `v1.1.x` and `v1.2.x` tags.
