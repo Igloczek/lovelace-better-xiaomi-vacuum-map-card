@@ -24,7 +24,7 @@ export interface ActiveRoomRun {
      */
     mode?: string;
     /**
-     * Identity of the map the run was started on (`roomRunMapKey` of the preset's camera entity or
+     * Identity of the map the run was started on (a `roomRunModeKey` hash of the preset's camera entity or
      * image). A card can show one vacuum on several maps, one preset per floor, with the same ROOM
      * mode; multi-floor Xiaomi, Roborock and Dreame vacuums reuse their segment ids on every map, so
      * a run is shown, and locks the rooms, only on its own map. Runs stored before this field
