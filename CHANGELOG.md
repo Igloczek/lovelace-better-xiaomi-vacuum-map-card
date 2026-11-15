@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.3.0
+
+### Changed
+
+- `layout: horizontal` stacks the controls under the map when the card is narrower than 400 px
+  (the narrowest sections-view column, a phone, a sidebar), instead of squeezing the map to a
+  thumbnail beside a clipped controls column. The switch follows the card's own width, not the
+  window's. See [Layout](docs/configuration.md#layout).
+- In a sections view the card takes exactly the height you give it with the resize handle or
+  `grid_options`; it no longer forces at least three rows. A side-by-side card in a taller cell
+  gives the extra height to the controls instead of leaving it empty. See
+  [Resizing the card in a sections view](docs/configuration.md#resizing-the-card-in-a-sections-view).
+
+### Fixed
+
+- An empty key in the card YAML (`icons:`, `id:`, `map:` with nothing after it) no longer crashes
+  the card; it counts as not set, and a required field left empty is reported by name.
+- `map_view.reset` sent to a card in a hidden dashboard view no longer stores a view stuck in the
+  map's top-left corner; the reset is applied when the card is shown.
+- A room selection whose rooms have all left the camera map (after a re-map) is named in a warning
+  and Start refuses to send an empty room list. Picking a room that is on the map clears it, and a
+  room that comes back in the next camera update returns to the selection. A selection never
+  carries over to a different camera. See [Selection lifetime](docs/configuration.md#selection-lifetime).
+- Renaming an entity, device, area or floor, or changing an entity's icon in Home Assistant, updates
+  the card's tiles and icons without a page reload.
+- Tile generation no longer fails for a vacuum whose registry entries include an entity without an
+  icon.
+
 ## 1.2.3
 
 ### Fixed
