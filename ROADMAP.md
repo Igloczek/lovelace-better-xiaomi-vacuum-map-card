@@ -89,8 +89,6 @@ Accepted in the 1.0 line, each with what would fix it:
 - **Template-only ROOM modes.** Without colour-detected rooms, a predefined selection can look
   selected while the template sends nothing, and the warning only covers stale configured ids.
   Report an empty selection.
-- **Reset while hidden.** `map_view.reset` on a card in a hidden tab can store a top-left view
-  because the map has no layout size. Apply the reset once the card is visible.
 
 ## Open questions and risks
 

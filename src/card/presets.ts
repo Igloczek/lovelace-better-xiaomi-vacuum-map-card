@@ -114,6 +114,11 @@ export function setPresetIndex(card: XiaomiVacuumMapCard, index: number, user = 
     if (index !== card.presetIndex || config?.map_source?.camera !== card.currentPreset?.map_source?.camera) {
         card.roomMetadataSeen = false;
     }
+    // A reset waiting for a layout box was asked for on the preset we are leaving; applied after the
+    // switch it would overwrite this preset's stored view instead.
+    if (index !== card.presetIndex) {
+        card.pendingMapViewReset = false;
+    }
     // must happen before the reset below, so that the reset is not persisted for the preset we are leaving
     card.restoredMapViewKey = undefined;
     // the angle and the pan/zoom belong together - the offsets only make sense for the angle they

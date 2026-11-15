@@ -1,6 +1,120 @@
 import { expect, openDashboard, card, shot, test, waitForCard, waitForHaReady, viewState } from "./helpers";
 
 /**
+ * A reset that arrives while the map is not shown.
+ *
+ * The card stays attached in a hidden container (a tab the user is not looking at, a closed
+ * popup), so a dashboard action still reaches it. The map has no layout box there, and a view
+ * computed against zero would frame the map's top-left corner and store it: the reset has to wait
+ * for the first real layout and store the centred default instead.
+ */
+
+/** The stored map view entries, as they are written to localStorage. */
+async function storedMapViews(
+    page: import("@playwright/test").Page,
+): Promise<Array<{ key: string; scale: number; x: number; y: number; rotation: number; width?: number }>> {
+    return page.evaluate(() => {
+        const raw = window.localStorage.getItem("xiaomi-vacuum-map-card.map-view");
+        const storage = raw ? (JSON.parse(raw) as Record<string, any>) : {};
+        return Object.entries(storage).map(([key, entry]) => ({
+            key,
+            scale: Number(entry.s),
+            x: Number(entry.x),
+            y: Number(entry.y),
+            rotation: Number(entry.r ?? 0),
+            width: Number(entry.w) > 0 ? Number(entry.w) : undefined,
+        }));
+    });
+}
+
+test("a reset fired while the card is hidden applies and stores the default view when shown", async ({
+    loggedIn: page,
+}) => {
+    await openDashboard(page, "/e2e-map/map");
+    await waitForCard(page);
+    const target = await card(page);
+    const defaultView = await viewState(target);
+    await expect.poll(async () => (await viewState(target)).scale).toBeCloseTo(2.5, 1);
+
+    const mapBox = await target.evaluate(element => {
+        const rect = (element.shadowRoot.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    });
+    for (let attempt = 0; attempt < 4 && (await viewState(target)).scale <= defaultView.scale + 0.1; attempt++) {
+        await page.mouse.move(mapBox.x, mapBox.y);
+        await page.mouse.wheel(0, -600);
+        await page.waitForTimeout(300);
+    }
+    await expect.poll(async () => (await viewState(target)).scale).toBeGreaterThan(defaultView.scale + 0.1);
+    await page.waitForTimeout(600);
+    const away = await viewState(target);
+    expect(await storedMapViews(page)).toHaveLength(1);
+
+    // The card is still attached but its container has no layout box, as in a hidden view.
+    await target.evaluate(element => {
+        (element as HTMLElement).style.display = "none";
+    });
+    await expect
+        .poll(async () =>
+            target.evaluate(
+                element => (element.shadowRoot.getElementById("map-zoomer-content") as HTMLElement).offsetWidth,
+            ),
+        )
+        .toBe(0);
+
+    await page.evaluate(() => {
+        document.dispatchEvent(
+            new CustomEvent("ll-custom", {
+                detail: { xiaomi_vacuum_map_card: { action_handler_id: "this", action: "map_view.reset" } },
+            }),
+        );
+    });
+    // Longer than the view-save debounce: a view computed from the zero-size layout would be
+    // applied and stored by now.
+    await page.waitForTimeout(800);
+
+    const whileHidden = await viewState(target);
+    expect(whileHidden.scale, "the reset is not applied against a zero-size layout").toBeCloseTo(away.scale, 1);
+    expect(Math.abs(whileHidden.x - away.x) + Math.abs(whileHidden.y - away.y)).toBeLessThan(2);
+    const hiddenStored = await storedMapViews(page);
+    expect(hiddenStored).toHaveLength(1);
+    expect(hiddenStored[0].x, "the pre-reset view is still what is stored").toBeCloseTo(away.x, 0);
+    expect(hiddenStored[0].y).toBeCloseTo(away.y, 0);
+    // The raw configured offsets would be the top-left framing; the reset must not have stored them.
+    expect(Math.abs(hiddenStored[0].x - 40) + Math.abs(hiddenStored[0].y + 20)).toBeGreaterThan(20);
+
+    // Shown again with nothing else happening: the deferred reset applies once.
+    await target.evaluate(element => {
+        (element as HTMLElement).style.display = "";
+    });
+    await expect.poll(async () => Math.abs((await viewState(target)).scale - defaultView.scale)).toBeLessThan(0.05);
+    await expect
+        .poll(async () => Math.abs((await viewState(target)).rotation - defaultView.rotation))
+        .toBeLessThan(0.5);
+    await expect.poll(async () => Math.abs((await viewState(target)).x - defaultView.x)).toBeLessThan(3);
+    await expect.poll(async () => Math.abs((await viewState(target)).y - defaultView.y)).toBeLessThan(3);
+    await shot(page, "05-hidden-reset-shown");
+
+    // The reset was stored as the centred default at the card's real width, not as a zero-size one.
+    await page.waitForTimeout(700);
+    const stored = (await storedMapViews(page))[0];
+    expect(stored.scale).toBeCloseTo(defaultView.scale, 1);
+    expect(Math.abs(stored.x - defaultView.x), "stored offsets match the visible default").toBeLessThan(3);
+    expect(Math.abs(stored.y - defaultView.y)).toBeLessThan(3);
+    expect(stored.width).toBeGreaterThan(0);
+
+    // And a reload opens at the stored value.
+    await page.reload();
+    await waitForCard(page);
+    await waitForHaReady(page);
+    const reloaded = await card(page);
+    await expect.poll(async () => Math.abs((await viewState(reloaded)).scale - defaultView.scale)).toBeLessThan(0.05);
+    await expect.poll(async () => Math.abs((await viewState(reloaded)).x - defaultView.x)).toBeLessThan(3);
+    await expect.poll(async () => Math.abs((await viewState(reloaded)).y - defaultView.y)).toBeLessThan(3);
+    await shot(page, "06-hidden-reset-reloaded");
+});
+
+/**
  * The configured default view on the real frontend (fetch + storage + Lit render).
  *
  * Inputs are real user gestures: a wheel zoom over the map and clicks on the card's own zoom and
