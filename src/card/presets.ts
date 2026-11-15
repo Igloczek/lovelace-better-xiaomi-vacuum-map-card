@@ -171,11 +171,14 @@ export function setPresetIndex(card: XiaomiVacuumMapCard, index: number, user = 
         // preset it left (and a mode that was never set up) until an unrelated update.
         .catch(error => {
             console.error("Could not generate the preset's icons and tiles", error);
+            // The generated icons and tiles (and with them the run controls) are missing until the
+            // next registry update; say so instead of showing a card with silently fewer controls.
+            card._showToast("popups.generation_failed", "mdi:alert", false);
             setPreset(card, config);
         })
         // The selection is read only now: a tap made while the icons and tiles loaded counts too.
-        // After a camera change the rooms were dropped above, so this is an empty ROOM snapshot: the
-        // rooms start fresh while a manual shape drawn earlier still survives the re-set.
+        // After a camera change the rooms (and a held room selection) were dropped above, so this is
+        // an empty ROOM snapshot: the rooms start fresh while a manual shape drawn earlier survives.
         .then(() => setCurrentMode(card, modeIndex, false, keepMode ? captureCurrentSelection(card) : undefined));
 
     if (user && card.currentPreset.activate_on_switch) {

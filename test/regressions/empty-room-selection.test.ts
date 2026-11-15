@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { clearRoomSelection } from "../../src/card/selection";
 
 import { PlatformGenerator } from "../../src/model/generators/platform-generator";
 import { MapMode } from "../../src/model/map_mode/map-mode";
@@ -474,6 +475,7 @@ describe("a preset switch and the rooms of the preset it leaves", () => {
         );
         await card.fireMapLoad();
         const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const toast = vi.spyOn(card.element, "_showToast");
         vi.spyOn(card.element, "_getIconsAndTiles").mockRejectedValue(new Error("generator failed"));
 
         setPresetIndex(card.element, 1, true);
@@ -484,6 +486,23 @@ describe("a preset switch and the rooms of the preset it leaves", () => {
         expect(card.element._getCurrentMode()?.selectionType).toBe(SelectionType.PREDEFINED_RECTANGLE);
         expect(card.shadowRoot.querySelectorAll(".predefined-rectangle-wrapper")).toHaveLength(1);
         expect(card.shadowRoot.querySelectorAll(".room-wrapper")).toHaveLength(0);
+        // The missing generated controls are explained, not silently absent.
+        expect(toast).toHaveBeenCalledWith("popups.generation_failed", "mdi:alert", false);
         consoleError.mockRestore();
+    });
+
+    it("never restores a room selection held for another camera", async () => {
+        useHarnessClock();
+        const card = await mountCardWith(twoPresetConfig(), twoCameraHass());
+        // A room selection held while the old camera was unavailable names that camera's ids.
+        card.element.heldSelection = { selectionType: SelectionType.ROOM, selectedKeys: ["0"], known: new Map() };
+        clearRoomSelection(card.element);
+        expect(card.element.heldSelection).toBeUndefined();
+
+        // A held selection of another kind does not refer to the camera and stays.
+        const zones = { selectionType: SelectionType.PREDEFINED_RECTANGLE, selectedKeys: ["z"], known: new Map() };
+        card.element.heldSelection = zones;
+        clearRoomSelection(card.element);
+        expect(card.element.heldSelection).toBe(zones);
     });
 });

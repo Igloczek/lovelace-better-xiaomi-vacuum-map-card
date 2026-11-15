@@ -284,6 +284,7 @@
         "success": "Success!",
         "no_selection": "No selection provided",
         "rooms_unavailable": "The selected rooms are no longer on the camera map, so nothing was sent",
+        "generation_failed": "Could not load the generated tiles and icons; they will return on the next update",
         "failed": "Failed to call service",
         "in_progress": "Already sending, wait for the answer"
     },

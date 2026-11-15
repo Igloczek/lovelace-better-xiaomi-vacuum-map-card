@@ -93,6 +93,9 @@ export function clearRoomSelection(card: XiaomiVacuumMapCard): void {
     card.selectedRooms = [];
     card.selectableRooms = [];
     card.unavailableRooms = [];
+    // A room selection held while the old camera was unavailable names ids of that camera's map; on
+    // another camera the same ids are other rooms, so it must not be restored there.
+    if (card.heldSelection?.selectionType === SelectionType.ROOM) card.heldSelection = undefined;
 }
 
 /**

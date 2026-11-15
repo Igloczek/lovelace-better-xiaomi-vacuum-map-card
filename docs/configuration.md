@@ -705,8 +705,10 @@ selected items and their order, which is the cleaning order.
   selection, names it in a warning and refuses the run instead of calling the service with an empty
   room list. The same warning covers rooms picked from the camera metadata in a mode without
   `predefined_selections`, which the stale configured-id warning cannot see. Selecting a room that
-  is on the map again drops the stale mark, and a room whose id comes back in a later camera update
-  returns to the selection in its place.
+  is on the map again drops the stale mark, and while the whole selection is stale, a room whose id
+  comes back in a later camera update returns to the selection in its place. A room that disappears
+  while other selected rooms are still on the map is dropped from the selection, as before. A
+  selection is never carried to a different camera.
 - Setting the configuration again keeps the current preset and mode when they still exist.
 
 ### Icon options
