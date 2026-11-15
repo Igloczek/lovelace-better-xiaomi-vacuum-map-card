@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { CSSResultGroup, html, LitElement, PropertyValues, TemplateResult } from "lit";
+import { CSSResultGroup, html, LitElement, nothing, PropertyValues, TemplateResult } from "lit";
 import { customElement, property, query, queryAll, state } from "lit/decorators.js";
 import { forwardHaptic, LovelaceCardEditor } from "custom-card-helpers";
 import "./editor";
@@ -335,8 +335,11 @@ export class XiaomiVacuumMapCard extends LitElement {
      *
      * Horizontal is a new arrangement, so it can ask for a numeric default height. `min_columns: 9`
      * keeps at least three quarters of a section: at the permissive half-width minimum (~250 px in
-     * a 500 px section) the 180 px controls column would leave the map about 66 px. There is no
-     * `max_rows`, so a user can size the card as tall as they like.
+     * a 500 px section) the 180 px controls column would leave the map about 66 px. Below a 400 px
+     * card the arrangement stacks instead (`HORIZONTAL_STACK_BREAKPOINT_PX` in
+     * `src/card/styles.ts`), so a narrower cell is usable; `min_columns` is the default the card
+     * asks for, not a limit on what a user's `grid_options` can ask for. There is no `max_rows`, so
+     * a user can size the card as tall as they like.
      *
      * HA invokes this as an instance method (`hui-card.getElementGridOptions` calls
      * `this._element.getGridOptions()`), so the instance method below delegates here with the
@@ -694,8 +697,11 @@ export class XiaomiVacuumMapCard extends LitElement {
                       </div>
                   `
                 : html`${mapSection}${warningSection}${controlsSection}`;
+        // The container hook goes on the horizontal card only, and the vertical card keeps no class
+        // attribute at all (not `class=""`), so its DOM stays exactly what upstream renders.
         return html`
             <ha-card
+                class=${this._getCardLayout() === "horizontal" ? "layout-horizontal" : nothing}
                 style="--map-scale: ${this.mapScale}; --real-scale: ${this.realScale}; --map-rotation: ${
                     this.mapRotation
                 }deg;">

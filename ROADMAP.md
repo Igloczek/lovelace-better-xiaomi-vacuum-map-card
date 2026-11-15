@@ -19,9 +19,6 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 
 - **Stale-room warning readability.** In a narrow card the warning truncates after the first stale
   id and an order badge can cover a stale marker; let the warning wrap and keep the marker visible.
-- **Horizontal layout at narrow widths.** The map and controls sit side by side, but at the smallest
-  sections-view spans the controls column is short and the map is small. Decide whether to stack
-  below a width threshold and where the breakpoint sits.
 - **Editor coverage on current frontends.** The editor already adapts to `ha-input` and to the
   removal of `ha-formfield`; keep watching Home Assistant frontend releases for the next element
   that disappears. Checked on 2026-11-15 against frontend `dev` (2026.12): only `ha-list*` goes,
@@ -46,7 +43,10 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
   patterns and the status strings) before the regexes can be trusted.
 - **Placement and sizing polish.** The sections-view grid options are a compromise: `layout:
   horizontal` asks for six rows, which is too tall for some cards and too short for others. A
-  per-card override story that does not need `card-mod` would help.
+  per-card override story that does not need `card-mod` would help. Now that a narrow horizontal
+  card stacks, `min_columns: 9` is no longer needed to keep the map usable; letting a stacked card
+  take a third or half of a section would give owners of a compact dashboard a smaller card, at the
+  cost of a taller, scrolling one.
 
 ## Later
 

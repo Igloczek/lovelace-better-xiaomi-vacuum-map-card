@@ -578,6 +578,9 @@ function horizontalConfig(overrides: Partial<XiaomiVacuumMapCardConfig> = {}): X
     });
 }
 
+// 400 is exactly the breakpoint: the query is `width < 400px`, so this width is still side by side
+// and the card that reports it from a sections cell is a 500 px section's 12 columns. The stacked
+// arrangement has its own scenario below.
 const HORIZONTAL_WIDTHS = [400, 800, 1200] as const;
 
 /**
@@ -640,6 +643,25 @@ function expectSideBySide(boxes: LayoutBoxes, label: string): void {
     ).toBeLessThanOrEqual(boxes.card.x + boxes.card.width + 1);
 }
 
+/** The geometry the stacked horizontal arrangement must show: map full width, controls below. */
+function expectStacked(boxes: LayoutBoxes, label: string): void {
+    // The map takes the whole card and the controls start below it.
+    expect(boxes.map.x, `${label}: the map starts at the card's left edge`).toBeGreaterThanOrEqual(boxes.card.x - 1);
+    expect(boxes.map.x, `${label}: the map must not be inset like a column`).toBeLessThanOrEqual(boxes.card.x + 2);
+    expect(boxes.map.width, `${label}: the map takes the card width instead of a column`).toBeGreaterThanOrEqual(
+        boxes.card.width - 32,
+    );
+    expect(
+        boxes.controls.y,
+        `${label}: controls y ${boxes.controls.y.toFixed(2)} must start below the map's bottom ${(
+            boxes.map.y + boxes.map.height
+        ).toFixed(2)}`,
+    ).toBeGreaterThanOrEqual(boxes.map.y + boxes.map.height - 1);
+    expect(boxes.controls.width, `${label}: the controls span the card instead of a clamped column`).toBeGreaterThan(
+        boxes.card.width * 0.8,
+    );
+}
+
 /**
  * The largest screen-space gap between the Living room outline and where the fixture's 100..170 x
  * 20..70 image rectangle should land after the image is CSS-scaled to its current box.
@@ -671,10 +693,11 @@ async function livingRoomAlignmentError(page: Page): Promise<number> {
     });
 }
 
-// A real DOM layout check at two widths: vertical stacks, horizontal sits side by side. Kept
-// screenshot-free so it does not create a second vertical baseline to maintain.
-test("layout geometry at 400 and 800 px", async ({ page }) => {
-    for (const width of [400, 800] as const) {
+// A real DOM layout check at three widths: vertical stacks everywhere, horizontal sits side by side
+// above the breakpoint and stacks below it. Kept screenshot-free so it does not create a second
+// vertical baseline to maintain.
+test("layout geometry at 360, 400 and 800 px", async ({ page }) => {
+    for (const width of [360, 400, 800] as const) {
         await setContainerWidth(page, width);
         await mount(page, cardConfig({ title: "Vertical" }));
         const vertical = await layoutBoxes(page);
@@ -686,7 +709,9 @@ test("layout geometry at 400 and 800 px", async ({ page }) => {
         );
 
         await mount(page, horizontalConfig());
-        expectSideBySide(await layoutBoxes(page), `horizontal at ${width}px`);
+        const horizontal = await layoutBoxes(page);
+        if (width < 400) expectStacked(horizontal, `horizontal at ${width}px`);
+        else expectSideBySide(horizontal, `horizontal at ${width}px`);
     }
 });
 
@@ -724,14 +749,14 @@ for (const width of HORIZONTAL_WIDTHS) {
 }
 
 /**
- * A mode name long enough to overrun the 180 px controls column at the narrowest supported width.
+ * A mode name long enough to overrun the 189 px controls column of a 500 px side-by-side card.
  * The template still supplies the icon, selection type and service call; only the display name is
  * overridden, which is exactly what a user with a descriptive mode name configures.
  */
 const LONG_MODE_NAME = "Clean selected rooms and the whole hallway";
 
-test("a long mode name ellipsizes inside the controls column at 400 px", async ({ page }) => {
-    await setContainerWidth(page, 400);
+test("a long mode name ellipsizes inside the controls column at 500 px", async ({ page }) => {
+    await setContainerWidth(page, 500);
     await mount(
         page,
         horizontalConfig({
@@ -784,8 +809,81 @@ test("a long mode name ellipsizes inside the controls column at 400 px", async (
     expect(metrics.text.whiteSpace).toBe("nowrap");
 });
 
-test("horizontal layout adapts when the container is resized", async ({ page }) => {
+/**
+ * The stacked arrangement below the breakpoint, with a screenshot: the map fills the card, the
+ * controls follow it, the mode row keeps the vertical arrangement's shape and nothing overflows
+ * sideways.
+ */
+test("horizontal layout stacks at 360 px", async ({ page }) => {
+    await setContainerWidth(page, 360);
+    await mount(page, horizontalConfig());
+
+    const boxes = await layoutBoxes(page);
+    expectStacked(boxes, "horizontal at 360px");
+    const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(pageOverflow, "the stacked card must not overflow the page").toBeLessThanOrEqual(1);
+
+    const metrics = await page.evaluate(() => {
+        const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as {
+            shadowRoot: ShadowRoot;
+        };
+        const haCard = card.shadowRoot.querySelector("ha-card") as HTMLElement;
+        const controls = card.shadowRoot.querySelector(".controls-wrapper") as HTMLElement;
+        const style = getComputedStyle(controls);
+        return {
+            cardScrollWidth: haCard.scrollWidth,
+            cardClientWidth: haCard.clientWidth,
+            controlsScrollWidth: controls.scrollWidth,
+            controlsClientWidth: controls.clientWidth,
+            position: style.position,
+            overflowY: style.overflowY,
+        };
+    });
+    expect(metrics.cardScrollWidth).toBeLessThanOrEqual(metrics.cardClientWidth + 1);
+    expect(metrics.controlsScrollWidth).toBeLessThanOrEqual(metrics.controlsClientWidth + 1);
+    // Stacked, the controls are in normal flow: they take their own height instead of scrolling
+    // inside the map's row.
+    expect(metrics.position).toBe("static");
+    expect(metrics.overflowY).toBe("visible");
+
+    await expect(page.locator(CARD)).toHaveScreenshot("layout-horizontal-stacked-360.png");
+});
+
+/**
+ * The breakpoint follows the card's own width: the same card width stacks in a wide window, and the
+ * same window keeps a wide card side by side. A viewport media query could not do both.
+ */
+test("the stack follows the card width, not the window", async ({ page }) => {
+    await setContainerWidth(page, 360);
+    await mount(page, horizontalConfig());
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await nextLayout(page);
+    expectStacked(await layoutBoxes(page), "a 360 px card in a 1200 px window");
+
     await setContainerWidth(page, 400);
+    await nextLayout(page);
+    // `width < 400px` is exclusive: the exact breakpoint is still side by side.
+    expectSideBySide(await layoutBoxes(page), "a 400 px card in a 1200 px window");
+
+    await setContainerWidth(page, 399);
+    await nextLayout(page);
+    expectStacked(await layoutBoxes(page), "a 399 px card in a 1200 px window");
+
+    await setContainerWidth(page, 1200);
+    await nextLayout(page);
+    expectSideBySide(await layoutBoxes(page), "a 1200 px card in a 1200 px window");
+
+    // Crossing the breakpoint moves the map from a column to the full width and back; the overlays
+    // must ride the image at every step (a stale `realScale` would leave the outline behind).
+    await setContainerWidth(page, 360);
+    await nextLayout(page);
+    const back = await layoutBoxes(page);
+    expectStacked(back, "back at 360px");
+    await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
+});
+
+test("horizontal layout adapts when the container is resized", async ({ page }) => {
+    await setContainerWidth(page, 500);
     await mount(page, horizontalConfig());
     const before = await layoutBoxes(page);
 
@@ -804,11 +902,11 @@ test("horizontal layout adapts when the container is resized", async ({ page }) 
     await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
 
     // Shrinking back must restore the narrow arrangement rather than leaving a stale column width.
-    await setContainerWidth(page, 400);
+    await setContainerWidth(page, 500);
     await nextLayout(page);
     const back = await layoutBoxes(page);
     expect(back.map.width).toBeCloseTo(before.map.width, 0);
-    expectSideBySide(back, "after resizing back to 400px");
+    expectSideBySide(back, "after resizing back to 500px");
     await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
 });
 

@@ -23,9 +23,11 @@ is involved: `index.html` plus `harness.js` mount the card element with a mock `
 | `room hit-testing follows zoom 1/2.5 and rotation 0/90` | at each overlay zoom/rotation pair, taps near two corners of the framed room toggle it and taps on the visible background 5 image px outside it select nothing; the tap is mapped back to source-image pixels through the shared transform |
 | `room hit-testing selects the clicked room at zoom 1` | clicking a room's colour selects that room; the selected room shows its pill with its number (the mode sets `cleaning_order: true`) and the others keep their plain label |
 | `default vertical layout` | header, preset selector, map and controls stack vertically |
-| `layout geometry at 400 and 800 px` | vertical stacks the controls below the map; horizontal puts them beside it at both widths |
-| `horizontal layout at 400 px`, `... 800 px`, `... 1200 px` | side-by-side geometry at three widths, map and controls inside the card, the controls column wrapping and scrolling instead of overflowing, one screenshot each |
-| `a long mode name ellipsizes inside the controls column at 400 px` | a 42-character mode name does not widen the dropdown or clip the mode icon: the controls column does not scroll sideways, the icon stays inside it, and the collapsed name is ellipsized |
+| `layout geometry at 360, 400 and 800 px` | vertical stacks the controls below the map; horizontal puts them beside it above the 400 px breakpoint and stacks them at 360 px |
+| `horizontal layout at 400 px`, `... 800 px`, `... 1200 px` | side-by-side geometry at three widths (400 is the breakpoint, still side by side), map and controls inside the card, the controls column wrapping and scrolling instead of overflowing, one screenshot each |
+| `horizontal layout stacks at 360 px` | the map fills the card, the controls follow it in normal flow (not the absolute scrolling column), nothing overflows sideways, one screenshot |
+| `the stack follows the card width, not the window` | the same 360 px card stacks in a 1200 px window, 400 px stays side by side and 399 px stacks (the query is exclusive), and the room overlay follows the map across the breakpoint |
+| `a long mode name ellipsizes inside the controls column at 500 px` | a 42-character mode name does not widen the dropdown or clip the mode icon: the controls column does not scroll sideways, the icon stays inside it, and the collapsed name is ellipsized |
 | `horizontal layout adapts when the container is resized` | resizing the container to 1200 px widens the map and moves the controls, the room overlay is recalculated to the new scale, and resizing back restores the narrow geometry |
 | `a sections-view grid cell makes the card fill its height and scroll` | the reflected `layout="grid"` hook makes the card fill a fixed-height cell and scroll inside it instead of overflowing |
 | `horizontal layout keeps room, mode and tile interactions` | room hit-testing, opening the mode dropdown and selecting a mode (the mode changes), a tile click and the map-before-controls DOM/focus order in the horizontal arrangement |
@@ -41,7 +43,8 @@ transform, and the living room's outline against the room's place in the rendere
 | `re-attach` | a card removed and re-added during its delayed work and a snapshot load keeps its view, overlay and no lingering transition |
 | `touch gestures` | real CDP touch input: a two-finger twist rotates, stays aligned, does not select the room under the fingers and is remembered; a twist near 90° snaps; a locked map ignores pans and twists; `two_finger_pan` pans only with two fingers; a one-finger tap still selects a room |
 | `map appearance` | `transparent_background` clears the white background in a dark theme, keeps room colours and detection, and labels stay light with a dark outline |
-| `horizontal layout at phone widths` | at 320, 360 and 412 px the card does not overflow sideways, the controls sit right of the map and the map keeps 40 % of the width |
+| `horizontal layout at phone widths` | at 320, 360 and 390 px the card does not overflow sideways and stacks the map above the full-width controls; at 412 px it stays side by side with the map right of the card's share and the controls beside it |
+| `horizontal layout in a parent that sizes the card from its content` | in an inline-block parent, a flex row that centres the card and a `fit-content` wrapper the horizontal card keeps a real width (not the 0 px inline-size containment gives it), stays two columns and keeps its room overlay aligned |
 | `cards mounted while hidden` | a card created inside a `display: none` container applies its stored view and base scale once shown, with no further `hass` update |
 | `map lock persistence` | the lock and the locked view survive a reload; `persist_map_lock: false` keeps the view but not the lock |
 

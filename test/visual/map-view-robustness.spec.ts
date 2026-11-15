@@ -559,8 +559,10 @@ test.describe("map appearance", () => {
 });
 
 test.describe("horizontal layout at phone widths", () => {
-    for (const width of [320, 360, 412] as const) {
-        test(`stays inside a ${width} px card and keeps the map usable`, async ({ page }) => {
+    // Below the breakpoint the map takes the whole card and the controls follow it: on a phone the
+    // side-by-side arrangement left the map 122 px wide at 320 px.
+    for (const width of [320, 360, 390] as const) {
+        test(`stacks inside a ${width} px card and keeps the map usable`, async ({ page }) => {
             await page.setViewportSize({ width, height: 800 });
             await page.evaluate(cardWidth => {
                 const root = document.getElementById("card-root");
@@ -582,13 +584,13 @@ test.describe("horizontal layout at phone widths", () => {
                 const root = card.shadowRoot as ShadowRoot;
                 const haCard = root.querySelector("ha-card") as HTMLElement;
                 const map = (root.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
-                const controls = (root.querySelector(".controls-column") as HTMLElement).getBoundingClientRect();
+                const controls = (root.querySelector(".controls-wrapper") as HTMLElement).getBoundingClientRect();
                 return {
                     pageScroll: document.documentElement.scrollWidth,
                     cardScroll: haCard.scrollWidth,
                     cardWidth: haCard.clientWidth,
-                    map: { x: map.x, width: map.width, right: map.right },
-                    controls: { x: controls.x, right: controls.right },
+                    map: { top: map.top, bottom: map.bottom, x: map.x, width: map.width, right: map.right },
+                    controls: { top: controls.top, x: controls.x, right: controls.right, width: controls.width },
                 };
             });
             expect(metrics.pageScroll, "no horizontal page scroll").toBeLessThanOrEqual(width);
@@ -596,9 +598,130 @@ test.describe("horizontal layout at phone widths", () => {
                 metrics.cardWidth + 1,
             );
             expect(metrics.controls.right).toBeLessThanOrEqual(width + 0.5);
-            expect(metrics.map.right).toBeLessThanOrEqual(metrics.controls.x + 0.5);
-            // The map keeps at least 40 % of a phone-width card; the controls column is clamped.
-            expect(metrics.map.width).toBeGreaterThanOrEqual(width * 0.4);
+            // Stacked: the map spans the card and the controls start below it.
+            expect(metrics.map.width, "the map takes the card width").toBeGreaterThanOrEqual(width - 32);
+            expect(metrics.controls.top, "the controls follow the map").toBeGreaterThanOrEqual(metrics.map.bottom - 1);
+            await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
+        });
+    }
+
+    // 412 px is above the breakpoint: the wide phone keeps the side-by-side arrangement.
+    test("stays side by side inside a 412 px card", async ({ page }) => {
+        const width = 412;
+        await page.setViewportSize({ width, height: 800 });
+        await page.evaluate(cardWidth => {
+            const root = document.getElementById("card-root");
+            if (root) root.style.width = `${cardWidth}px`;
+        }, width);
+        await mount(
+            page,
+            cardConfig({
+                layout: "horizontal",
+                map_modes: [
+                    { template: "vacuum_clean_segment" },
+                    { template: "vacuum_clean_zone" },
+                    { template: "vacuum_goto" },
+                ],
+            }),
+        );
+        const metrics = await page.evaluate(() => {
+            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+            const root = card.shadowRoot as ShadowRoot;
+            const haCard = root.querySelector("ha-card") as HTMLElement;
+            const map = (root.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
+            const controls = (root.querySelector(".controls-column") as HTMLElement).getBoundingClientRect();
+            return {
+                pageScroll: document.documentElement.scrollWidth,
+                cardScroll: haCard.scrollWidth,
+                cardWidth: haCard.clientWidth,
+                map: { x: map.x, width: map.width, right: map.right },
+                controls: { x: controls.x, right: controls.right },
+            };
+        });
+        expect(metrics.pageScroll, "no horizontal page scroll").toBeLessThanOrEqual(width);
+        expect(metrics.cardScroll, "nothing overflows the card sideways").toBeLessThanOrEqual(metrics.cardWidth + 1);
+        expect(metrics.controls.right).toBeLessThanOrEqual(width + 0.5);
+        expect(metrics.map.right).toBeLessThanOrEqual(metrics.controls.x + 0.5);
+        // The map keeps at least 40 % of the card; the controls column is clamped.
+        expect(metrics.map.width).toBeGreaterThanOrEqual(width * 0.4);
+        await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
+    });
+});
+
+test.describe("horizontal layout in a parent that sizes the card from its content", () => {
+    /*
+     * The horizontal card is a container (`container-type: inline-size` on `ha-card`), and inline
+     * size containment means a parent cannot size the card from its contents: the card's intrinsic
+     * width becomes 0. Masonry, the sections view and a stack give the card a width, so they are
+     * unaffected, but an `inline-block` parent, a flex row's `flex: 0 1 auto` child, a
+     * `width: fit-content` wrapper and card-mod centring all ask the card how wide it wants to be.
+     * `contain-intrinsic-inline-size` answers that question; these three parents prove it in a real
+     * browser, with the card's own layout (not just a non-zero width) checked afterwards.
+     */
+    const PARENTS = [
+        { name: "an inline-block parent", parent: { display: "inline-block" } },
+        { name: "a flex row that centres the card", parent: { display: "flex", justifyContent: "center" } },
+        { name: "a fit-content wrapper", parent: { width: "fit-content" } },
+    ] as const;
+
+    for (const { name, parent } of PARENTS) {
+        test(`keeps a real width and its two columns inside ${name}`, async ({ page }) => {
+            await page.setViewportSize({ width: 1000, height: 900 });
+            await page.evaluate(parentCss => {
+                const root = document.getElementById("card-root") as HTMLElement;
+                root.removeAttribute("style");
+                Object.assign(root.style, parentCss);
+            }, parent);
+            await mount(
+                page,
+                cardConfig({
+                    layout: "horizontal",
+                    map_modes: [
+                        { template: "vacuum_clean_segment" },
+                        { template: "vacuum_clean_zone" },
+                        { template: "vacuum_goto" },
+                    ],
+                }),
+            );
+            // The card is a flex item / inline-level box in these parents; the width has to come
+            // from the card itself, which is exactly the case containment broke. Home Assistant
+            // renders the element as a block, so pin that and leave the parent to size it.
+            await page.evaluate(() => {
+                const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+                card.style.display = "block";
+            });
+            await nextLayout(page);
+
+            const metrics = await page.evaluate(() => {
+                const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+                const root = card.shadowRoot as ShadowRoot;
+                const haCard = root.querySelector("ha-card") as HTMLElement;
+                const map = (root.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
+                const column = (root.querySelector(".controls-column") as HTMLElement).getBoundingClientRect();
+                const cardBox = card.getBoundingClientRect();
+                const cardStyle = getComputedStyle(haCard);
+                return {
+                    card: { left: cardBox.left, width: cardBox.width },
+                    haCard: { width: haCard.getBoundingClientRect().width, scrollWidth: haCard.scrollWidth },
+                    intrinsic: cardStyle.containIntrinsicInlineSize,
+                    map: { x: map.x, width: map.width, right: map.right },
+                    column: { x: column.x, width: column.width },
+                };
+            });
+
+            // 0 px was the bug: the containment left the card with no intrinsic width at all.
+            expect(metrics.haCard.width, "the card must keep a real width").toBeGreaterThan(300);
+            expect(metrics.card.width, "the card element's box follows it").toBeGreaterThan(300);
+            // 500 px is the intrinsic width, so above the 400 px breakpoint: still two columns.
+            expect(metrics.map.width, "the map keeps its column").toBeGreaterThan(200);
+            expect(metrics.map.right, "the controls sit beside the map, not under it").toBeLessThanOrEqual(
+                metrics.column.x + 0.5,
+            );
+            expect(metrics.column.width, "the controls keep their clamped column").toBeGreaterThan(150);
+            expect(metrics.haCard.scrollWidth, "nothing overflows the card sideways").toBeLessThanOrEqual(
+                metrics.haCard.width + 1,
+            );
+            expect(metrics.intrinsic, "the escape hatch for the containment").toMatch(/^500px/);
             await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
         });
     }
