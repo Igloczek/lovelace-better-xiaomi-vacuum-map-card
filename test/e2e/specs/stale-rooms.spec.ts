@@ -145,7 +145,7 @@ function expectMarkerVisible(geometry: Awaited<ReturnType<typeof markerAndPill>>
  * reached scale is the requested one instead of "somewhere above 0.8 × the target".
  */
 async function zoomTo(page: Page, target: CardHandle, scale: number): Promise<void> {
-    const zoomer = await target.locator.locator("pinch-zoom").boundingBox();
+    const zoomer = await target.locator.locator("better-pinch-zoom").boundingBox();
     if (!zoomer) throw new Error("the map is not on screen");
     await page.mouse.move(zoomer.x + zoomer.width / 2, zoomer.y + zoomer.height / 2);
     // `min-scale` is 0.5 and the pinch-zoom refuses a computed scale below it, which a floating
