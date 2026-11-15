@@ -324,6 +324,19 @@ function floorsCard() {
     };
 }
 
+/**
+ * The registry spec's card: a configured tile without a label (its title is the display name Home
+ * Assistant composes from the registries) next to the generated sensor tiles, whose icon comes from
+ * the sensor's registry entry.
+ */
+function renamesCard() {
+    return card({
+        entity: "vacuum.fake_vacuum",
+        tiles: [{ tile_id: "renamed", entity: "vacuum.fake_vacuum" }],
+        append_tiles: true,
+    });
+}
+
 async function main() {
     if (process.argv.includes("--reset")) {
         fs.rmSync(TOKEN_FILE, { force: true });
@@ -483,6 +496,16 @@ async function main() {
                         ],
                     },
                 ],
+            },
+        },
+        {
+            // rename-registry.spec.ts: every rename and registry change happens through the websocket
+            // API while this card is on screen, and the dashboard is never reloaded.
+            url_path: "e2e-renames",
+            title: "E2E registry renames",
+            config: {
+                title: "E2E registry renames",
+                views: [{ title: "Renames", path: "renames", cards: [renamesCard()] }],
             },
         },
         {

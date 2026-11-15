@@ -25,10 +25,7 @@ input_boolean:
   e2e_clean_living_room:
     name: E2E clean living room
 
-camera:
-  - platform: map_fixture
-    name: Vacuum Map
-
-vacuum:
-  - platform: map_fixture
-    name: Fake Vacuum
+# The synthetic map camera, the fake vacuum and its consumable sensor. One config entry (imported
+# from this key) so that Home Assistant attaches a device to the entities: the card resolves the
+# vacuum's sibling sensors through its registry device, and their registry entries supply tile icons.
+map_fixture:

@@ -5,22 +5,21 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.camera import Camera
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from . import DOMAIN, FIXTURE_ROOMS
+from . import DATA_CAMERAS, DOMAIN, FIXTURE_ROOMS
 
 
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up the fixture camera."""
-    entity = MapFixtureCamera(name=config.get("name", "Vacuum Map"))
-    hass.data.setdefault("map_fixture_entities", {}).setdefault(DOMAIN, []).append(entity)
+    entity = MapFixtureCamera(name="Vacuum Map")
+    hass.data.setdefault(DATA_CAMERAS, {}).setdefault(DOMAIN, []).append(entity)
     async_add_entities([entity])
 
 

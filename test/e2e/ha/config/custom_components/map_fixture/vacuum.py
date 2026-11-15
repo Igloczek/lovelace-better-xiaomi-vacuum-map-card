@@ -19,32 +19,28 @@ real setup showed and that the card has to survive:
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.components.vacuum import StateVacuumEntity, VacuumActivity, VacuumEntityFeature
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from datetime import timedelta
-
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from . import FIXTURE_ROOMS
+from . import DATA_VACUUMS, FIXTURE_ROOMS, fixture_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
-DATA_VACUUMS = "map_fixture_vacuums"
 
-
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up the fake vacuum."""
-    entity = FakeVacuum(hass, name=config.get("name", "Fake Vacuum"))
+    entity = FakeVacuum(hass, name="Fake Vacuum")
     hass.data.setdefault(DATA_VACUUMS, []).append(entity)
     async_add_entities([entity])
 
@@ -53,6 +49,8 @@ class FakeVacuum(StateVacuumEntity):
     """The robot's true activity runs on timers; Home Assistant sees it `lag` seconds late."""
 
     _attr_should_poll = False
+    _attr_has_entity_name = False
+    _attr_device_info = fixture_device_info()
     _attr_supported_features = (
         VacuumEntityFeature.START
         | VacuumEntityFeature.PAUSE
