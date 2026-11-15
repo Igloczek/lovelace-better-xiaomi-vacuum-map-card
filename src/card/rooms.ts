@@ -8,7 +8,7 @@ import { roomIdAtImagePoint } from "../model/room-hit-test";
 import { MapMode } from "../model/map_mode/map-mode";
 import { SelectionType } from "../model/map_mode/selection-type";
 import type { XiaomiVacuumMapCard } from "../xiaomi-vacuum-map-card";
-import { rebuildSelection } from "./selection";
+import { getUsableSelectedRooms, rebuildSelection } from "./selection";
 
 /** The live `rooms` attribute of the preset's camera, or undefined when it exposes none. */
 export function getLiveRooms(card: XiaomiVacuumMapCard): Record<string, MapExtractorRoom> | undefined {
@@ -44,6 +44,26 @@ export function getStaleRoomIds(card: XiaomiVacuumMapCard, mode: MapMode | undef
         .filter(room => room && room.id !== undefined)
         .map(room => room.id);
     return findStaleRoomIds(configuredIds, getLiveRooms(card));
+}
+
+/**
+ * The ids of the rooms the user has selected that a ROOM service call would leave out, when that
+ * leaves the call with no room ids at all. Empty when nothing is selected, when at least one
+ * selected room is usable (the run cleans what it can), or when every one of them is a configured
+ * id the stale-id warning already names.
+ *
+ * A room picked from the camera metadata has no configured id for `getStaleRoomIds` to audit, so
+ * `getUsableSelectedRooms` is the only place its id is checked. Without colour-detected rooms
+ * nothing else reports the mismatch, and the card used to look ready while the run button sent an
+ * empty room list.
+ */
+export function getUnsendableRoomIds(card: XiaomiVacuumMapCard, mode: MapMode | undefined): string[] {
+    if (mode?.selectionType !== SelectionType.ROOM) return [];
+    const selectedRooms = [...card.selectableRooms, ...card.unavailableRooms].filter(room => room.selected);
+    if (selectedRooms.length === 0) return [];
+    if (getUsableSelectedRooms(card, mode).length > 0) return [];
+    const namedElsewhere = new Set(getStaleRoomIds(card, mode));
+    return [...new Set(selectedRooms.map(room => String(room.toVacuum())))].filter(id => !namedElsewhere.has(id));
 }
 
 export function getRoomsConfig(card: XiaomiVacuumMapCard, requestId?: string): RoomConfigEventData | undefined {

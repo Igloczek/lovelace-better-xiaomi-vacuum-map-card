@@ -58,9 +58,14 @@ export class Room extends PredefinedMapObject {
         super.restoreSelected(selected);
     }
 
-    /** True when the configured id is absent from the live camera metadata. */
+    /**
+     * True when the id is absent from the live camera metadata: a configured id the camera no
+     * longer reports (`#928`), or a selected room that vanished from the metadata since the last
+     * rebuild. Either way the id cannot be cleaned, so the room is drawn as a warning and is never
+     * sent (see `getUsableSelectedRooms`).
+     */
     public get stale(): boolean {
-        return this._stale;
+        return this._stale || !this._context.roomAvailable(this.selectionKey());
     }
 
     /** True when the outline was detected from the map image. */
@@ -77,6 +82,8 @@ export class Room extends PredefinedMapObject {
         const poly = this._imageOutline
             ? this._imageOutline.map(p => this.realScaled2Point(p))
             : (this._config?.outline ?? []).map(p => this.vacuumToScaledMap(p[0], p[1]));
+        // Read once per render: the live metadata decides it, and the accessor rebuilds its id set.
+        const stale = this.stale;
         // Rooms are sent in click order, so a selected room shows its position in that order. Once
         // a run has started and the selection is cleared, the rooms of that run look exactly as they
         // did when selected, numbers included, until the vacuum is done. A tap either is refused
@@ -86,24 +93,26 @@ export class Room extends PredefinedMapObject {
         const runOrder = this._selected ? 0 : this._context.activeRoomOrder().indexOf(String(this._config.id)) + 1;
         const position = this._selected ? this._context.selectedRooms().indexOf(this) + 1 : runOrder;
         const order = this._context.showRoomOrder() ? position : 0;
-        const highlighted = this._selected || runOrder > 0;
+        // A room that cannot be cleaned is never drawn as selected, or the card would look ready to
+        // send a selection that the service call drops (an empty room list).
+        const highlighted = (this._selected && !stale) || runOrder > 0;
         // A highlighted room's label becomes a pill (badge + name). A stale room never shows one:
         // it is not a valid part of a run, and a pill would cover its `!` marker.
-        const pill = highlighted && !this._stale;
+        const pill = highlighted && !stale;
         return svg`
-            <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${this._stale ? "room-stale" : ""}
+            <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${stale ? "room-stale" : ""}
             room-${`${this._config.id}`.replace(/[^a-zA-Z0-9_-]/gm, "_")}-wrapper">
-                <polygon class="room-outline ${this._imageOutline || this._stale || this._cardHitTest ? "" : "clickable"}"
+                <polygon class="room-outline ${this._imageOutline || stale || this._cardHitTest ? "" : "clickable"}"
                          points="${poly.map(p => p.join(", ")).join(" ")}"
                          @click="${
-                             this._imageOutline || this._stale || this._cardHitTest
+                             this._imageOutline || stale || this._cardHitTest
                                  ? undefined
                                  : async (): Promise<void> => this.click()
                          }">
                 </polygon>
-                ${pill ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !this._stale)}
+                ${pill ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !stale)}
                 ${pill ? this.renderPill(order) : svg``}
-                ${this.renderStaleMarker()}
+                ${this.renderStaleMarker(stale)}
                 ${pill ? svg`` : this.renderLabel(this._config.label, "room-label", this._config.icon)}
             </g>
         `;
@@ -188,12 +197,12 @@ export class Room extends PredefinedMapObject {
     }
 
     /**
-     * A configured room whose id is no longer in the camera metadata. The room is drawn from its
-     * stored outline and marked with an exclamation mark above the label; the card's warning names
-     * the ids. It is never clickable or selected (issue #928).
+     * A room whose id is no longer in the camera metadata, configured or selected. The room is
+     * drawn from its last known outline and marked with an exclamation mark above the label; the
+     * card's warning names the ids. It is never clickable or selected (issue #928).
      */
-    private renderStaleMarker(): SVGTemplateResult {
-        if (!this._stale) return svg``;
+    private renderStaleMarker(stale: boolean): SVGTemplateResult {
+        if (!stale) return svg``;
         const anchor = this._config.label ?? this._outlineCenter();
         if (!anchor) return svg``;
         return this.renderLabel(
@@ -221,7 +230,7 @@ export class Room extends PredefinedMapObject {
 
     public async click(): Promise<void> {
         // A stale room is a warning, not a target: its id is absent from the live camera metadata.
-        if (this._stale) return;
+        if (this.stale) return;
         // While the vacuum works through a started run the map shows its order, and the rooms are
         // locked so that order cannot change until the vacuum is done. Before the vacuum has
         // reported the start (polling integrations lag), a tap begins a new selection instead.

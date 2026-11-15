@@ -50,6 +50,12 @@ export function createContext(card: XiaomiVacuumMapCard): Context {
         () => dismissActiveRoomRun(card),
         () => card._getCurrentMode()?.showsRoomOrder() ?? false,
         () => card.roomPillPalette,
+        roomId => {
+            // No metadata is "unknown", not "every room is gone": the configured rooms stay the
+            // documented fallback.
+            const liveRoomIds = getLiveRoomIds(card);
+            return !liveRoomIds || liveRoomIds.has(roomId);
+        },
     );
 }
 
@@ -70,6 +76,14 @@ export function setCurrentMode(
 ): void {
     const newMode = card.modes[newModeIndex];
     const snapshot = keep && keep.selectionType === newMode?.selectionType ? keep : undefined;
+    // The rooms the user had selected before a rebuild. A selected room the camera no longer reports
+    // is kept aside (ROOM branch) instead of vanishing silently.
+    const previousSelectedRooms =
+        snapshot && newMode?.selectionType === SelectionType.ROOM
+            ? [...card.selectableRooms, ...card.unavailableRooms].filter(room => room.selected)
+            : [];
+    // A camera change starts a new map: rooms of the old camera must not be carried onto it.
+    const sameCamera = card.roomMetadataSeen;
     let held: SelectionSnapshot | undefined;
     const maxSelections = newMode?.maxSelections;
     if (!snapshot) {
@@ -82,6 +96,7 @@ export function setCurrentMode(
     card.selectedPredefinedPoints = [];
     card.selectablePredefinedRectangles = [];
     card.selectableRooms = [];
+    card.unavailableRooms = [];
     card.selectablePredefinedPoints = [];
 
     switch (newMode?.selectionType) {
@@ -160,6 +175,19 @@ export function setCurrentMode(
                 maxSelections,
                 sourceUnknown: isRoomMetadataUnknown(card),
             }));
+            // A room picked from the camera metadata whose id the camera no longer reports cannot
+            // reach a service call, but dropping it silently leaves a card that looks ready and
+            // sends nothing. Keep it aside while the selection would otherwise be empty: it is
+            // drawn stale (outside the selection machinery, which must not see it as an object it
+            // can restore) and the card's warning names it, so the refused run is reported.
+            if (sameCamera && !isRoomMetadataUnknown(card) && card.selectedRooms.length === 0) {
+                const presentKeys = new Set(card.selectableRooms.map(room => room.selectionKey()));
+                card.unavailableRooms = previousSelectedRooms.filter(room => {
+                    if (presentKeys.has(room.selectionKey())) return false;
+                    presentKeys.add(room.selectionKey());
+                    return true;
+                });
+            }
             break;
         case SelectionType.PREDEFINED_POINT:
             const pointsFromEntities = PredefinedPoint.getFromEntities(newMode, card.hass, () => createContext(card));
@@ -360,7 +388,9 @@ export function drawSelection(card: XiaomiVacuumMapCard): SVGTemplateResult | nu
         case SelectionType.PREDEFINED_RECTANGLE:
             return svg`${card.selectablePredefinedRectangles.map(r => r.render())}`;
         case SelectionType.ROOM:
-            return svg`${card.selectableRooms.map(r => r.render())}`;
+            // A selected room whose id left the camera metadata is drawn too: it is the warning
+            // that the run would send nothing (see `getUnsendableRoomIds`).
+            return svg`${[...card.selectableRooms, ...card.unavailableRooms].map(r => r.render())}`;
         case SelectionType.MANUAL_PATH:
             return svg`${card.selectedManualPath?.render()}`;
         case SelectionType.MANUAL_POINT:

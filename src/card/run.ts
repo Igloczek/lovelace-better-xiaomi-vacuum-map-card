@@ -9,12 +9,26 @@ import { SelectionType } from "../model/map_mode/selection-type";
 import type { XiaomiVacuumMapCard } from "../xiaomi-vacuum-map-card";
 import { errorMessage } from "../utils";
 import { getUsableSelectedRooms } from "./selection";
+import { getUnsendableRoomIds } from "./rooms";
 import { selectionChanged } from "./selection";
 import { setCurrentMode } from "./selection";
+
+/**
+ * Refuses a ROOM run whose selected rooms would reach the service call as an empty room list, and
+ * reports why. The card's warning names the ids; this is the feedback at the moment of the tap, so
+ * the run never appears to have been sent. Returns true when the run was refused.
+ */
+function refuseUnsendableRoomSelection(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
+    if (getUnsendableRoomIds(card, mode).length === 0) return false;
+    card._showToast("popups.rooms_unavailable", "mdi:close", false);
+    forwardHaptic("failure");
+    return true;
+}
 
 export async function handleServiceCallGet(card: XiaomiVacuumMapCard): Promise<void> {
     const currentPreset = card._getCurrentPreset();
     const currentMode = card._getCurrentMode();
+    if (refuseUnsendableRoomSelection(card, currentMode)) return;
     const { selection, variables } = card._getSelection(currentMode);
     if ((selection as any[]).length == 0 || !currentMode) {
         card._showToast("popups.no_selection", "mdi:close", false);
@@ -40,6 +54,9 @@ export async function handleServiceCallGet(card: XiaomiVacuumMapCard): Promise<v
 export async function runSelection(card: XiaomiVacuumMapCard, debug: boolean): Promise<void> {
     const currentPreset = card._getCurrentPreset();
     const currentMode = card._getCurrentMode();
+    // A ROOM mode whose whole selection is unavailable sends nothing: refuse before the template
+    // render or the service call, and keep the selection so the user can see what happened.
+    if (refuseUnsendableRoomSelection(card, currentMode)) return;
     const { selection, variables } = card._getSelection(currentMode);
     if ((selection as any[]).length == 0 || !currentMode) {
         card._showToast("popups.no_selection", "mdi:close", false);
@@ -84,6 +101,14 @@ async function sendSelection(
         currentMode.selectionType === SelectionType.ROOM
             ? getUsableSelectedRooms(card, currentMode).map(room => String(room.toVacuum()))
             : [];
+    // `runSelection` refuses this before it gets here; the guard stays because a room list that is
+    // empty at the last moment must never become a service call that cleans nothing (or, on some
+    // integrations, everything).
+    if (currentMode.selectionType === SelectionType.ROOM && runRoomIds.length === 0) {
+        card._showToast("popups.rooms_unavailable", "mdi:close", false);
+        forwardHaptic("failure");
+        return false;
+    }
     let serviceCall: ServiceCall;
     try {
         serviceCall = await currentMode.getServiceCall(card.hass, entity, selection, card.repeats, {

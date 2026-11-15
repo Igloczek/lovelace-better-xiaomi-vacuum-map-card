@@ -282,7 +282,7 @@ the browser blocks the read and the option silently does nothing. Drawing a live
 top of a static image is not supported (upstream #503 / #922 overlap here); the camera source is the
 supported way to get a live map with paths.
 
-For `ROOM` selections, the card can use room IDs and names from the camera's `rooms` attribute, then trace each room's colored region from the map image. Rooms may share a color (Valetudo and Dreame use a four-color palette): each room takes the colored area that fits its bounds from the metadata, and never extends into another room's bounds. A tap on the robot, the charger, a room icon or a path drawn over a room selects that room. Manual room definitions remain available as a fallback when the camera does not provide room metadata or the map has no distinct room colors.
+For `ROOM` selections, the card can use room IDs and names from the camera's `rooms` attribute, then trace each room's colored region from the map image. Rooms may share a color (Valetudo and Dreame use a four-color palette): each room takes the colored area that fits its bounds from the metadata, and never extends into another room's bounds. A tap on the robot, the charger, a room icon or a path drawn over a room selects that room. Manual room definitions remain available as a fallback when the camera does not provide room metadata or the map has no distinct room colors. If the rooms you selected are no longer on the camera map, the card marks them stale and refuses to run a selection that would send no room ids.
 
 #### Cleaning order
 
@@ -700,6 +700,11 @@ selected items and their order, which is the cleaning order.
   `state_entity` item that turns on beyond the limit is not added (its entity stays on), and a
   configuration that lowers the limit keeps the first items. A `PREDEFINED_POINT` mode keeps one
   point, as a tap does.
+- A selected room whose id disappears from the camera `rooms` metadata (a re-map) can no longer be
+  cleaned: the card leaves it out of the service call, draws it stale and, while it was the whole
+  selection, names it in a warning and refuses the run instead of calling the service with an empty
+  room list. The same warning covers rooms picked from the camera metadata in a mode without
+  `predefined_selections`, which the stale configured-id warning cannot see.
 - Setting the configuration again keeps the current preset and mode when they still exist.
 
 ### Icon options

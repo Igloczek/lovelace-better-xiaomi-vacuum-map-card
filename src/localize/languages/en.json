@@ -147,7 +147,8 @@
         },
         "invalid_entities": "Invalid entities:",
         "invalid_calibration": "Invalid calibration, please check your configuration",
-        "stale_rooms": "These configured room IDs no longer exist on the camera map: {0}. The rooms are marked stale and will not be cleaned. Regenerate the rooms config after a re-map."
+        "stale_rooms": "These configured room IDs no longer exist on the camera map: {0}. The rooms are marked stale and will not be cleaned. Regenerate the rooms config after a re-map.",
+        "rooms_unavailable": "The selected rooms are no longer on the camera map: {0}. A run would send no room ids, so it is refused; select the rooms again or regenerate the room configuration after a re-map."
     },
     "tile": {
         "status": {
@@ -282,6 +283,7 @@
     "popups": {
         "success": "Success!",
         "no_selection": "No selection provided",
+        "rooms_unavailable": "The selected rooms are no longer on the camera map, so nothing was sent",
         "failed": "Failed to call service",
         "in_progress": "Already sending, wait for the answer"
     },
