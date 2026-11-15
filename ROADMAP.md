@@ -26,9 +26,12 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
   fallback and `editor.spec.ts` does not assert them, so a removal would leave empty boxes. Add a
   plain `<select>` fallback and an e2e assertion.
 - **Default Marketplace listing.** The README button adds the repository as a custom repository.
-  The pull request adding it to `plugin` in `hacs/default` is open and waiting for review:
-  [hacs/default#14136](https://github.com/hacs/default/pull/14136) (opened 2026-11-14). Once it
-  merges, switch the install steps to a catalog search and add the default badge.
+  The pull request adding it to `plugin` in `hacs/default` is open:
+  [hacs/default#14136](https://github.com/hacs/default/pull/14136). Since 1.4.0 the card has its own
+  element name, which the HACS maintainers ask of a fork listed next to its original. The HACS bot
+  never labelled the PR, so its catalog checks are skipped; this is a known bot bug
+  ([hacs/integration#5673](https://github.com/hacs/integration/issues/5673)), reported there with
+  this PR. Once it merges, switch the install steps to a catalog search and add the default badge.
 
 ## Next
 
