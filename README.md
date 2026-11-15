@@ -10,7 +10,7 @@ with the vacuum's status and controls around the map.
 
 It works with Xiaomi, Roborock, Dreame, Viomi, Valetudo, Neato, Roomba, Ecovacs, Wyze and more.
 
-[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=Igloczek&repository=lovelace-better-xiaomi-vacuum-map-card&category=dashboard)
+[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=Igloczek&repository=lovelace-better-xiaomi-vacuum-map-card&category=plugin)
 
 [![Better Xiaomi Vacuum Map Card: selecting rooms, zooming and rotating the map, drawing a zone, Pin & Go, a path and switching floors](docs/media/demo.webp)](docs/media/demo.mp4)
 
@@ -30,7 +30,7 @@ Compared with the original [Xiaomi Vacuum Map Card](https://github.com/PiotrMach
 | 📐 Layout | vertical only | ✅ vertical or horizontal, resizable |
 | 🐛 Bug reports | ✍️ manual forms | 🤖 [your AI agent files them](#reporting-a-problem) |
 
-Same card type, same YAML: [switching takes a minute](#coming-from-xiaomi-vacuum-map-card).
+Its own card type, upstream-compatible YAML: [switching takes a minute](#coming-from-xiaomi-vacuum-map-card).
 
 ## Features
 
@@ -96,7 +96,7 @@ Same card type, same YAML: [switching takes a minute](#coming-from-xiaomi-vacuum
 
 ## Install
 
-[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=Igloczek&repository=lovelace-better-xiaomi-vacuum-map-card&category=dashboard)
+[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=Igloczek&repository=lovelace-better-xiaomi-vacuum-map-card&category=plugin)
 
 The button opens this repository in the Marketplace (Home Assistant 2026.11 and newer) or in HACS
 (older versions) and offers to add it. If it doesn't open, follow the steps for your setup.
@@ -137,11 +137,11 @@ Keep a single resource entry for the card. Two entries for the same file load it
 
 ## Quick start
 
-Add a card to a dashboard, search for **Vacuum Map Card**, and pick your vacuum and map in
-the editor. The same card in YAML:
+Add a card to a dashboard, search for **Better Xiaomi Vacuum Map Card**, and pick your vacuum and
+map in the editor. The same card in YAML:
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.robot
 vacuum_platform: Roborock
 map_source:
@@ -217,9 +217,30 @@ rotations, and each release passes end-to-end tests against a real Home Assistan
 
 This card started as a fork of
 [PiotrMachowski/lovelace-xiaomi-vacuum-map-card](https://github.com/PiotrMachowski/lovelace-xiaomi-vacuum-map-card)
-and is a drop-in replacement. The card type stays `custom:xiaomi-vacuum-map-card` and your YAML
-doesn't change. Remove the old card's resource, install this one, and reload. Both register the
-same card type, so only one can be loaded at a time.
+and keeps the same YAML: entity IDs, map sources, calibration, modes, tiles and icons all work
+unchanged. Only the card type is different, and both cards can be installed at the same time.
+
+The card registers `custom:better-xiaomi-vacuum-map-card`, so it lives next to the original instead
+of replacing it. To move an existing dashboard over, change the type on each card:
+
+```yaml
+# before
+type: custom:xiaomi-vacuum-map-card
+# after
+type: custom:better-xiaomi-vacuum-map-card
+```
+
+### Migrating from `custom:xiaomi-vacuum-map-card`
+
+The old type still works: when the original card's resource is not loaded, this card answers to
+`custom:xiaomi-vacuum-map-card` too, so an existing dashboard keeps rendering without an edit. It
+stops doing that as soon as the original card is installed as well, because the original must keep
+its own element name. A dashboard that should keep working next to the original card needs the new
+type. The card picker, the editor and `type: custom:better-xiaomi-vacuum-map-card` in new YAML use
+the new name.
+
+Your remembered zoom, position and room run move to the card's own storage keys on first load. When
+the original card is installed too, that state stays with it and this card starts fresh.
 
 A few defaults differ, and each can be switched back:
 

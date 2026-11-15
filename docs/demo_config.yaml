@@ -1,4 +1,4 @@
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 title: Better Xiaomi Vacuum Map Card
 preset_name: Live map
 entity: vacuum.xiaomi_vacuum

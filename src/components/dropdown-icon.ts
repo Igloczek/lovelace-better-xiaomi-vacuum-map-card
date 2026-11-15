@@ -4,7 +4,7 @@ import { ActionHandlerFunctionCreator, DropdownIconActionConfig } from "../types
 import { customElement, property } from "lit/decorators.js";
 import { RootlessLitElement } from "./rootless-lit-element";
 
-@customElement("xvmc-dropdown-icon")
+@customElement("better-xvmc-dropdown-icon")
 export class DropdownIcon extends RootlessLitElement {
     @property({ attribute: false })
     private config!: DropdownIconActionConfig;
@@ -26,7 +26,7 @@ export class DropdownIcon extends RootlessLitElement {
         const currentIndex = this.config.findIndex(i => i.isSelected);
         const itemClass = `icon-menu-${this.config[0].menu_id}`;
         return html`
-            <xvmc-dropdown-menu
+            <better-xvmc-dropdown-menu
                 .title="${this.isInEditor ? `menu_id: ${this.config[0].menu_id}` : (this.config[currentIndex].tooltip ?? "")}"
                 .values=${items}
                 .currentIndex=${currentIndex}
@@ -35,7 +35,7 @@ export class DropdownIcon extends RootlessLitElement {
                 }}
                 .renderNameCollapsed=${false}
                 .additionalClasses=${[itemClass, "dropdown-icon"]}>
-            </xvmc-dropdown-menu>
+            </better-xvmc-dropdown-menu>
         `;
     }
 

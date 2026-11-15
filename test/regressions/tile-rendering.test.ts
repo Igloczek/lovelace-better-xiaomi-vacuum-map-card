@@ -20,11 +20,11 @@ interface RenderedTile {
 }
 
 /**
- * Mounts the real `<xvmc-tile>` element. The component is rootless, so the rendered nodes sit in
+ * Mounts the real `<better-xvmc-tile>` element. The component is rootless, so the rendered nodes sit in
  * the element itself and a plain `querySelector` is enough.
  */
 async function renderTile(config: TileConfig, hass: HomeAssistantFixed): Promise<RenderedTile> {
-    const tile = document.createElement("xvmc-tile") as Tile;
+    const tile = document.createElement("better-xvmc-tile") as Tile;
     Object.assign(tile, {
         config,
         hass,

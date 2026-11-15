@@ -194,7 +194,7 @@ function connectWebSocket(token) {
 
 function card(overrides = {}) {
     return {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: process.env.E2E_VACUUM || "vacuum.demo_vacuum_0_ground_floor",
         vacuum_platform: "Xiaomi Miio",
         map_source: { camera: "camera.vacuum_map" },
@@ -415,6 +415,43 @@ async function main() {
             config: {
                 title: "E2E run floors",
                 views: [{ title: "Floors", path: "floors", cards: [floorsCard()] }],
+            },
+        },
+        {
+            // element-names.spec.ts: the fork's own type, the upstream type through the alias, and
+            // both on one page when the upstream bundle is installed as a second resource.
+            url_path: "e2e-element-names",
+            title: "E2E element names",
+            config: {
+                title: "E2E element names",
+                views: [
+                    {
+                        title: "New type",
+                        path: "new",
+                        cards: [card({ map_modes: [{ template: "vacuum_clean_zone" }] })],
+                    },
+                    {
+                        title: "Legacy type",
+                        path: "legacy",
+                        cards: [
+                            card({
+                                type: "custom:xiaomi-vacuum-map-card",
+                                map_modes: [{ template: "vacuum_clean_zone" }],
+                            }),
+                        ],
+                    },
+                    {
+                        title: "Mixed",
+                        path: "mixed",
+                        cards: [
+                            card({ map_modes: [{ template: "vacuum_clean_zone" }] }),
+                            card({
+                                type: "custom:xiaomi-vacuum-map-card",
+                                map_modes: [{ template: "vacuum_clean_zone" }],
+                            }),
+                        ],
+                    },
+                ],
             },
         },
         {

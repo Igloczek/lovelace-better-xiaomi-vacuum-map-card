@@ -93,7 +93,7 @@ function running(target: CardHandle): Promise<string[]> {
 
 /** Switches the card to the next or previous preset with a real tap on the preset selector arrow. */
 async function switchPreset(page: Page, target: CardHandle, direction: "previous" | "next"): Promise<void> {
-    const arrows = target.locator.locator("xvmc-preset-selector .preset-selector-icon-wrapper");
+    const arrows = target.locator.locator("better-xvmc-preset-selector .preset-selector-icon-wrapper");
     await arrows.nth(direction === "next" ? 1 : 0).click();
     await expect
         .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length))
@@ -103,7 +103,7 @@ async function switchPreset(page: Page, target: CardHandle, direction: "previous
 
 function presetName(target: CardHandle): Promise<string | undefined> {
     return target.locator
-        .locator("xvmc-preset-selector .preset-label")
+        .locator("better-xvmc-preset-selector .preset-label")
         .textContent()
         .then(text => text?.trim());
 }
@@ -176,7 +176,7 @@ test.describe("the run after Start, with a misbehaving vacuum", () => {
         await expect.poll(() => selected(target)).toEqual(["2", "0"]);
         expect(await running(target)).toEqual([]);
         expect(
-            await page.evaluate(() => window.localStorage.getItem("xiaomi-vacuum-map-card.active-room-run")),
+            await page.evaluate(() => window.localStorage.getItem("better-xiaomi-vacuum-map-card.active-room-run")),
         ).toBeNull();
         expect(await shownState(page)).toBe("docked");
     });

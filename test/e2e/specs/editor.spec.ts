@@ -22,7 +22,7 @@ test("card editor renders, edits the title and generates rooms", async ({ logged
 
     const dialog = page.locator("hui-dialog-edit-card").first();
     await dialog.waitFor({ state: "attached", timeout: 60_000 });
-    const editor = page.locator("xiaomi-vacuum-map-card-editor").first();
+    const editor = page.locator("better-xiaomi-vacuum-map-card-editor").first();
     await editor.waitFor({ state: "attached", timeout: 60_000 });
     await editor.evaluate(async (element: any) => {
         while (!element.shadowRoot?.querySelector(".card-config")) {
@@ -64,7 +64,7 @@ test("card editor renders, edits the title and generates rooms", async ({ logged
     expect(fields.fallbackLabels.length).toBeGreaterThanOrEqual(3);
 
     // Real keyboard typing into the field the frontend provides.
-    const title = page.locator("xiaomi-vacuum-map-card-editor").locator("ha-input").first();
+    const title = page.locator("better-xiaomi-vacuum-map-card-editor").locator("ha-input").first();
     await title.click();
     await page.keyboard.type("E2E vacuum");
     await expect.poll(async () => (await dialogConfig())?.title).toBe("E2E vacuum");

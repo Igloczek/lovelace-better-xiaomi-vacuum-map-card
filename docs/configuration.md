@@ -1,7 +1,11 @@
 # Configuration
 
 The configuration format is unchanged from the upstream card: no key was renamed and no option
-was removed, so existing YAML keeps working. This fork adds these options on top:
+was removed, so existing YAML keeps working. The card type is
+`custom:better-xiaomi-vacuum-map-card`; `custom:xiaomi-vacuum-map-card` still works while the
+original card is not installed (see
+[the migration note](../README.md#migrating-from-customxiaomi-vacuum-map-card)). This fork adds
+these options on top:
 [`layout`](#layout), [`map_view`](#map-view-options), `map_rotation`, `map_rotation_gesture`,
 `persist_map_view`, `persist_map_lock`, `map_view_storage_key` and `transparent_background`.
 
@@ -146,7 +150,7 @@ once, with the first real layout, and the stored view is the centred default rat
 top-left corner.
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.roborock_s7
 map_source:
   camera: camera.vacuum_map
@@ -169,7 +173,7 @@ reported as a configuration error so a typo does not silently fall back. The opt
 for now — the visual editor does not expose it.
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.roborock_s7
 map_source:
   camera: camera.vacuum_map
@@ -891,7 +895,7 @@ This card handles following actions:
 <tr>
 <td>
 <pre>
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.xiaomi_vacuum
 map_image: '/local/custom_lovelace/xiaomi_vacuum_map_card/map.png'
 calibration_points:
@@ -920,7 +924,7 @@ zones:
 </td>
 <td>
 <pre>
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.xiaomi_vacuum
 map_source:
   image: '/local/custom_lovelace/xiaomi_vacuum_map_card/map.png'
@@ -966,7 +970,7 @@ map_modes:
 <tr>
 <td>
 <pre>
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.xiaomi_vacuum
 map_camera: camera.xiaomi_cloud_map_extractor
 camera_calibration: true
@@ -977,7 +981,7 @@ zones:
 </td>
 <td>
 <pre>
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.xiaomi_vacuum
 map_source:
   camera: camera.xiaomi_cloud_map_extractor

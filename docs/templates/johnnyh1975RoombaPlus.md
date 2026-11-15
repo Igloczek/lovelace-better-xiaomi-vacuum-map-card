@@ -24,7 +24,7 @@ Both expose identical attributes.
 ## Minimal configuration
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.roomba
 vacuum_platform: johnnyh1975_roomba_plus
 map_source:
@@ -81,7 +81,7 @@ The `clean_room` service accepts both the display name and the `room_id` slug â€
 ## Full working config with predefined_selections
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.roomba
 vacuum_platform: johnnyh1975_roomba_plus
 map_source:

@@ -123,7 +123,7 @@ const roomsMode = { template: "vacuum_clean_segment" };
 
 /** The card on the recorded dashboard: two floors, the fork's room detection and every map mode. */
 const CARD = {
-    type: "custom:xiaomi-vacuum-map-card",
+    type: "custom:better-xiaomi-vacuum-map-card",
     title: "Robot vacuum",
     preset_name: "Ground floor",
     entity: "vacuum.robot_vacuum",

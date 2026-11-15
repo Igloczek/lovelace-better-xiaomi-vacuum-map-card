@@ -4,7 +4,11 @@
 // redaction rules that make an unattended report safe to publish are tested in one place
 // (test/agent-report.test.ts).
 
-export const CARD_TYPE = "custom:xiaomi-vacuum-map-card";
+export const CARD_TYPE = "custom:better-xiaomi-vacuum-map-card";
+// The upstream name still works when the upstream card is not installed (the fork registers it as
+// an alias), so its dashboards are reports about this card too.
+export const LEGACY_CARD_TYPE = "custom:xiaomi-vacuum-map-card";
+export const CARD_TYPES = [CARD_TYPE, LEGACY_CARD_TYPE];
 export const SCHEMA_VERSION = 1;
 export const REPO = "Igloczek/lovelace-better-xiaomi-vacuum-map-card";
 export const MARKER = "<!-- agent-report:v1 -->";
@@ -25,9 +29,10 @@ export function findCards(node, path = [], out = []) {
     if (Array.isArray(node)) {
         node.forEach((child, i) => findCards(child, [...path, i], out));
     } else if (node && typeof node === "object") {
-        if (node.type === CARD_TYPE) out.push({ path: path.join("."), config: node });
+        if (CARD_TYPES.includes(node.type)) out.push({ path: path.join("."), config: node });
         for (const [key, value] of Object.entries(node)) {
-            if (value && typeof value === "object" && node.type !== CARD_TYPE) findCards(value, [...path, key], out);
+            if (value && typeof value === "object" && !CARD_TYPES.includes(node.type))
+                findCards(value, [...path, key], out);
         }
     }
     return out;

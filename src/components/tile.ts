@@ -15,7 +15,7 @@ import { blankBeforePercent } from "../localize/hass/blank_before_percent";
 import { formatNumber } from "../localize/hass/format_number";
 import { RootlessLitElement } from "./rootless-lit-element";
 
-@customElement("xvmc-tile")
+@customElement("better-xvmc-tile")
 export class Tile extends RootlessLitElement {
     @property({ attribute: false })
     private config!: TileConfig;

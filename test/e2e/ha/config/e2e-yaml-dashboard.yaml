@@ -6,7 +6,7 @@ views:
       # The unquoted `y:` key inside map_view is the YAML 1.1 boolean-key case from upstream #952.
       # If the parser turns it into `true`, the card must still open at y: 30; the suite asserts the
       # rendered offset, so this file is both the repro and the regression test.
-      - type: custom:xiaomi-vacuum-map-card
+      - type: custom:better-xiaomi-vacuum-map-card
         entity: vacuum.demo_vacuum_0_ground_floor
         vacuum_platform: default
         map_source:

@@ -11,8 +11,8 @@ import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
  * Screenshot-free on purpose, so the file runs on any host as well as in the pinned CI image.
  */
 
-const CARD = "xiaomi-vacuum-map-card";
-const STORE_KEY = "xiaomi-vacuum-map-card.map-view";
+const CARD = "better-xiaomi-vacuum-map-card";
+const STORE_KEY = "better-xiaomi-vacuum-map-card.map-view";
 
 interface VisualHarness {
     ready: boolean;
@@ -49,7 +49,7 @@ test.afterEach(async ({ page }) => {
 
 function cardConfig(overrides: Partial<XiaomiVacuumMapCardConfig> = {}): XiaomiVacuumMapCardConfig {
     return {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.roborock_s7",
         map_source: { camera: "camera.vacuum_map" },
         calibration_source: { camera: true },
@@ -98,7 +98,7 @@ async function setZoom(page: Page, scale: number, anchor: Fraction): Promise<voi
  */
 function viewCentre(page: Page): Promise<Fraction> {
     return page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
         const root = card.shadowRoot as ShadowRoot;
         const zoomer = root.getElementById("map-zoomer") as HTMLElement;
         const content = root.getElementById("map-zoomer-content") as HTMLElement;
@@ -111,7 +111,7 @@ function viewCentre(page: Page): Promise<Fraction> {
 
 function cardState(page: Page): Promise<{ mapScale: number; mapRotation: number; realScale: number }> {
     return page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as {
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as unknown as {
             mapScale: number;
             mapRotation: number;
             realScale: number;
@@ -127,7 +127,7 @@ function cardState(page: Page): Promise<{ mapScale: number; mapRotation: number;
  */
 function livingRoomAlignmentError(page: Page): Promise<number> {
     return page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
         const root = card.shadowRoot as ShadowRoot;
         const image = root.getElementById("map-image") as HTMLElement;
         const content = root.getElementById("map-zoomer-content") as HTMLElement;
@@ -192,7 +192,8 @@ async function updateCamera(page: Page, token: string, attributes: Record<string
                 },
             };
             harness.hass = { ...harness.hass, states: { ...harness.hass.states, "camera.vacuum_map": nextCamera } };
-            (document.querySelector("xiaomi-vacuum-map-card") as unknown as { hass: unknown }).hass = harness.hass;
+            (document.querySelector("better-xiaomi-vacuum-map-card") as unknown as { hass: unknown }).hass =
+                harness.hass;
         },
         { token, attributes },
     );
@@ -200,7 +201,7 @@ async function updateCamera(page: Page, token: string, attributes: Record<string
 
 async function waitForImageLoad(page: Page, token: string): Promise<void> {
     await page.waitForFunction(expected => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement | null;
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement | null;
         const image = card?.shadowRoot?.getElementById("map-image-source") as HTMLImageElement | null;
         return !!image && image.src.includes(`token=${expected}`) && image.complete && image.naturalWidth > 0;
     }, token);
@@ -329,7 +330,7 @@ test.describe("re-attach", () => {
         // 100 ms window of the delayed restore and while a camera snapshot is loading.
         await updateCamera(page, "reattach");
         await page.evaluate(() => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
             const root = document.getElementById("card-root") as HTMLElement;
             card.remove();
             setTimeout(() => root.appendChild(card), 30);
@@ -341,7 +342,7 @@ test.describe("re-attach", () => {
         expect((await cardState(page)).mapScale).toBeCloseTo(2, 5);
         expect(await livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
         const transition = await page.evaluate(() => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
             const content = card.shadowRoot?.getElementById("map-zoomer-content") as HTMLElement;
             return getComputedStyle(content).transitionDuration;
         });
@@ -404,14 +405,14 @@ async function mapCentre(page: Page): Promise<TouchPoint> {
 
 function transformOf(page: Page): Promise<string> {
     return page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
         return getComputedStyle(card.shadowRoot?.getElementById("map-zoomer-content") as HTMLElement).transform;
     });
 }
 
 function selectedRooms(page: Page): Promise<string[]> {
     return page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as {
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as unknown as {
             selectedRooms: Array<{ toVacuum: () => unknown }>;
         };
         return (card.selectedRooms ?? []).map(room => String(room.toVacuum()));
@@ -506,7 +507,7 @@ test.describe("touch gestures", () => {
         await setContainerWidth(page, 400);
         await mount(page, cardConfig());
         const point = await page.evaluate(() => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
             const box = card.shadowRoot?.querySelector(".room-1-wrapper polygon")?.getBoundingClientRect() as DOMRect;
             return { x: box.x + box.width * 0.25, y: box.y + box.height * 0.75 };
         });
@@ -530,7 +531,7 @@ test.describe("map appearance", () => {
         await mount(page, cardConfig({ map_source: { camera: "camera.vacuum_map", transparent_background: true } }));
 
         const pixels = await page.evaluate(() => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
             const canvas = card.shadowRoot?.getElementById("map-image") as HTMLCanvasElement;
             const context = canvas.getContext("2d") as CanvasRenderingContext2D;
             const at = (x: number, y: number) => Array.from(context.getImageData(x, y, 1, 1).data);
@@ -544,7 +545,7 @@ test.describe("map appearance", () => {
 
         // Labels stay readable on any room colour: a light fill with a dark outline.
         const label = await page.evaluate(() => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
             const text = card.shadowRoot?.querySelector(".room-1-wrapper text.room-label-text, .room-1-wrapper text");
             const style = getComputedStyle(text as Element);
             return { fill: style.fill, stroke: style.stroke };
@@ -580,7 +581,7 @@ test.describe("horizontal layout at phone widths", () => {
                 }),
             );
             const metrics = await page.evaluate(() => {
-                const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+                const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
                 const root = card.shadowRoot as ShadowRoot;
                 const haCard = root.querySelector("ha-card") as HTMLElement;
                 const map = (root.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
@@ -747,7 +748,7 @@ test.describe("cards mounted while hidden", () => {
             const harness = (window as unknown as VisualWindow).visualHarness;
             const root = document.getElementById("card-root") as HTMLElement;
             root.replaceChildren();
-            const card = document.createElement("xiaomi-vacuum-map-card") as HTMLElement & {
+            const card = document.createElement("better-xiaomi-vacuum-map-card") as HTMLElement & {
                 setConfig: (config: unknown) => void;
                 hass: unknown;
             };
@@ -756,7 +757,7 @@ test.describe("cards mounted while hidden", () => {
             root.appendChild(card);
         }, config);
         await page.waitForFunction(() => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement | null;
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement | null;
             const image = card?.shadowRoot?.getElementById("map-image-source") as HTMLImageElement | null;
             return !!image && image.complete && image.naturalWidth > 0;
         });
@@ -776,7 +777,9 @@ test.describe("cards mounted while hidden", () => {
 test.describe("map lock persistence", () => {
     function locked(page: Page): Promise<boolean> {
         return page.evaluate(
-            () => (document.querySelector("xiaomi-vacuum-map-card") as unknown as { mapLocked: boolean }).mapLocked,
+            () =>
+                (document.querySelector("better-xiaomi-vacuum-map-card") as unknown as { mapLocked: boolean })
+                    .mapLocked,
         );
     }
 

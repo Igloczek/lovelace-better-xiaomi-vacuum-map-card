@@ -43,9 +43,9 @@ async function generatedTiles(hass: HomeAssistantFixed): Promise<TileConfig[]> {
     return TilesGenerator.generate(hass, VACUUM, "Roborock", "en", [], {});
 }
 
-/** Mounts the real `<xvmc-tile>` element and returns its rendered value. */
+/** Mounts the real `<better-xvmc-tile>` element and returns its rendered value. */
 async function renderTileValue(config: TileConfig, hass: HomeAssistantFixed): Promise<string> {
-    const tile = document.createElement("xvmc-tile") as Tile;
+    const tile = document.createElement("better-xvmc-tile") as Tile;
     Object.assign(tile, {
         config,
         hass,

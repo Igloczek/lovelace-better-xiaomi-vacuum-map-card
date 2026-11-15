@@ -127,7 +127,7 @@ function platformWorld(
         });
     const hass = mockHass({ states, entities: entries });
     const config: XiaomiVacuumMapCardConfig = {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: VACUUM,
         vacuum_platform: platform,
         map_source: { camera: CAMERA },
@@ -190,7 +190,7 @@ describe("platform defaults mounted with real-shaped entities", () => {
         if (!SETUP_PLATFORMS.includes(platform)) {
             expect(root.querySelector(".map-wrapper, #map-zoomer-content")).not.toBeNull();
         }
-        const tiles = [...root.querySelectorAll("xvmc-tile")].map(t => ({
+        const tiles = [...root.querySelectorAll("better-xvmc-tile")].map(t => ({
             label: t.querySelector(".tile-title")?.textContent?.trim() ?? "",
             value: t.querySelector(".tile-value")?.textContent?.trim() ?? "",
         }));
@@ -206,7 +206,7 @@ describe("platform defaults mounted with real-shaped entities", () => {
         const card = await mountCard(config, hass);
         await settle(card.element, 200);
         expect(errors).not.toHaveBeenCalled();
-        const values = [...card.shadowRoot.querySelectorAll("xvmc-tile .tile-value")].map(
+        const values = [...card.shadowRoot.querySelectorAll("better-xvmc-tile .tile-value")].map(
             v => v.textContent?.trim() ?? "",
         );
         for (const value of values) {

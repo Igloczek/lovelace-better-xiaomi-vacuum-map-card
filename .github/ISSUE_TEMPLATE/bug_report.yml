@@ -15,8 +15,9 @@ body:
         This is the fork's tracker; file fork bugs and fork regressions here. If the same
         configuration also fails with the upstream release, report it in the
         [upstream tracker](https://github.com/PiotrMachowski/lovelace-xiaomi-vacuum-map-card/issues)
-        too. The element is still `custom:xiaomi-vacuum-map-card` and the asset is still
-        `xiaomi-vacuum-map-card.js`, so include which build you run below.
+        too. The element is `custom:better-xiaomi-vacuum-map-card` (the old
+        `custom:xiaomi-vacuum-map-card` works while the original card is not installed) and the
+        asset is still `xiaomi-vacuum-map-card.js`, so include which build you run below.
 
         Configuration options are in
         [docs/configuration.md](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/blob/master/docs/configuration.md);

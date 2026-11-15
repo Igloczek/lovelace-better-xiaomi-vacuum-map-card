@@ -169,7 +169,8 @@ it). The raw data is **not redacted**: it stays local and only goes through `cli
   const find = (n, p = [], o = []) => {
     if (Array.isArray(n)) n.forEach((c, i) => find(c, [...p, i], o));
     else if (n && typeof n === "object") {
-      if (n.type === "custom:xiaomi-vacuum-map-card") o.push({ path: p.join("."), config: n });
+      if (n.type === "custom:better-xiaomi-vacuum-map-card" || n.type === "custom:xiaomi-vacuum-map-card")
+        o.push({ path: p.join("."), config: n });
       else for (const [k, v] of Object.entries(n)) find(v, [...p, k], o);
     }
     return o;

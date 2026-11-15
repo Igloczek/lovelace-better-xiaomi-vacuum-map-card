@@ -11,7 +11,7 @@
  * else the card asks for throws, so a missing mock is loud instead of silently returning undefined.
  */
 
-const CARD_TAG = "xiaomi-vacuum-map-card";
+const CARD_TAG = "better-xiaomi-vacuum-map-card";
 const FIXTURE_BASE = "/fixtures/synthetic/";
 
 /** Home Assistant elements the card renders. The real frontend supplies their behaviour. */

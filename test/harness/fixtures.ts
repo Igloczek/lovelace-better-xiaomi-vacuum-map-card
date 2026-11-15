@@ -91,7 +91,7 @@ export function fixtureConfig(bundle: FixtureBundle): XiaomiVacuumMapCardConfig 
     const vacuum = Object.keys(bundle.states).find(entityId => entityId.startsWith("vacuum."));
     if (!vacuum) throw new Error(`${bundle.name} fixture has no vacuum entity in states.json`);
     return {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: vacuum,
         map_source: { camera: bundle.camera.entity_id },
         calibration_source: { camera: true },

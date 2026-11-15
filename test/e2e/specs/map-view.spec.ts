@@ -14,7 +14,7 @@ async function storedMapViews(
     page: import("@playwright/test").Page,
 ): Promise<Array<{ key: string; scale: number; x: number; y: number; rotation: number; width?: number }>> {
     return page.evaluate(() => {
-        const raw = window.localStorage.getItem("xiaomi-vacuum-map-card.map-view");
+        const raw = window.localStorage.getItem("better-xiaomi-vacuum-map-card.map-view");
         const storage = raw ? (JSON.parse(raw) as Record<string, any>) : {};
         return Object.entries(storage).map(([key, entry]) => ({
             key,
