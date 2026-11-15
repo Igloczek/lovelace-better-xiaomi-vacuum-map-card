@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- In the Home Assistant Mac app (WebKit), deselecting a room whose pill reached over other rooms
+  left the part of the pill over those rooms on screen. The pill's drawing box now covers the map,
+  so removing it repaints all of it.
+
 ## 1.2.2
 
 ### Changed
