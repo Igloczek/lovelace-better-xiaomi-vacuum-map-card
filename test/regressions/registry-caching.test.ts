@@ -390,4 +390,31 @@ describe("cache invalidation on a registry update", () => {
         expect(second).toBe(first);
         expect(wsMessages(withStates, "config/entity_registry/get_entries")).toHaveLength(1);
     });
+
+    it("evicts old registry memos so a long-lived page stays bounded", async () => {
+        const page = fixtureHass(loadSyntheticFixture());
+        await getAllEntitiesFromTheSameDevice(page, VACUUM);
+
+        // Every registry update is a new token and would otherwise add a permanent entry to the
+        // connection's map (a wall tablet runs for weeks).
+        let hass = page;
+        for (let index = 0; index < 20; index++) {
+            hass = withRegistryEntries(hass, [
+                {
+                    entity_id: "sensor.roborock_s7_battery",
+                    unique_id: "roborock_s7_battery",
+                    device_id: DEVICE,
+                    original_name: `Roborock S7 Battery ${index}`,
+                },
+            ]);
+            await getAllEntitiesFromTheSameDevice(hass, VACUUM);
+        }
+
+        // The first token was evicted, so asking with the original display registry reads the
+        // registry again instead of returning an entry kept from twenty updates ago.
+        page.resetWSCalls();
+        await getAllEntitiesFromTheSameDevice(page, VACUUM);
+
+        expect(wsMessages(page, "config/entity_registry/get_entries")).toHaveLength(1);
+    });
 });

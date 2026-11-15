@@ -79,6 +79,7 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 
 Accepted in the 1.0 line, each with what would fix it:
 
+- None open right now.
 
 ## Open questions and risks
 

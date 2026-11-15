@@ -115,7 +115,7 @@ import {
     handleRoomColorClick,
     refreshRoomsAfterColorDetection,
 } from "./card/rooms";
-import { entityNamesChanged, refreshGeneratedIconsAndTiles } from "./card/registry";
+import { entityNamesChanged, refreshGeneratedIconsAndTiles, rememberRegistrySnapshot } from "./card/registry";
 import { handleServiceCallGet } from "./card/run";
 import {
     createContext,
@@ -775,6 +775,11 @@ export class XiaomiVacuumMapCard extends LitElement {
         // registry-only rename has to regenerate them, not just render the card again.
         if (entityNamesChanged(oldHass, this.hass)) {
             refreshGeneratedIconsAndTiles(this);
+        }
+        // A freshly set config regenerates the preset too (setPresetIndex); record the registry
+        // state it was generated from so the next registry update can skip unrelated changes.
+        if (changedProperties.has("config")) {
+            rememberRegistrySnapshot(this);
         }
         const changed =
             oldHass && this.hass && checkIfEntitiesChanged(this.entitiesToManuallyUpdate, oldHass, this.hass);
