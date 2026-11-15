@@ -311,7 +311,7 @@ function metadataRoomsCard() {
  */
 function interlockCard() {
     return {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.demo_vacuum_0_ground_floor",
         vacuum_platform: "Xiaomi Miio",
         map_source: { camera: "camera.interlocking_map" },
