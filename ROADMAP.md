@@ -79,11 +79,6 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 
 Accepted in the 1.0 line, each with what would fix it:
 
-- **Renamed entities in tiles.** A device, area or floor rename can leave a tile label stale until
-  the card reloads, because the `entityNamesChanged` re-render hook is not carried. Watch the
-  registry for name changes and re-render.
-- **Renamed entities in icons.** The device registry lookup is cached for the page session, so an
-  icon changed in the registry appears after a reload. Invalidate the cache on registry updates.
 
 ## Open questions and risks
 

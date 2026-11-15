@@ -34,9 +34,9 @@ const supportsEntityNames = (hass: HomeAssistantFixed | undefined): boolean => {
  * every other case - 2025.10 through 2026.3, a hass without the helper, a throw, or an empty
  * result - falls back to the friendly name and then, at the call sites, to the entity id.
  *
- * Adapted from upstream PR #957. Its `entityNamesChanged` re-render hook is not carried here;
- * without it, a registry-only rename can leave a tile label stale until an unrelated entity update
- * renders the card (see `ROADMAP.md`, known limitations).
+ * Adapted from upstream PR #957. Its `entityNamesChanged` re-render hook lives in
+ * `src/card/registry.ts`: a registry-only rename changes no entity state, so the card has to
+ * re-render and regenerate its tiles on its own (see `FORK.md`, "Registry renames").
  */
 export function computeEntityName(
     hass: HomeAssistantFixed | undefined,

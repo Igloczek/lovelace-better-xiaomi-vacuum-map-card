@@ -115,6 +115,7 @@ import {
     handleRoomColorClick,
     refreshRoomsAfterColorDetection,
 } from "./card/rooms";
+import { entityNamesChanged, refreshGeneratedIconsAndTiles } from "./card/registry";
 import { handleServiceCallGet } from "./card/run";
 import {
     createContext,
@@ -513,6 +514,11 @@ export class XiaomiVacuumMapCard extends LitElement {
         if (!this.config) {
             return false;
         }
+        // A rename in Home Assistant's registries, or the frontend installing its real name
+        // formatter, changes no entity state; without this the tiles keep the old label and icon.
+        if (entityNamesChanged(changedProps.get("_hass") as HomeAssistantFixed | undefined, this.hass)) {
+            return true;
+        }
         return hasConfigOrAnyEntityChanged(this.watchedEntities, changedProps, false, this.hass);
     }
 
@@ -765,6 +771,11 @@ export class XiaomiVacuumMapCard extends LitElement {
             }, 0);
         }
         const oldHass = changedProperties.get("_hass") as HomeAssistantFixed | undefined;
+        // The generated tiles and icons carry the label and icon resolved at generation time, so a
+        // registry-only rename has to regenerate them, not just render the card again.
+        if (entityNamesChanged(oldHass, this.hass)) {
+            refreshGeneratedIconsAndTiles(this);
+        }
         const changed =
             oldHass && this.hass && checkIfEntitiesChanged(this.entitiesToManuallyUpdate, oldHass, this.hass);
         this._updateElements(changed);
