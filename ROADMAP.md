@@ -41,12 +41,10 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 - **Roborock status and battery templates.** The generic duration handling is in place; the
   Roborock-specific tile templates need a real Roborock-core registry dump (the `unique_id`
   patterns and the status strings) before the regexes can be trusted.
-- **Placement and sizing polish.** The sections-view grid options are a compromise: `layout:
-  horizontal` asks for six rows, which is too tall for some cards and too short for others. A
-  per-card override story that does not need `card-mod` would help. Now that a narrow horizontal
-  card stacks, `min_columns: 9` is no longer needed to keep the map usable; letting a stacked card
-  take a third or half of a section would give owners of a compact dashboard a smaller card, at the
-  cost of a taller, scrolling one.
+- **Smaller stacked horizontal cards.** Now that a narrow horizontal card stacks, `min_columns: 9`
+  is no longer needed to keep the map usable; letting a stacked card take a third or half of a
+  section would give owners of a compact dashboard a smaller card, at the cost of a taller,
+  scrolling one.
 
 ## Later
 

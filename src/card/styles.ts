@@ -390,6 +390,28 @@ export const cardStyles = css`
         }
 
         /*
+         * A sections cell taller than the card is the height the user asked for with the resize
+         * handle (grid_options.rows). The map keeps its aspect ratio, so without this the extra
+         * height would be dead space below the map and the controls would still be squeezed into
+         * the map's height. As a column instead, the horizontal layout takes the cell's remaining
+         * height after the title, and the controls column scrolls only when the cell is shorter
+         * than the controls. In an auto-height cell the layout keeps its content height
+         * (flex-basis auto), so nothing changes for a card that was not resized.
+         *
+         * Scoped to layout = "grid" and to the horizontal wrapper: masonry and panel views have
+         * no definite height to fill, and the vertical arrangement keeps its flow layout.
+         */
+        :host([layout="grid"]) ha-card:has(> .layout-content.horizontal) {
+            display: flex;
+            flex-direction: column;
+        }
+
+        :host([layout="grid"]) ha-card:has(> .layout-content.horizontal) > .layout-content.horizontal {
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        /*
          * Horizontal arrangement (issue #183): the map keeps the flexible first column and the
          * controls get a clamped second column. minmax(0, 1fr) lets the map shrink below its
          * intrinsic width instead of forcing the card wider, and the controls column scrolls

@@ -205,13 +205,39 @@ grid_options:
 
 In the sections view the card uses Home Assistant's default grid size for the vertical layout: 12
 columns wide with `rows: "auto"`, so the cell fits the card's content as it always has. The
-horizontal layout is a new arrangement and reports a numeric default height (6 rows) with
-`min_columns: 9`, because a numeric `rows` is what gives the side-by-side map its height. It does not
-set `max_rows`, so a `grid_options: {rows: ...}` override can make it as tall as you need. A
-sections-view cell shorter than the card's content scrolls the card rather than shrinking the map.
-Home Assistant's own
-[`grid_options`](https://www.home-assistant.io/dashboards/sections/#resizing-cards) still override
-these values per card.
+horizontal layout asks for a numeric starting height (6 rows) and `min_columns: 9`, because the
+controls column needs 180–360 px beside the map. Side by side, a taller cell than the map is filled
+by the controls column, so the space is not wasted below the map; once the card stacks (below a
+400 px card width) the content keeps its natural height. A cell shorter than the content scrolls the
+card rather than shrinking the map.
+
+#### Resizing the card in a sections view
+
+Home Assistant's sections
+[`grid_options`](https://www.home-assistant.io/dashboards/sections/#resizing-cards) set the size of
+one card without `card-mod`: drag the resize handle in edit mode, or write the same values in YAML.
+Home Assistant merges them over the size the card asks for, and the card never adds a minimum or
+maximum height, so the size you pick is the size you get. The 9-column minimum is the card's default
+for the horizontal layout; add a smaller `min_columns` to go narrower.
+
+```yaml
+type: custom:xiaomi-vacuum-map-card
+entity: vacuum.roborock_s7
+map_source:
+  camera: camera.vacuum_map
+calibration_source:
+  camera: true
+layout: horizontal
+grid_options:
+  columns: 12
+  rows: 10 # 56 px per row with an 8 px gap between rows; any count your map and controls need
+```
+
+A wide map fits the default six rows with space left over; a tall map (a hallway, or a whole floor
+on a portrait image) needs more. Below about four rows only the title and a strip of the map are
+visible, so a card that small is only useful as a placeholder. The same keys work for the vertical
+layout, where the default is content-sized unless you set a height. A card in a cell shorter than
+its content scrolls inside the cell; the map keeps its aspect ratio instead of being stretched.
 
 ## Preset options
 

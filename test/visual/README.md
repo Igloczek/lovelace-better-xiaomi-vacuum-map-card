@@ -29,7 +29,7 @@ is involved: `index.html` plus `harness.js` mount the card element with a mock `
 | `the stack follows the card width, not the window` | the same 360 px card stacks in a 1200 px window, 400 px stays side by side and 399 px stacks (the query is exclusive), and the room overlay follows the map across the breakpoint |
 | `a long mode name ellipsizes inside the controls column at 500 px` | a 42-character mode name does not widen the dropdown or clip the mode icon: the controls column does not scroll sideways, the icon stays inside it, and the collapsed name is ellipsized |
 | `horizontal layout adapts when the container is resized` | resizing the container to 1200 px widens the map and moves the controls, the room overlay is recalculated to the new scale, and resizing back restores the narrow geometry |
-| `a sections-view grid cell makes the card fill its height and scroll` | the reflected `layout="grid"` hook makes the card fill a fixed-height cell and scroll inside it instead of overflowing |
+| `a sections-view grid cell makes the card fill its height: scroll when short, controls use a taller one` | the reflected `layout="grid"` hook makes the card fill a fixed cell and scroll inside it when shorter than the content, and a taller cell's extra height is used by the controls column instead of sitting below the map as dead space |
 | `horizontal layout keeps room, mode and tile interactions` | room hit-testing, opening the mode dropdown and selecting a mode (the mode changes), a tile click and the map-before-controls DOM/focus order in the horizontal arrangement |
 
 `map-view-robustness.spec.ts` asserts geometry only — no screenshots — so it also runs on a
