@@ -34,6 +34,7 @@ interface CellState {
     rowSize: string;
     columnSize: string;
     height: number;
+    width: number;
     map: { width: number; height: number };
     controls: { clientHeight: number; scrollHeight: number };
     scrollHeight: number;
@@ -65,6 +66,7 @@ async function cellState(page: Page): Promise<CellState> {
             rowSize: read("row-size"),
             columnSize: read("column-size"),
             height: host.height,
+            width: host.width,
             map: { width: mapBox.width, height: mapBox.height },
             controls: { clientHeight: controls.clientHeight, scrollHeight: controls.scrollHeight },
             scrollHeight: haCard.scrollHeight,
@@ -448,7 +450,12 @@ test("a user's grid_options sizes the card for a wide and a tall map at 12 and 9
                 expect(base.height).toBeCloseTo(cellHeight(6), 0);
                 // The map keeps its aspect ratio in the cell at every span.
                 expect(base.map.width / base.map.height).toBeCloseTo(aspect, 1);
-                if (shape === "wide") {
+                // Nine of twelve columns is below the 400 px breakpoint: the card stacks, and the
+                // stacked content keeps its natural height, so only the side-by-side card fills.
+                const sideBySide = columns === 12;
+                if (!sideBySide) {
+                    expect(base.map.width).toBeGreaterThanOrEqual(base.width - 32);
+                } else if (shape === "wide") {
                     // The six-row cell is taller than the map; the controls column must use that
                     // height instead of leaving dead space below the map.
                     expect(base.controls.clientHeight).toBeGreaterThan(base.map.height + 20);
@@ -478,13 +485,16 @@ test("a user's grid_options sizes the card for a wide and a tall map at 12 and 9
                 // A larger size renders exactly too, and the taller cell is filled: the controls
                 // get its full height, and a tall map finally fits without scrolling.
                 const rows = shape === "tall" ? (columns === 12 ? 20 : 14) : 12;
+                // Stacked or not, the size the user picks is the size the card gets.
                 await saveCardOptions({ columns, rows });
                 const large = await cellState(page);
                 expect(large.rowSize).toBe(String(rows));
                 expect(large.height).toBeCloseTo(cellHeight(rows), 0);
                 expect(large.map.width / large.map.height).toBeCloseTo(aspect, 1);
-                expect(large.controls.clientHeight).toBeGreaterThan(cellHeight(6) - 60);
-                if (shape === "tall") expect(large.scrollHeight).toBeLessThanOrEqual(large.clientHeight + 1);
+                if (sideBySide) {
+                    expect(large.controls.clientHeight).toBeGreaterThan(cellHeight(6) - 60);
+                    if (shape === "tall") expect(large.scrollHeight).toBeLessThanOrEqual(large.clientHeight + 1);
+                }
 
                 expect(
                     await pageOverflow(),

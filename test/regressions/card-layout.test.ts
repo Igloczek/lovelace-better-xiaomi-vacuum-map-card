@@ -254,7 +254,7 @@ describe("getGridOptions", () => {
 });
 
 describe("a sections-view cell taller than the card", () => {
-    it("is filled by the horizontal layout, so a user's larger rows enlarge the controls column", async () => {
+    it("makes the side-by-side layout a flex column that grows into the cell (the growth itself is proven in the visual suite)", async () => {
         // hui-card reflects `layout = "grid"` on the element in a sections view. The card then has a
         // definite cell height; the horizontal layout must use it instead of sitting at the map's
         // intrinsic height with dead space below, which is what made `grid_options: {rows: N}`
