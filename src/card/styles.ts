@@ -12,6 +12,30 @@ import { TilesWrapper } from "../components/tiles-wrapper";
 import { IconsWrapper } from "../components/icons-wrapper";
 import { PresetSelector } from "../components/preset-selector";
 
+/**
+ * Card-surface width (px) below which the horizontal layout stacks the controls under the map.
+ *
+ * Side by side, the clamped controls column takes `clamp(180px, 38%, 360px)` of the card, so from
+ * the card's width down to 180 px of controls the map gets the rest. Measured in the real Home
+ * Assistant (sections view, 2026.11, a 4:3 synthetic map and a two-mode, eight-tile card):
+ *
+ * | Card width            | Side by side map | Controls column visible |
+ * | --------------------- | ---------------- | ----------------------- |
+ * | 500 px (12 columns)   | 309 x 232        | 202 of 248 px           |
+ * | 458 px (11 columns)   | 276 x 207        | 177 of 248 px           |
+ * | 415 px (10 columns)   | 233 x 175        | 145 of 248 px           |
+ * | 373 px (9 columns)    | 191 x 144        | 114 of 248 px           |
+ * | 344 px (360 px phone) | 162 x 122        |  92 of 248 px           |
+ * | 304 px (320 px phone) | 122 x 92         |  62 of 248 px           |
+ *
+ * Nine columns is the narrowest a sections card can be (`min_columns: 9`), and that map is under
+ * 200 px on its long edge with the controls clipped to a 114 px window. A 400 px card keeps 220 px
+ * of map (1.2 x the 180 px controls column); below that the column takes more than the map's
+ * share. Stacked, the same 373 px card gives the map the full 371 px width and the controls their
+ * whole 248 px height, so the breakpoint sits at 400 px.
+ */
+export const HORIZONTAL_STACK_BREAKPOINT_PX = 400;
+
 export const cardStyles = css`
         ha-card {
             overflow: hidden;
@@ -325,6 +349,18 @@ export const cardStyles = css`
         }
 
         /*
+         * A horizontal card is a size container so the layout can follow the card's own width.
+         * The stacked arrangement below is a container query, not a viewport media query: a
+         * sections cell, a sidebar, a popup and a phone all narrow the card without narrowing the
+         * window. Only the horizontal arrangement is made a container, so a vertical card keeps
+         * exactly the box it had before this rule existed.
+         */
+        ha-card.layout-horizontal {
+            container-type: inline-size;
+            container-name: xvmc-card;
+        }
+
+        /*
          * Sections view: hui-card sets layout = "grid" and the cell has the height the section
          * gives it - content-sized for the default rows: "auto", or fixed when the user picks
          * a row count. Fill that cell instead of letting the content overflow into the next
@@ -385,52 +421,81 @@ export const cardStyles = css`
             grid-row: 2;
         }
 
-        /* A narrow controls column has to wrap its action buttons, and a long mode name must
-           ellipsize instead of widening (and clipping) the column. */
-        .layout-content.horizontal .map-actions-list {
-            flex-wrap: wrap;
-            height: auto;
-            justify-content: center;
-            margin-inline-start: 0;
-        }
+        /*
+         * The clamped controls column needs its own tweaks: it wraps its action buttons, and a long
+         * mode name must ellipsize instead of widening (and clipping) the column. They apply only
+         * while the map and the controls are side by side; stacked, the controls row is as wide as
+         * any vertical card's and the shared rules are the right ones.
+         */
+        @container xvmc-card (width >= ${HORIZONTAL_STACK_BREAKPOINT_PX}px) {
+            .layout-content.horizontal .map-actions-list {
+                flex-wrap: wrap;
+                height: auto;
+                justify-content: center;
+                margin-inline-start: 0;
+            }
 
-        .layout-content.horizontal .map-controls {
-            justify-content: center;
+            .layout-content.horizontal .map-controls {
+                justify-content: center;
+            }
+
+            /*
+             * A long mode name must ellipsize inside the controls column instead of widening the
+             * dropdown and having the column's overflow-x: hidden clip the mode icon. The chain
+             * from the flex item down to the text has to be allowed to shrink at every level:
+             * xvmc-dropdown-menu and ha-dropdown are block boxes clamped to the column, the button
+             * is the flex row, the text is the one shrinkable child and the icon keeps its size.
+             * max-width: 100% on the button alone was measured against those content-sized
+             * parents, so the button stayed as wide as its text and nothing ellipsized.
+             */
+            .layout-content.horizontal .map-controls > xvmc-dropdown-menu,
+            .layout-content.horizontal .dropdown-menu {
+                display: block;
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            .layout-content.horizontal .dropdown-menu-button {
+                display: flex;
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            .layout-content.horizontal .dropdown-menu-button-text {
+                /* text-overflow only renders on a block container; the shared rule is inline-flex. */
+                display: block;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .layout-content.horizontal .dropdown-menu-button-button {
+                flex-shrink: 0;
+            }
         }
 
         /*
-         * A long mode name must ellipsize inside the controls column instead of widening the
-         * dropdown and having the column's overflow-x: hidden clip the mode icon. The chain
-         * from the flex item down to the text has to be allowed to shrink at every level:
-         * xvmc-dropdown-menu and ha-dropdown are block boxes clamped to the column, the button
-         * is the flex row, the text is the one shrinkable child and the icon keeps its size.
-         * max-width: 100% on the button alone was measured against those content-sized
-         * parents, so the button stayed as wide as its text and nothing ellipsized.
+         * Narrow horizontal card: the map takes the full width and the controls follow it, instead
+         * of the clamped 180 px column clipping the map (measurements and the breakpoint's basis in
+         * the comment on HORIZONTAL_STACK_BREAKPOINT_PX above). The DOM order inside the wrapper is
+         * already map, warning, controls, so a single column stacks them the way the vertical
+         * arrangement does and no reordering is needed.
          */
-        .layout-content.horizontal .map-controls > xvmc-dropdown-menu,
-        .layout-content.horizontal .dropdown-menu {
-            display: block;
-            min-width: 0;
-            max-width: 100%;
-        }
+        @container xvmc-card (width < ${HORIZONTAL_STACK_BREAKPOINT_PX}px) {
+            .layout-content.horizontal {
+                display: block;
+            }
 
-        .layout-content.horizontal .dropdown-menu-button {
-            display: flex;
-            min-width: 0;
-            max-width: 100%;
-        }
-
-        .layout-content.horizontal .dropdown-menu-button-text {
-            /* text-overflow only renders on a block container; the shared rule is inline-flex. */
-            display: block;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .layout-content.horizontal .dropdown-menu-button-button {
-            flex-shrink: 0;
+            /* Side by side, the controls are absolutely positioned so a long control list cannot
+               set the row height and they scroll inside the map's height. Stacked, they are in
+               normal flow: they take their own height under the map, and the card scrolls as a
+               whole when its sections cell is shorter than the two together. */
+            .layout-content.horizontal > .controls-column > .controls-wrapper {
+                position: static;
+                overflow: visible;
+                overscroll-behavior: auto;
+            }
         }
 
         .clickable {

@@ -69,8 +69,9 @@ Same card type, same YAML: [switching takes a minute](#coming-from-xiaomi-vacuum
 
 **Built for real dashboards**
 
-- **Vertical or horizontal layout.** The map sits above the controls or beside them, and the card
-  resizes in sections views without `card-mod`.
+- **Vertical or horizontal layout.** The map sits above the controls or beside them, and a narrow
+  card stacks the controls under the map instead of squeezing it. The card resizes in sections views
+  without `card-mod`.
 - **A visual editor** for the basics, with full YAML for everything else.
 - **Mistakes don't break the card.** An incomplete room or zone shows a clear message instead of a
   blank card.

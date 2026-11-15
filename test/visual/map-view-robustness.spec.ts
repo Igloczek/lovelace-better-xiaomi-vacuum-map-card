@@ -559,8 +559,10 @@ test.describe("map appearance", () => {
 });
 
 test.describe("horizontal layout at phone widths", () => {
-    for (const width of [320, 360, 412] as const) {
-        test(`stays inside a ${width} px card and keeps the map usable`, async ({ page }) => {
+    // Below the breakpoint the map takes the whole card and the controls follow it: on a phone the
+    // side-by-side arrangement left the map 122 px wide at 320 px.
+    for (const width of [320, 360, 390] as const) {
+        test(`stacks inside a ${width} px card and keeps the map usable`, async ({ page }) => {
             await page.setViewportSize({ width, height: 800 });
             await page.evaluate(cardWidth => {
                 const root = document.getElementById("card-root");
@@ -582,13 +584,13 @@ test.describe("horizontal layout at phone widths", () => {
                 const root = card.shadowRoot as ShadowRoot;
                 const haCard = root.querySelector("ha-card") as HTMLElement;
                 const map = (root.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
-                const controls = (root.querySelector(".controls-column") as HTMLElement).getBoundingClientRect();
+                const controls = (root.querySelector(".controls-wrapper") as HTMLElement).getBoundingClientRect();
                 return {
                     pageScroll: document.documentElement.scrollWidth,
                     cardScroll: haCard.scrollWidth,
                     cardWidth: haCard.clientWidth,
-                    map: { x: map.x, width: map.width, right: map.right },
-                    controls: { x: controls.x, right: controls.right },
+                    map: { top: map.top, bottom: map.bottom, x: map.x, width: map.width, right: map.right },
+                    controls: { top: controls.top, x: controls.x, right: controls.right, width: controls.width },
                 };
             });
             expect(metrics.pageScroll, "no horizontal page scroll").toBeLessThanOrEqual(width);
@@ -596,12 +598,54 @@ test.describe("horizontal layout at phone widths", () => {
                 metrics.cardWidth + 1,
             );
             expect(metrics.controls.right).toBeLessThanOrEqual(width + 0.5);
-            expect(metrics.map.right).toBeLessThanOrEqual(metrics.controls.x + 0.5);
-            // The map keeps at least 40 % of a phone-width card; the controls column is clamped.
-            expect(metrics.map.width).toBeGreaterThanOrEqual(width * 0.4);
+            // Stacked: the map spans the card and the controls start below it.
+            expect(metrics.map.width, "the map takes the card width").toBeGreaterThanOrEqual(width - 32);
+            expect(metrics.controls.top, "the controls follow the map").toBeGreaterThanOrEqual(metrics.map.bottom - 1);
             await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
         });
     }
+
+    // 412 px is above the breakpoint: the wide phone keeps the side-by-side arrangement.
+    test("stays side by side inside a 412 px card", async ({ page }) => {
+        const width = 412;
+        await page.setViewportSize({ width, height: 800 });
+        await page.evaluate(cardWidth => {
+            const root = document.getElementById("card-root");
+            if (root) root.style.width = `${cardWidth}px`;
+        }, width);
+        await mount(
+            page,
+            cardConfig({
+                layout: "horizontal",
+                map_modes: [
+                    { template: "vacuum_clean_segment" },
+                    { template: "vacuum_clean_zone" },
+                    { template: "vacuum_goto" },
+                ],
+            }),
+        );
+        const metrics = await page.evaluate(() => {
+            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+            const root = card.shadowRoot as ShadowRoot;
+            const haCard = root.querySelector("ha-card") as HTMLElement;
+            const map = (root.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
+            const controls = (root.querySelector(".controls-column") as HTMLElement).getBoundingClientRect();
+            return {
+                pageScroll: document.documentElement.scrollWidth,
+                cardScroll: haCard.scrollWidth,
+                cardWidth: haCard.clientWidth,
+                map: { x: map.x, width: map.width, right: map.right },
+                controls: { x: controls.x, right: controls.right },
+            };
+        });
+        expect(metrics.pageScroll, "no horizontal page scroll").toBeLessThanOrEqual(width);
+        expect(metrics.cardScroll, "nothing overflows the card sideways").toBeLessThanOrEqual(metrics.cardWidth + 1);
+        expect(metrics.controls.right).toBeLessThanOrEqual(width + 0.5);
+        expect(metrics.map.right).toBeLessThanOrEqual(metrics.controls.x + 0.5);
+        // The map keeps at least 40 % of the card; the controls column is clamped.
+        expect(metrics.map.width).toBeGreaterThanOrEqual(width * 0.4);
+        await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
+    });
 });
 
 test.describe("cards mounted while hidden", () => {

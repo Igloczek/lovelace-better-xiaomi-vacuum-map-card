@@ -179,14 +179,23 @@ vacuum_platform: Xiaomi Miio
 layout: horizontal
 ```
 
+Below a **400 px card width** the card stacks: the map takes the full width and the modes, icons and
+tiles follow it, instead of the clamped controls column squeezing the map and scrolling in a short
+window. The breakpoint follows the card's own width, not the window, so a phone, a narrow sections
+cell, a sidebar and a popup all get the stacked arrangement while a wide card in the same window
+stays side by side. At exactly 400 px the card is still side by side.
+
+In a sections view that is the narrowest span: a 12-column section is about 500 px wide, and the
+card asks for `min_columns: 9`, so its narrowest cell is about 373 px and stacks. A cell shorter than
+the stacked map and controls scrolls inside the card, like any vertical card in a fixed-height cell.
+
 In the sections view the card uses Home Assistant's default grid size for the vertical layout: 12
 columns wide with `rows: "auto"`, so the cell fits the card's content as it always has. The
 horizontal layout is a new arrangement and reports a numeric default height (6 rows) with
-`min_columns: 9`, because at the permissive half-width minimum the controls column would leave the
-map too narrow to use. It does not set `max_rows`, so a `grid_options: {rows: ...}` override can make
-it as tall as you need. A sections-view cell shorter than the card's content scrolls the card rather
-than shrinking the map. Prefer the horizontal layout for wide cells: at 320–400 px the map is only
-about 140–220 px wide. Home Assistant's own
+`min_columns: 9`, because a numeric `rows` is what gives the side-by-side map its height. It does not
+set `max_rows`, so a `grid_options: {rows: ...}` override can make it as tall as you need. A
+sections-view cell shorter than the card's content scrolls the card rather than shrinking the map.
+Home Assistant's own
 [`grid_options`](https://www.home-assistant.io/dashboards/sections/#resizing-cards) still override
 these values per card.
 
