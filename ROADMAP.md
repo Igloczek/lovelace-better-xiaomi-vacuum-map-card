@@ -65,17 +65,17 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 
 ## Postponed, with unblock conditions
 
-| Item | Why it waits | Unblocks when |
+| Item | Why it waits | Unblocks when (data request) |
 |---|---|---|
-| Roborock status/battery tiles | The templates need the integration's real registry entries | A scrubbed Roborock-core registry dump and a status string sample are available |
-| Live path overlay on a static image | No fixture and no decision on how a path overlays a picture | A path entity fixture and an agreed rendering |
-| Templated predefined selections | No concrete use case and a large Jinja subscription change | A report that entity-backed selections cannot serve |
-| Rotated zone rectangles | No platform documented to accept arbitrary points | Vendor documentation or a working service call |
-| Valetudo JSON map / icons | No Valetudo instance to verify | A captured map fixture or a Valetudo instance |
-| Ecovacs SVG viewbox | No Ecovacs fixture | An Ecovacs SVG camera capture |
+| Roborock status/battery tiles | The templates need the integration's real registry entries | A scrubbed Roborock-core registry dump and a status string sample are available ([#53](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/53)) |
+| Live path overlay on a static image | No fixture and no decision on how a path overlays a picture | A path entity fixture and an agreed rendering ([#47](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/47)) |
+| Templated predefined selections | No concrete use case and a large Jinja subscription change | A report that entity-backed selections cannot serve ([#48](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/48)) |
+| Rotated zone rectangles | No platform documented to accept arbitrary points | Vendor documentation or a working service call ([#49](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/49)) |
+| Valetudo JSON map / icons | No Valetudo instance to verify | A captured map fixture or a Valetudo instance ([#50](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/50)) |
+| Ecovacs SVG viewbox | No Ecovacs fixture | An Ecovacs SVG camera capture ([#51](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/51)) |
 | Delayed start | A script or automation is the better place | A product reason that belongs in the card |
 | Collapse map | `card-mod` and conditional cards already cover it | It becomes free alongside another layout change |
-| Non-admin MQTT (#966) | Needs a non-admin Home Assistant user and an MQTT broker to verify | A report with that setup |
+| Non-admin MQTT (#966) | Needs a non-admin Home Assistant user and an MQTT broker to verify | A report with that setup ([#52](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/52)) |
 
 ## Known limitations
 
