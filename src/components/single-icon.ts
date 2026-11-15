@@ -6,7 +6,7 @@ import { ActionHandlerFunctionCreator, IconActionConfig } from "../types/types";
 import { customElement, property } from "lit/decorators.js";
 import { RootlessLitElement } from "./rootless-lit-element";
 
-@customElement("xvmc-single-icon")
+@customElement("better-xvmc-single-icon")
 export class SingleIcon extends RootlessLitElement {
     @property({ attribute: false })
     private config!: IconActionConfig;

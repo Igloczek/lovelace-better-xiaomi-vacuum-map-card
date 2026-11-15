@@ -226,7 +226,7 @@ export function loadActiveRoomRun(entity: string): ActiveRoomRun | undefined {
  * Window event fired after this page stored or removed a run, so every card on the page showing the
  * same vacuum follows at once. Other tabs learn about it from the `storage` event.
  */
-export const ACTIVE_ROOM_RUN_CHANGED_EVENT = "xiaomi-vacuum-map-card-active-room-run-changed";
+export const ACTIVE_ROOM_RUN_CHANGED_EVENT = "better-xiaomi-vacuum-map-card-active-room-run-changed";
 
 /** Stores or, with `undefined`, removes the run for a vacuum. Storage failures are ignored. */
 export function saveActiveRoomRun(entity: string, run: ActiveRoomRun | undefined): void {

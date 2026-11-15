@@ -3,4 +3,4 @@ resources:
     type: module
 views:
   - cards:
-      - type: custom:xiaomi-vacuum-map-card
+      - type: custom:better-xiaomi-vacuum-map-card

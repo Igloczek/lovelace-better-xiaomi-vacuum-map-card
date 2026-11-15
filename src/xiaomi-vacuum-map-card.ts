@@ -15,6 +15,7 @@ import {
     EVENT_ROOM_CONFIG_GET,
     EVENT_SERVICE_CALL_GET,
 } from "./const";
+import { installLegacyCardAlias } from "./card-element-names";
 import { MapView } from "./model/map-view-store";
 import { MapRefreshState } from "./model/map-refresh-policy";
 import { RotateEventDetail } from "./pinch-zoom/pinch-zoom";
@@ -128,7 +129,7 @@ import {
 } from "./card/selection";
 import { cardStyles } from "./card/styles";
 
-const line1 = "   XIAOMI-VACUUM-MAP-CARD";
+const line1 = "   BETTER-XIAOMI-VACUUM-MAP-CARD";
 const line2 = `   ${localize("common.version")} ${CARD_VERSION}`;
 const length = Math.max(line1.length, line2.length) + 3;
 const pad = (text: string, length: number) => text + " ".repeat(length - text.length);
@@ -143,7 +144,7 @@ const windowWithCards = window as unknown as Window & { customCards: unknown[] }
 windowWithCards.customCards = windowWithCards.customCards || [];
 windowWithCards.customCards.push({
     type: CARD_CUSTOM_ELEMENT_NAME,
-    name: "Vacuum Map Card",
+    name: "Better Xiaomi Vacuum Map Card",
     description: localize("common.description"),
     getEntitySuggestion: (hass, entityId) => {
         if (entityId.split(".")[0] !== "vacuum") {
@@ -618,7 +619,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         `;
         const mapSection = html`
             <div class="map-wrapper">
-                <pinch-zoom
+                <better-pinch-zoom
                     min-scale="0.5"
                     id="map-zoomer"
                     @change="${this._calculateScale}"
@@ -630,7 +631,7 @@ export class XiaomiVacuumMapCard extends LitElement {
                     @pinch-rotate-end="${this._handleRotateGestureEnd}"
                     style="touch-action: none;">
                     ${mapZoomerContent}
-                </pinch-zoom>
+                </better-pinch-zoom>
                 <div id="map-zoomer-overlay">
                     <div style="right: 0; top: 0; position: absolute;">
                         <ha-icon
@@ -688,12 +689,12 @@ export class XiaomiVacuumMapCard extends LitElement {
                                     ${conditional(
                                         modes.length > 1,
                                         () => html`
-                                        <xvmc-dropdown-menu
+                                        <better-xvmc-dropdown-menu
                                             .values=${modes}
                                             .currentIndex=${this.selectedMode}
                                             .setValue=${selected => setCurrentMode(this, selected)}
                                             .renderNameCollapsed=${true}>
-                                        </xvmc-dropdown-menu>
+                                        </better-xvmc-dropdown-menu>
                                         `,
                                     )}
                                     ${conditional(
@@ -704,18 +705,18 @@ export class XiaomiVacuumMapCard extends LitElement {
                             </div>
                         `,
                     )}
-                    <xvmc-icons-wrapper
+                    <better-xvmc-icons-wrapper
                         .icons=${icons}
                         .isInEditor=${this.isInEditor}
                         .onAction=${(c: ActionableObjectConfig, action?: string) => createActionWithConfigHandler(this, c, action)}>
-                    </xvmc-icons-wrapper>
-                    <xvmc-tiles-wrapper
+                    </better-xvmc-icons-wrapper>
+                    <better-xvmc-tiles-wrapper
                         .hass=${this.hass}
                         .tiles=${tiles}
                         .isInEditor=${this.isInEditor}
                         .onAction=${(c: ActionableObjectConfig, action?: string) => createActionWithConfigHandler(this, c, action)}
                         .internalVariables=${this.internalVariables}>
-                    </xvmc-tiles-wrapper>
+                    </better-xvmc-tiles-wrapper>
                 </div>`,
         );
         // The wrapper exists only for the horizontal arrangement. With no controls there is nothing
@@ -741,7 +742,7 @@ export class XiaomiVacuumMapCard extends LitElement {
                     (this.config.title ?? "").length > 0,
                     () => html`<h1 class="card-header">${this.config.title}</h1>`,
                 )}
-                <xvmc-preset-selector
+                <better-xvmc-preset-selector
                     .availablePresets=${availablePresets}
                     .availablePresetIndex=${availablePresetIndex}
                     .openPreviousPreset=${(): void => openPreviousPreset(this)}
@@ -751,7 +752,7 @@ export class XiaomiVacuumMapCard extends LitElement {
                     .executePresetsActivation=${(): void => executePresetsActivation(this)}
                     .openNextPreset=${(): void => openNextPreset(this)}
                     .nextPresetIndex=${getNextPresetIndex(this)}>
-                </xvmc-preset-selector>
+                </better-xvmc-preset-selector>
                 ${content}
                 ${ToastRenderer.render("map-card")}
             </ha-card>
@@ -987,3 +988,11 @@ export class XiaomiVacuumMapCard extends LitElement {
         return cardStyles;
     }
 }
+
+// A dashboard with `type: custom:xiaomi-vacuum-map-card` keeps working while the original card is
+// not going to register that name; defining it over the upstream card would make upstream's own
+// registration throw. The stored view and run are copied to the fork's keys only when this card
+// takes the name, so an instance with both cards does not hand upstream's state to this one.
+void installLegacyCardAlias(XiaomiVacuumMapCard, { ownUrl: import.meta.url }).catch(() => {
+    // The card works without the compatibility alias; a failure here never breaks this bundle.
+});

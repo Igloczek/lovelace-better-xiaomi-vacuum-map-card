@@ -388,7 +388,7 @@ test("vertical layout on a real dashboard is unchanged", async ({ loggedIn: page
     const target = await card(page);
     const stacked = await target.evaluate(element => {
         const horizontal = element.shadowRoot.querySelector(".layout-content.horizontal");
-        const map = element.shadowRoot.querySelector("pinch-zoom") as HTMLElement;
+        const map = element.shadowRoot.querySelector("better-pinch-zoom") as HTMLElement;
         const controls = element.shadowRoot.querySelector(".map-controls") as HTMLElement;
         const mapBox = map.getBoundingClientRect();
         const controlsBox = controls.getBoundingClientRect();

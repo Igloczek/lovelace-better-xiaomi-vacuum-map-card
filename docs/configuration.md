@@ -1,12 +1,46 @@
 # Configuration
 
 The configuration format is unchanged from the upstream card: no key was renamed and no option
-was removed, so existing YAML keeps working. This fork adds these options on top:
+was removed, so existing YAML keeps working. The card type is
+`custom:better-xiaomi-vacuum-map-card`; `custom:xiaomi-vacuum-map-card` still works while the
+original card is not installed (see
+[the migration note](#migrating-from-customxiaomi-vacuum-map-card)). This fork adds
+these options on top:
 [`layout`](#layout), [`map_view`](#map-view-options), `map_rotation`, `map_rotation_gesture`,
 `persist_map_view`, `persist_map_lock`, `map_view_storage_key` and `transparent_background`.
 
 The card has a visual editor for the basic options; everything else is YAML-only. The
 [demo config](demo_config.yaml) is a complete example.
+
+### Migrating from `custom:xiaomi-vacuum-map-card`
+
+The old type keeps working without an edit: when the original card is not installed, this card also
+answers to `custom:xiaomi-vacuum-map-card`. The decision is made from what the dashboard's card
+resources did, not from their file names:
+
+- A resource that fails to load — an upgrade leaves a row pointing at the deleted
+  `/local/community/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js` — cannot register the
+  original card's element, so the alias is defined.
+- A resource that loaded gets a bounded chance to register `xiaomi-vacuum-map-card` (two seconds
+  after the last resource settles) before this card takes the name.
+- An element another bundle already registered is never redefined.
+
+Limits worth knowing:
+
+- A renamed or proxied copy of the original card (a CDN URL, a wrapper module, a file this card
+  cannot recognise) is not detected before it registers. The first definition of a custom element
+  name wins, so when this card has already registered the alias, the original card's registration
+  throws and its cards do not render. The browser console then shows one warning naming both cards
+  (a failure inside a cross-origin script can be reported as an opaque `Script error` without the
+  element name, and then only the fact that the cards do not render remains); remove one of the two
+  resources and reload, or give this card `type: custom:better-xiaomi-vacuum-map-card`.
+- A card resource added in a running session (Home Assistant's resource editor) is not seen by the
+  bundle that has already run. Reload the page after adding the original card; if this card
+  registered the alias first, the console warning above appears.
+- Both cards listen for the same `ll-custom` event detail (`xiaomi_vacuum_map_card`). This card acts
+  on an action only when its `action_handler_id` matches, while the original card also acts when
+  the key is missing, so an action without one can be taken by the wrong card. With both installed,
+  set `action_handler_id` on every `fire-dom-event` action (see [Action handling](#action-handling)).
 
 ## Features
 
@@ -146,7 +180,7 @@ once, with the first real layout, and the stored view is the centred default rat
 top-left corner.
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.roborock_s7
 map_source:
   camera: camera.vacuum_map
@@ -169,7 +203,7 @@ reported as a configuration error so a typo does not silently fall back. The opt
 for now — the visual editor does not expose it.
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.roborock_s7
 map_source:
   camera: camera.vacuum_map
@@ -891,7 +925,7 @@ This card handles following actions:
 <tr>
 <td>
 <pre>
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.xiaomi_vacuum
 map_image: '/local/custom_lovelace/xiaomi_vacuum_map_card/map.png'
 calibration_points:
@@ -920,7 +954,7 @@ zones:
 </td>
 <td>
 <pre>
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.xiaomi_vacuum
 map_source:
   image: '/local/custom_lovelace/xiaomi_vacuum_map_card/map.png'
@@ -966,7 +1000,7 @@ map_modes:
 <tr>
 <td>
 <pre>
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.xiaomi_vacuum
 map_camera: camera.xiaomi_cloud_map_extractor
 camera_calibration: true
@@ -977,7 +1011,7 @@ zones:
 </td>
 <td>
 <pre>
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.xiaomi_vacuum
 map_source:
   camera: camera.xiaomi_cloud_map_extractor

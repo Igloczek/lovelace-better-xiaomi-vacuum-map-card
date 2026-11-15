@@ -20,7 +20,7 @@ test.beforeEach(async ({ loggedIn: page }) => {
 test("the card picker stub is built from the real hass", async ({ loggedIn: page }) => {
     const result = await page.evaluate(calibration => {
         const hass = (document.querySelector("home-assistant") as any).hass;
-        const Card = customElements.get("xiaomi-vacuum-map-card") as any;
+        const Card = customElements.get("better-xiaomi-vacuum-map-card") as any;
         // The fixture camera publishes no calibration, so no stub can be offered for it as is.
         const withoutCalibration = Card.getStubConfig(hass) ?? null;
         const camera = hass.states["camera.vacuum_map"];
@@ -38,7 +38,7 @@ test("the card picker stub is built from the real hass", async ({ loggedIn: page
     }, CALIBRATION);
     expect(result.withoutCalibration).toBeNull();
     expect(result.stub).toMatchObject({
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         map_source: { camera: "camera.vacuum_map" },
         calibration_source: { camera: true },
         // The demo integration has no template, so the upstream default stays.
@@ -50,9 +50,9 @@ test("the card picker stub is built from the real hass", async ({ loggedIn: page
 test("without map_modes, the camera's rooms add the room mode", async ({ loggedIn: page }) => {
     const modes = await page.evaluate(async calibration => {
         const hass = (document.querySelector("home-assistant") as any).hass;
-        const element = document.createElement("xiaomi-vacuum-map-card") as any;
+        const element = document.createElement("better-xiaomi-vacuum-map-card") as any;
         element.setConfig({
-            type: "custom:xiaomi-vacuum-map-card",
+            type: "custom:better-xiaomi-vacuum-map-card",
             entity: Object.keys(hass.states).find(id => id.startsWith("vacuum.")),
             vacuum_platform: "Xiaomi Miio",
             map_source: { camera: "camera.vacuum_map" },
@@ -71,9 +71,9 @@ test("without map_modes, the camera's rooms add the room mode", async ({ loggedI
 test("malformed YAML shows Home Assistant's error card with the field", async ({ loggedIn: page }) => {
     const shown = await page.evaluate(async () => {
         const hass = (document.querySelector("home-assistant") as any).hass;
-        const element = document.createElement("xiaomi-vacuum-map-card") as any;
+        const element = document.createElement("better-xiaomi-vacuum-map-card") as any;
         element.setConfig({
-            type: "custom:xiaomi-vacuum-map-card",
+            type: "custom:better-xiaomi-vacuum-map-card",
             entity: Object.keys(hass.states).find(id => id.startsWith("vacuum.")),
             map_source: { camera: "camera.vacuum_map" },
             calibration_source: { camera: true },
@@ -104,9 +104,9 @@ test("an empty icons: key renders the card; an empty id: or map: shows the error
         const hass = (document.querySelector("home-assistant") as any).hass;
         const entity = Object.keys(hass.states).find(id => id.startsWith("vacuum."));
         const card = async (config: Record<string, unknown>) => {
-            const element = document.createElement("xiaomi-vacuum-map-card") as any;
+            const element = document.createElement("better-xiaomi-vacuum-map-card") as any;
             element.setConfig({
-                type: "custom:xiaomi-vacuum-map-card",
+                type: "custom:better-xiaomi-vacuum-map-card",
                 entity,
                 map_source: { camera: "camera.vacuum_map" },
                 vacuum_platform: "Xiaomi Miio",

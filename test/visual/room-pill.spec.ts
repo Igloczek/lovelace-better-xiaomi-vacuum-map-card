@@ -12,7 +12,7 @@ import type { MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/t
  * AA (4.5:1) in the light and dark theme, and the pill must stand out from whatever is behind it.
  */
 
-const CARD = "xiaomi-vacuum-map-card";
+const CARD = "better-xiaomi-vacuum-map-card";
 
 interface VisualWindow {
     visualHarness: {
@@ -46,7 +46,7 @@ function config(
     overrides: Partial<XiaomiVacuumMapCardConfig> = {},
 ): XiaomiVacuumMapCardConfig {
     return {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.roborock_s7",
         map_source: { camera: "camera.vacuum_map" },
         calibration_source: { camera: true },

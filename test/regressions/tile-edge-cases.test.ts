@@ -15,7 +15,7 @@ const VACUUM = "vacuum.roborock_s7";
 const SENSOR = "sensor.roborock_s7_cleaning_time";
 
 async function renderTile(config: TileConfig, hass: HomeAssistantFixed): Promise<{ label: string; value: string }> {
-    const tile = document.createElement("xvmc-tile") as Tile;
+    const tile = document.createElement("better-xvmc-tile") as Tile;
     Object.assign(tile, {
         config,
         hass,

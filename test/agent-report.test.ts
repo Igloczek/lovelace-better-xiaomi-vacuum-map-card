@@ -19,7 +19,7 @@ const DUID = "5ab3Cd9eF0a1b2C3d4E5";
 
 function rawSnapshot() {
     const card = {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.bartek_roborock",
         vacuum_platform: "Roborock",
         map_source: { camera: "image.bartek_roborock_downstairs" },
@@ -147,7 +147,7 @@ describe("agent report collection", () => {
                             cards: [
                                 {
                                     type: "vertical-stack",
-                                    cards: [{ type: "custom:xiaomi-vacuum-map-card", entity: "vacuum.a" }],
+                                    cards: [{ type: "custom:better-xiaomi-vacuum-map-card", entity: "vacuum.a" }],
                                 },
                             ],
                         },
@@ -160,12 +160,20 @@ describe("agent report collection", () => {
         expect(found[0].path).toBe("views.0.sections.0.cards.0.cards.0");
     });
 
+    it("finds a dashboard that still uses the upstream card type", () => {
+        const found = findCards({
+            views: [{ cards: [{ type: "custom:xiaomi-vacuum-map-card", entity: "vacuum.a" }] }],
+        });
+        expect(found).toHaveLength(1);
+        expect(found[0].config.type).toBe("custom:xiaomi-vacuum-map-card");
+    });
+
     it("keeps collecting when one Home Assistant command fails", async () => {
         const raw = await collectRaw(async (msg: { type: string; url_path?: string | null }) => {
             if (msg.type === "lovelace/dashboards/list") return [{ url_path: "vacuum" }];
             if (msg.type === "lovelace/config") {
                 if (msg.url_path === null) throw new Error("config not found");
-                return { views: [{ cards: [{ type: "custom:xiaomi-vacuum-map-card", entity: "vacuum.a" }] }] };
+                return { views: [{ cards: [{ type: "custom:better-xiaomi-vacuum-map-card", entity: "vacuum.a" }] }] };
             }
             if (msg.type === "system_log/list") throw new Error("unknown command");
             return [];

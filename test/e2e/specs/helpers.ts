@@ -16,7 +16,7 @@ const ARTIFACTS = path.join(__dirname, "..", "artifacts");
 const AUTH_DIR = path.join(__dirname, "..", ".auth");
 
 /** Home Assistant's card element inside the ha-card shadow root. */
-export const CARD_SELECTOR = "xiaomi-vacuum-map-card";
+export const CARD_SELECTOR = "better-xiaomi-vacuum-map-card";
 
 /** The refresh token the setup script obtained, shaped the way the frontend stores it. */
 function hassTokens(): Record<string, unknown> {

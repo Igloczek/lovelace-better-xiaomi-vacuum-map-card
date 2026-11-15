@@ -11,7 +11,7 @@ import type { RoomConfig, XiaomiVacuumMapCardConfig } from "../../src/types/type
  * macOS. See playwright.config.ts.
  */
 
-const CARD = "xiaomi-vacuum-map-card";
+const CARD = "better-xiaomi-vacuum-map-card";
 
 interface RoomDescription {
     className: string | null;
@@ -106,7 +106,7 @@ function harness(page: Page): Promise<VisualDescription> {
 /** A card preset using the synthetic fixture, the Xiaomi Miio ROOM mode and no persisted view. */
 function cardConfig(overrides: Partial<XiaomiVacuumMapCardConfig> = {}): XiaomiVacuumMapCardConfig {
     return {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.roborock_s7",
         map_source: { camera: "camera.vacuum_map" },
         calibration_source: { camera: true },
@@ -301,7 +301,8 @@ test("a stored view beats the configured default after a remount", async ({ page
     const storedEntryCount = (): Promise<number> =>
         page.evaluate(
             () =>
-                Object.keys(JSON.parse(window.localStorage.getItem("xiaomi-vacuum-map-card.map-view") ?? "{}")).length,
+                Object.keys(JSON.parse(window.localStorage.getItem("better-xiaomi-vacuum-map-card.map-view") ?? "{}"))
+                    .length,
         );
     await expect.poll(storedEntryCount).toBeGreaterThan(0);
 
@@ -536,7 +537,7 @@ test("default vertical layout", async ({ page }) => {
 
     await expect(page.locator(`${CARD} .card-header`)).toHaveText("Vacuum map");
     await expect(page.locator(`${CARD} .preset-indicator`)).toHaveText("●○");
-    await expect(page.locator(`${CARD} xvmc-preset-selector`)).toBeVisible();
+    await expect(page.locator(`${CARD} better-xvmc-preset-selector`)).toBeVisible();
     await expect(page.locator(`${CARD} #map-zoomer`)).toBeVisible();
 
     const description = await harness(page);
@@ -671,7 +672,7 @@ function expectStacked(boxes: LayoutBoxes, label: string): void {
  */
 async function livingRoomAlignmentError(page: Page): Promise<number> {
     return page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as {
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as unknown as {
             shadowRoot: ShadowRoot;
         };
         const image = card.shadowRoot.getElementById("map-image") as HTMLElement;
@@ -769,7 +770,7 @@ test("a long mode name ellipsizes inside the controls column at 500 px", async (
     await expect(page.locator(`${CARD} .dropdown-menu-button-text`)).toHaveText(LONG_MODE_NAME);
 
     const metrics = await page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as {
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as unknown as {
             shadowRoot: ShadowRoot;
         };
         const controls = card.shadowRoot.querySelector(".controls-wrapper") as HTMLElement;
@@ -824,7 +825,7 @@ test("horizontal layout stacks at 360 px", async ({ page }) => {
     expect(pageOverflow, "the stacked card must not overflow the page").toBeLessThanOrEqual(1);
 
     const metrics = await page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as {
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as unknown as {
             shadowRoot: ShadowRoot;
         };
         const haCard = card.shadowRoot.querySelector("ha-card") as HTMLElement;
@@ -927,7 +928,7 @@ test("a sections-view grid cell makes the card fill its height: scroll when shor
     await mount(page, horizontalConfig());
     // hui-card assigns this property after creating the element, exactly as in the sections view.
     await page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as { layout?: string };
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as unknown as { layout?: string };
         if (card) card.layout = "grid";
     });
     await expect(page.locator(CARD)).toHaveAttribute("layout", "grid");
@@ -969,8 +970,8 @@ test("horizontal layout keeps room, mode and tile interactions", async ({ page }
     await mount(page, horizontalConfig());
 
     // The controls live in the second column, and the room hit test still reaches the map.
-    expect(await page.locator(`${CARD} .controls-column xvmc-tile`).count()).toBe(8);
-    const dropdown = page.locator(`${CARD} xvmc-dropdown-menu`);
+    expect(await page.locator(`${CARD} .controls-column better-xvmc-tile`).count()).toBe(8);
+    const dropdown = page.locator(`${CARD} better-xvmc-dropdown-menu`);
     await expect(dropdown.locator(".dropdown-menu-button")).toBeVisible();
     const point = await page.evaluate(() =>
         (window as unknown as VisualWindow).visualHarness.roomPoint("1", 0.25, 0.5),
@@ -983,13 +984,13 @@ test("horizontal layout keeps room, mode and tile interactions", async ({ page }
 
     // Clicking a tile still runs its action path without an error (the page-error check in
     // afterEach is the gate).
-    await page.locator(`${CARD} .controls-column xvmc-tile`).first().click();
+    await page.locator(`${CARD} .controls-column better-xvmc-tile`).first().click();
 
     // Focus order follows DOM order, which the layout does not reorder: the map and its controls
     // come before the controls column. The card has no tabbable controls in either layout today, so
     // this asserts the order a future keyboard implementation must preserve.
     const order = await page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card");
+        const card = document.querySelector("better-xiaomi-vacuum-map-card");
         const map = card?.shadowRoot?.querySelector(".map-wrapper");
         const controls = card?.shadowRoot?.querySelector(".controls-column");
         if (!map || !controls) return null;
@@ -1014,7 +1015,9 @@ test("horizontal layout keeps room, mode and tile interactions", async ({ page }
     await expect(secondEntry).toHaveAttribute("activated", "");
     expect(
         await page.evaluate(() => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as { selectedMode?: number };
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as unknown as {
+                selectedMode?: number;
+            };
             return card.selectedMode;
         }),
     ).toBe(1);

@@ -4,7 +4,7 @@ import { customElement, property } from "lit/decorators.js";
 import { CardPresetConfig } from "../types/types";
 import { RootlessLitElement } from "./rootless-lit-element";
 
-@customElement("xvmc-preset-selector")
+@customElement("better-xvmc-preset-selector")
 export class PresetSelector extends RootlessLitElement {
     @property({ attribute: false })
     private availablePresets!: CardPresetConfig[];

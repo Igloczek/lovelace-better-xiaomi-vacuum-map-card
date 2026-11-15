@@ -96,7 +96,8 @@ async function collect() {
         raw = await collectRaw(conn.call);
         conn.close();
     }
-    if (!raw.cards?.length) fail("no custom:xiaomi-vacuum-map-card found in any dashboard.");
+    if (!raw.cards?.length)
+        fail("no custom:better-xiaomi-vacuum-map-card or custom:xiaomi-vacuum-map-card found in any dashboard.");
     const cardVersion =
         args["card-version"] ?? raw.card_version ?? (await fetchCardVersion(baseUrl, token, raw.resources));
     const report = buildReport(raw, {

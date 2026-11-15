@@ -5,7 +5,7 @@ import { HomeAssistantFixed } from "../types/fixes";
 import { RootlessLitElement } from "./rootless-lit-element";
 import { Tile } from "./tile";
 
-@customElement("xvmc-tiles-wrapper")
+@customElement("better-xvmc-tiles-wrapper")
 export class TilesWrapper extends RootlessLitElement {
     @property({ attribute: false })
     private tiles!: TileConfig[] | undefined;
@@ -30,13 +30,13 @@ export class TilesWrapper extends RootlessLitElement {
                 <div class="tiles-wrapper">
                     ${this.tiles?.map(
                         tile => html`
-                        <xvmc-tile
+                        <better-xvmc-tile
                             .hass=${this.hass}
                             .config=${tile}
                             .isInEditor=${this.isInEditor}
                             .onAction=${this.onAction}
                             .internalVariables=${this.internalVariables}
-                        ></xvmc-tile>
+                        ></better-xvmc-tile>
                     `,
                     )}
         `;

@@ -15,7 +15,7 @@ import { Icon } from "./icon";
 import { HassEntity } from "home-assistant-js-websocket";
 import { localizeAttributeForValue, localizeStateForValue } from "../localize/localize";
 
-@customElement("xvmc-icons-wrapper")
+@customElement("better-xvmc-icons-wrapper")
 export class IconsWrapper extends RootlessLitElement {
     @property({ attribute: false })
     private icons!: (IconActionConfig | DropdownIconActionConfig)[];
@@ -35,11 +35,11 @@ export class IconsWrapper extends RootlessLitElement {
                 <div class="icons-list">
                     ${this.icons?.map(
                         icon => html`
-                                            <xvmc-icon
+                                            <better-xvmc-icon
                                                 .config=${icon}
                                                 .isInEditor=${this.isInEditor}
                                                 .onAction=${this.onAction}
-                                            ></xvmc-icon>
+                                            ></better-xvmc-icon>
                                         `,
                     )}
                 </div>

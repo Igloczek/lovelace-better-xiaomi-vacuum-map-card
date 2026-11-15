@@ -20,7 +20,7 @@ const FRAMES = path.join(OUT_DIR, "frames");
 const TARGET = path.resolve(process.argv[2] || path.join(ROOT, "docs/media/demo.mp4"));
 const VIEWPORT = { width: 480, height: 820 };
 const DPR = 2;
-const CARD = "xiaomi-vacuum-map-card";
+const CARD = "better-xiaomi-vacuum-map-card";
 
 /** Draws the pointer, click ripples and touch points; injected into every page. */
 function pointerOverlay() {

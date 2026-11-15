@@ -131,7 +131,7 @@ export async function mountCard(
 ): Promise<CardHandle> {
     await ensureCardElementDefined();
     const { container, ownedWrapper } = resolveContainer(options);
-    const element = document.createElement("xiaomi-vacuum-map-card") as XiaomiVacuumMapCard;
+    const element = document.createElement("better-xiaomi-vacuum-map-card") as XiaomiVacuumMapCard;
     if (!options.container) trackMountedElement(element);
 
     // Home Assistant sets config and hass before attaching the element to the DOM. The card's
@@ -174,7 +174,7 @@ export async function mountCard(
 /** Mounts the card editor and waits until its form is rendered. */
 export async function mountEditor(config: XiaomiVacuumMapCardConfig, hass: MockHass): Promise<EditorHandle> {
     await ensureEditorElementDefined();
-    const element = document.createElement("xiaomi-vacuum-map-card-editor") as XiaomiVacuumMapCardEditor;
+    const element = document.createElement("better-xiaomi-vacuum-map-card-editor") as XiaomiVacuumMapCardEditor;
     trackMountedElement(element);
 
     element.setConfig(config);
@@ -224,7 +224,7 @@ function presetIndicatorIndex(selector: Element | null): number {
 /** Clicks the card's own preset arrows until the requested preset is active. */
 export async function selectPreset(handle: CardHandle, index: number): Promise<void> {
     for (let attempt = 0; attempt < 25; attempt++) {
-        const selector = handle.shadowRoot.querySelector("xvmc-preset-selector");
+        const selector = handle.shadowRoot.querySelector("better-xvmc-preset-selector");
         if (presetIndicatorIndex(selector) === index) return;
         const wrappers = selector?.querySelectorAll(".preset-selector-icon-wrapper");
         if (!wrappers || wrappers.length < 2) {

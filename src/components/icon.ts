@@ -6,7 +6,7 @@ import { customElement, property } from "lit/decorators.js";
 import { SingleIcon } from "./single-icon";
 import { RootlessLitElement } from "./rootless-lit-element";
 
-@customElement("xvmc-icon")
+@customElement("better-xvmc-icon")
 export class Icon extends RootlessLitElement {
     @property({ attribute: false })
     private config!: IconActionConfig | DropdownIconActionConfig;
@@ -20,19 +20,19 @@ export class Icon extends RootlessLitElement {
     public render(): TemplateResult {
         if (Array.isArray(this.config)) {
             return html`
-                <xvmc-dropdown-icon
+                <better-xvmc-dropdown-icon
                     .config=${this.config}
                     .isInEditor=${this.isInEditor}
                     .onAction=${this.onAction}>
-                </xvmc-dropdown-icon>
+                </better-xvmc-dropdown-icon>
         `;
         }
         return html`
-            <xvmc-single-icon
+            <better-xvmc-single-icon
                 .config=${this.config}
                 .isInEditor=${this.isInEditor}
                 .onAction=${this.onAction}>
-            </xvmc-single-icon>
+            </better-xvmc-single-icon>
         `;
     }
 

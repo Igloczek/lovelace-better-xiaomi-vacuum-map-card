@@ -478,12 +478,12 @@ export const cardStyles = css`
          * A long mode name must ellipsize inside the controls column instead of widening the
          * dropdown and having the column's overflow-x: hidden clip the mode icon. The chain
          * from the flex item down to the text has to be allowed to shrink at every level:
-         * xvmc-dropdown-menu and ha-dropdown are block boxes clamped to the column, the button
+         * better-xvmc-dropdown-menu and ha-dropdown are block boxes clamped to the column, the button
          * is the flex row, the text is the one shrinkable child and the icon keeps its size.
          * max-width: 100% on the button alone was measured against those content-sized
          * parents, so the button stayed as wide as its text and nothing ellipsized.
          */
-        .layout-content.horizontal .map-controls > xvmc-dropdown-menu,
+        .layout-content.horizontal .map-controls > better-xvmc-dropdown-menu,
         .layout-content.horizontal .dropdown-menu {
             display: block;
             min-width: 0;
@@ -547,7 +547,7 @@ export const cardStyles = css`
                 justify-content: normal;
             }
 
-            .layout-content.horizontal .map-controls > xvmc-dropdown-menu,
+            .layout-content.horizontal .map-controls > better-xvmc-dropdown-menu,
             .layout-content.horizontal .dropdown-menu {
                 display: inline;
                 max-width: none;

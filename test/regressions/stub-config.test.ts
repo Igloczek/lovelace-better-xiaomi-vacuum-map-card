@@ -133,6 +133,7 @@ describe("getStubConfig", () => {
             ],
         });
         const config = XiaomiVacuumMapCard.getStubConfig(hass);
+        expect(config?.type).toBe("custom:better-xiaomi-vacuum-map-card");
         expect(config?.entity).toBe("vacuum.robot");
         expect(config?.vacuum_platform).toBe("Tasshack/dreame-vacuum");
     });

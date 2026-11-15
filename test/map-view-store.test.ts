@@ -5,7 +5,7 @@ import { fitMapViewToWidth, getMapView, MapView, resolveMapView, setMapView } fr
 const NEUTRAL: MapView = { scale: 1, x: 0, y: 0, rotation: 90 };
 
 describe("map view storage", () => {
-    it("round-trips a view through localStorage under the unchanged key", () => {
+    it("round-trips a view through localStorage under the fork's key", () => {
         setMapView("card|0|camera.map|", { scale: 2, x: 12, y: 34, rotation: -90, locked: true });
 
         expect(getMapView("card|0|camera.map|")).toEqual({
@@ -16,9 +16,9 @@ describe("map view storage", () => {
             rotation: 270,
             locked: true,
         });
-        expect(JSON.parse(window.localStorage.getItem("xiaomi-vacuum-map-card.map-view") ?? "{}")).toHaveProperty([
-            "card|0|camera.map|",
-        ]);
+        expect(
+            JSON.parse(window.localStorage.getItem("better-xiaomi-vacuum-map-card.map-view") ?? "{}"),
+        ).toHaveProperty(["card|0|camera.map|"]);
     });
 
     it("keeps a stored view when a configured default exists too", () => {
@@ -63,7 +63,7 @@ describe("map view storage", () => {
 
     it("reads an entry saved before widths were recorded without a width", () => {
         window.localStorage.setItem(
-            "xiaomi-vacuum-map-card.map-view",
+            "better-xiaomi-vacuum-map-card.map-view",
             JSON.stringify({ old: { s: 2, x: -100, y: -40, r: 0, ts: 1 } }),
         );
         expect(getMapView("old")).toEqual({

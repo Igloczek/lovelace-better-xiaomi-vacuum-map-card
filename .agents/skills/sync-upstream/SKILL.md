@@ -17,8 +17,9 @@ Read these before touching the tree:
    that implement it and the test that proves it.
 3. [`AGENTS.md`](../../../AGENTS.md) — repository rules, map geometry, local checks.
 
-The compatibility promise is permanent unless the maintainer explicitly changes it: the element
-`custom:xiaomi-vacuum-map-card`, the release asset `xiaomi-vacuum-map-card.js`, the HACS
+The compatibility promise is permanent unless the maintainer explicitly changes it: the fork's
+own element `custom:better-xiaomi-vacuum-map-card` (with `custom:xiaomi-vacuum-map-card` kept as an
+alias while upstream is absent), the release asset `xiaomi-vacuum-map-card.js`, the HACS
 `filename` and every existing YAML key stay exactly as they are.
 
 ## 1. Preflight
@@ -186,7 +187,8 @@ Stop and investigate if a resolution:
 
 - drops a test under `test/regressions/`, `test/visual/` or `test/e2e/`;
 - removes a `FORK.md` row or anchor instead of marking it superseded;
-- renames `custom:xiaomi-vacuum-map-card`, `xiaomi-vacuum-map-card.js` or the HACS filename;
+- renames the card element names, `xiaomi-vacuum-map-card.js` or the HACS filename, or registers
+  `xiaomi-vacuum-map-card` unconditionally instead of behind the upstream-bundle check;
 - removes automatic room mapping, map-view persistence, the map refresh policy, the stale-room
   guard, editor room-config scoping, registry caching, `duration_unit`, cleaning-order badges,
   `map_view` or `layout`;
