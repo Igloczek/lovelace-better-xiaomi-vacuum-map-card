@@ -1,9 +1,15 @@
-"""A controllable camera fixture for the end-to-end suite.
+"""A controllable camera and fake vacuum fixture for the end-to-end suite.
 
 The camera serves a committed PNG through this integration's own HTTP view, so every image load the
 card performs is counted. A service bumps the entity picture and the state object, which is what a
 real camera does when it has a new map, and the counter proves how often the card actually asks for
 one.
+
+The entities come from a config entry (created from the `map_fixture:` YAML key through an import
+flow) rather than from YAML platforms, because Home Assistant only attaches a device to an entity
+that belongs to a config entry. The card resolves the vacuum's sibling sensors through the vacuum's
+registry `device_id`, and the generated tile icons come from those registry entries, so the fixture
+needs a real device.
 
 This component exists only for `test/e2e`; it is never part of the released card.
 """
@@ -13,17 +19,43 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import voluptuous as vol
 from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
 
 DOMAIN = "map_fixture"
 DATA_COUNTS = "map_fixture_counts"
 DATA_IMAGE = "map_fixture_image"
+DATA_CAMERAS = "map_fixture_entities"
+DATA_VACUUMS = "map_fixture_vacuums"
+
+PLATFORMS = [Platform.CAMERA, Platform.SENSOR, Platform.VACUUM]
 
 DEFAULT_IMAGE = "/config/map_fixture.png"
+
+CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Any(None, dict)}, extra=vol.ALLOW_EXTRA)
+
+# The fake vacuum's device. The card resolves the vacuum's sibling entities through its registry
+# `device_id`, and the generated tiles take their icon from the sibling's registry entry, so the
+# consumable sensor (`sensor.py`) has to belong to the same device.
+DEVICE_NAME = "Fake Vacuum"
+DEVICE_IDENTIFIERS = {(DOMAIN, "map_fixture_fake_vacuum")}
+
+
+def fixture_device_info() -> dict[str, Any]:
+    """Device info shared by every entity of the fake vacuum."""
+    return {
+        "identifiers": DEVICE_IDENTIFIERS,
+        "name": DEVICE_NAME,
+        "manufacturer": "Map Fixture",
+        "model": "Fake robot",
+    }
+
 
 # The synthetic fixture map, in vacuum coordinates. The committed PNG is 200x150 and the card's
 # calibration maps 1 image pixel to 10 vacuum units, so these rectangles match the coloured blobs.
@@ -84,13 +116,13 @@ class MapFixtureStatsView(HomeAssistantView):
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Register the views and the bump service."""
+    """Register the views and the services, and import the YAML key into a config entry."""
     hass.data.setdefault(DATA_IMAGE, DEFAULT_IMAGE)
     hass.http.register_view(MapFixtureImageView(hass))
     hass.http.register_view(MapFixtureStatsView(hass))
 
     async def bump(call: ServiceCall) -> None:
-        for entities in hass.data.get("map_fixture_entities", {}).values():
+        for entities in hass.data.get(DATA_CAMERAS, {}).values():
             for entity in entities:
                 entity.bump()
 
@@ -105,7 +137,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         """Swap the room metadata between the original ids and a re-mapped set."""
         shift = call.data.get("mode", "shift") == "shift"
         rooms = SHIFTED_ROOMS if shift else FIXTURE_ROOMS
-        for entities in hass.data.get("map_fixture_entities", {}).values():
+        for entities in hass.data.get(DATA_CAMERAS, {}).values():
             for entity in entities:
                 entity.set_rooms(rooms)
 
@@ -113,15 +145,29 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async def vacuum_configure(call: ServiceCall) -> None:
         """Set the fake vacuum's lag, timings, next-call failure and availability."""
-        for entity in hass.data.get("map_fixture_vacuums", []):
+        for entity in hass.data.get(DATA_VACUUMS, []):
             entity.configure(dict(call.data))
 
     hass.services.async_register(DOMAIN, "vacuum_configure", vacuum_configure)
 
     async def vacuum_reset(call: ServiceCall) -> None:
         """Put the fake vacuum into a state at once, reported without lag."""
-        for entity in hass.data.get("map_fixture_vacuums", []):
+        for entity in hass.data.get(DATA_VACUUMS, []):
             entity.reset(call.data.get("activity", "docked"))
 
     hass.services.async_register(DOMAIN, "vacuum_reset", vacuum_reset)
+
+    if DOMAIN in config:
+        hass.async_create_task(hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_IMPORT}))
     return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up the fixture's camera, vacuum and sensor."""
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload the fixture's platforms."""
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

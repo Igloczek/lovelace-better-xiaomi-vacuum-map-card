@@ -337,3 +337,84 @@ describe("cache invalidation on a changed device entity set (#864, council round
         expect(second.map(entry => entry.entity_id)).toEqual(deviceEntityIds(hass, DEVICE));
     });
 });
+
+describe("cache invalidation on a registry update", () => {
+    it("reads the registry again when an entry's icon changes without a state change", async () => {
+        const page = fixtureHass(loadSyntheticFixture());
+        const before = await getAllEntitiesFromTheSameDevice(page, VACUUM);
+        const beforeIcon = before.find(entry => entry.entity_id === "sensor.roborock_s7_battery")?.icon;
+
+        // Home Assistant replaces `hass.entities` on every entity registry update, including an icon
+        // changed in the entity settings; no entity state changes with it.
+        const updated = withRegistryEntries(page, [
+            {
+                entity_id: "sensor.roborock_s7_battery",
+                unique_id: "roborock_s7_battery",
+                device_id: DEVICE,
+                original_name: "Roborock S7 Battery",
+                icon: "mdi:battery-charging",
+            },
+        ]);
+        updated.setWSHandler("config/entity_registry/get_entries", message => {
+            const requested = (message.entity_ids ?? []) as string[];
+            return Object.fromEntries(
+                requested.map(entityId => [
+                    entityId,
+                    {
+                        entity_id: entityId,
+                        unique_id: entityId,
+                        device_id: DEVICE,
+                        icon: entityId === "sensor.roborock_s7_battery" ? "mdi:battery-charging" : beforeIcon,
+                    },
+                ]),
+            );
+        });
+
+        const after = await getAllEntitiesFromTheSameDevice(updated, VACUUM);
+
+        expect(after).not.toBe(before);
+        expect(after.find(entry => entry.entity_id === "sensor.roborock_s7_battery")?.icon).toBe(
+            "mdi:battery-charging",
+        );
+        expect(wsMessages(updated, "config/entity_registry/get_entries")).toHaveLength(1);
+    });
+
+    it("keeps a state-only update on the memoized answer", async () => {
+        const page = fixtureHass(loadSyntheticFixture());
+        const first = await getAllEntitiesFromTheSameDevice(page, VACUUM);
+        // A state update keeps the same display registry object, so nothing about the entries moved.
+        const withStates = { ...page } as MockHass;
+
+        const second = await getAllEntitiesFromTheSameDevice(withStates, VACUUM);
+
+        expect(second).toBe(first);
+        expect(wsMessages(withStates, "config/entity_registry/get_entries")).toHaveLength(1);
+    });
+
+    it("evicts old registry memos so a long-lived page stays bounded", async () => {
+        const page = fixtureHass(loadSyntheticFixture());
+        await getAllEntitiesFromTheSameDevice(page, VACUUM);
+
+        // Every registry update is a new token and would otherwise add a permanent entry to the
+        // connection's map (a wall tablet runs for weeks).
+        let hass = page;
+        for (let index = 0; index < 20; index++) {
+            hass = withRegistryEntries(hass, [
+                {
+                    entity_id: "sensor.roborock_s7_battery",
+                    unique_id: "roborock_s7_battery",
+                    device_id: DEVICE,
+                    original_name: `Roborock S7 Battery ${index}`,
+                },
+            ]);
+            await getAllEntitiesFromTheSameDevice(hass, VACUUM);
+        }
+
+        // The first token was evicted, so asking with the original display registry reads the
+        // registry again instead of returning an entry kept from twenty updates ago.
+        page.resetWSCalls();
+        await getAllEntitiesFromTheSameDevice(page, VACUUM);
+
+        expect(wsMessages(page, "config/entity_registry/get_entries")).toHaveLength(1);
+    });
+});

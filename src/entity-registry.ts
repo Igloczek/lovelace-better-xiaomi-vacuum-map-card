@@ -16,25 +16,66 @@ function isEnabledEntry(entry: EntityRegistryEntry | null | undefined): entry is
 }
 
 /**
- * Registry lookups, memoized per `(hass.connection, vacuum entity id, device entity set)`.
+ * Registry lookups, memoized per `(hass.connection, vacuum entity id, display registry, device
+ * entity set)`.
  *
  * Lifetime: the entry lives for the browser tab and survives websocket reconnects -
  * `home-assistant-js-websocket` reconnects in place by swapping its socket, so the `Connection`
  * object is not replaced and the `WeakMap` entry outlives a dropped socket or a Home Assistant
  * restart. It refreshes when the device entity set changes: the inner key ends with the device's
  * candidate ids, so enabling, adding or removing an entity on that device makes the next lookup a
- * miss and it reads the registry again, as the pre-cache code did on every `setConfig`. Within one
- * entity set, two cards, or the icon and tile generators of one card, share one lookup per vacuum;
- * a second page starts empty because it has its own connection, and the `WeakMap` releases a
- * closed page's cache with its connection once nothing else holds it.
+ * miss and it reads the registry again, as the pre-cache code did on every `setConfig`. It also
+ * refreshes when Home Assistant replaces `hass.entities`, which it does on every entity registry
+ * update: a renamed entity or a changed registry icon therefore reaches the generated tiles and
+ * icons without a page reload. Within one registry and entity set, two cards, or the icon and tile
+ * generators of one card, share one lookup per vacuum; a second page starts empty because it has its
+ * own connection, and the `WeakMap` releases a closed page's cache with its connection once nothing
+ * else holds it.
+ *
+ * A registry update starts a new token, so a long-lived page would otherwise keep one entry per
+ * update forever. The per-connection map holds the most recent few lookups only; a token older than
+ * that is read from the registry again rather than served from a map that grows without bound.
  *
  * Only a successful result is kept. A failed lookup is removed from the map so the next caller
  * retries instead of inheriting an empty list: a websocket may still be connecting, and caching
  * the failure would permanently hide a vacuum's sensors after one transient error.
  */
-const registryCache = new WeakMap<Connection, Map<string, Promise<EntityRegistryEntry[]>>>();
+export interface EntityRegistryLookup {
+    /** The enabled entries, or an empty list when `failed` is set. */
+    entries: EntityRegistryEntry[];
+    /** True when both the `get_entries` and the `/list` paths rejected. */
+    failed: boolean;
+}
 
-function cacheFor(connection: Connection): Map<string, Promise<EntityRegistryEntry[]>> {
+interface CachedLookup {
+    entries: Promise<EntityRegistryEntry[]>;
+    result: Promise<EntityRegistryLookup>;
+}
+
+const REGISTRY_CACHE_LIMIT = 8;
+
+const registryCache = new WeakMap<Connection, Map<string, CachedLookup>>();
+
+/**
+ * A token per display-registry object. Home Assistant replaces `hass.entities` whenever the entity
+ * registry changes (a rename, an icon, an area assignment, a new or removed entity), so the token is
+ * what tells the memoized lookup that its entries may be stale. A state-only update keeps the same
+ * object, so an ordinary `hass` update still hits the cache.
+ */
+const displayRegistryTokens = new WeakMap<object, number>();
+let lastDisplayRegistryToken = 0;
+
+function displayRegistryToken(entities: HomeAssistantFixed["entities"] | undefined): number {
+    if (!entities) return 0;
+    let token = displayRegistryTokens.get(entities);
+    if (token === undefined) {
+        token = ++lastDisplayRegistryToken;
+        displayRegistryTokens.set(entities, token);
+    }
+    return token;
+}
+
+function cacheFor(connection: Connection): Map<string, CachedLookup> {
     let cache = registryCache.get(connection);
     if (!cache) {
         cache = new Map();
@@ -72,32 +113,62 @@ export function getAllEntitiesFromTheSameDevice(
     hass: HomeAssistantFixed,
     entity: string,
 ): Promise<EntityRegistryEntry[]> {
+    return cachedLookup(hass, entity).entries;
+}
+
+/**
+ * The same lookup, reporting whether both registry paths failed. A caller that already has
+ * generated tiles must keep them on a failure instead of replacing them with the empty list.
+ */
+export function lookupEntityRegistry(hass: HomeAssistantFixed, entity: string): Promise<EntityRegistryLookup> {
+    return cachedLookup(hass, entity).result;
+}
+
+function cachedLookup(hass: HomeAssistantFixed, entity: string): CachedLookup {
     const deviceId = hass.entities?.[entity]?.device_id;
     // Nothing to collect: the entity is not in the display registry (so it has no device) or the
     // display registry has not loaded yet. This answer is deliberately not cached - a card rendered
     // before the display registry arrives would otherwise keep an empty sensor list for the page.
-    if (!deviceId) return Promise.resolve([]);
+    if (!deviceId) {
+        const entries = freezeEntries([]);
+        return {
+            entries: Promise.resolve(entries),
+            result: Promise.resolve({ entries, failed: false }),
+        };
+    }
 
     const candidateIds = candidateEntityIds(hass, deviceId);
-    // The candidate ids are part of the key, so a changed device entity set (an enabled sensor, a
-    // new integration version) is a cache miss and reads the registry again.
-    const key = `${entity}|${candidateIds.join(",")}`;
+    // The candidate ids and the display registry's token are part of the key, so a changed device
+    // entity set (an enabled sensor, a new integration version) or a registry update (a rename, an
+    // icon) is a cache miss and reads the registry again.
+    const key = `${entity}|${displayRegistryToken(hass.entities)}|${candidateIds.join(",")}`;
     // A hass without a connection (a preview, or a half-initialized card) cannot be memoized:
     // `WeakMap.set(undefined, ...)` throws. A throwaway map keeps this path single-file without
     // catching, and the lookup still resolves (or fails) exactly as it would uncached.
-    const cache = hass.connection ? cacheFor(hass.connection) : new Map<string, Promise<EntityRegistryEntry[]>>();
+    const cache = hass.connection ? cacheFor(hass.connection) : new Map<string, CachedLookup>();
     const cached = cache.get(key);
     if (cached) return cached;
 
-    const pending = loadEntitiesForDevice(hass, deviceId, candidateIds)
-        .then(freezeEntries)
+    const lookup = {} as CachedLookup;
+    lookup.result = loadEntitiesForDevice(hass, deviceId, candidateIds)
+        .then(entries => ({ entries: freezeEntries(entries), failed: false }))
         .catch(() => {
-            // Not cached: the next call retries (see `registryCache`).
-            cache.delete(key);
-            return [];
+            // Not cached: the next call retries (see `registryCache`). Only remove this entry, so a
+            // re-created lookup for the same key is not lost.
+            if (cache.get(key) === lookup) cache.delete(key);
+            const entries = freezeEntries([]);
+            return { entries, failed: true };
         });
-    cache.set(key, pending);
-    return pending;
+    lookup.entries = lookup.result.then(answer => answer.entries);
+    cache.set(key, lookup);
+    // A registry update is a new token, so without a limit every update would leave its promise and
+    // frozen entries in this map for the life of the page (a wall tablet runs for weeks).
+    while (cache.size > REGISTRY_CACHE_LIMIT) {
+        const oldest = cache.keys().next().value;
+        if (oldest === undefined) break;
+        cache.delete(oldest);
+    }
+    return lookup;
 }
 
 async function loadEntitiesForDevice(

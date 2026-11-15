@@ -13,13 +13,18 @@ import { NumberFormat, TimeFormat } from "../../src/localize/hass/translation";
  * the vacuum's device through it; the remaining registry fields are optional so tests can add
  * only what the code under test reads.
  */
-export interface MockEntityRegistryEntry extends EntityRegistryDisplayEntry {
+export interface MockEntityRegistryEntry extends Omit<EntityRegistryDisplayEntry, "name"> {
     /** Required here: the generators resolve the vacuum's sibling entities through it. */
     device_id: string;
+    /** `null` is what the entity registry stores for an entity without a user-set name. */
+    name?: string | null;
     unique_id?: string;
     disabled_by?: string | null;
     hidden_by?: string | null;
     original_name?: string | null;
+    /** The registry icon the generated tiles prefer over `original_icon`. */
+    icon?: string | null;
+    original_icon?: string | null;
 }
 
 /** Registry input accepted by `mockHass`: a map keyed by entity id, or a list of entries. */
