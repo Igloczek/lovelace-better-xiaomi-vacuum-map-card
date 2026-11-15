@@ -30,6 +30,36 @@ interface RoomCandidate {
     readonly others: RoomEntry[];
 }
 
+/**
+ * A room of one contested fill colour, as the shared-floor attribution sees it. Only rooms the
+ * plain trace detected are attributed: a room the camera describes with its own outline is kept as
+ * it is, and only bounds-described rooms compete for a colour's patches.
+ */
+interface FloorRoom {
+    /** The room's label in the image-wide label map. */
+    readonly label: number;
+    readonly id: string;
+    /** The room's camera bounds, which are also its metadata shape for a traced room. */
+    readonly bounds: PixelBounds;
+    readonly colorKey: number;
+}
+
+/** The connected floor patches of one fill colour, with what each room's bounds contain. */
+interface ColourFloors {
+    readonly colorKey: number;
+    /** The patch of this colour at each image pixel; -1 where the pixel is not that colour. */
+    readonly patch: Int32Array;
+    readonly sizes: number[];
+    readonly boxes: PixelBounds[];
+    /** `counts[room][patch]`: how many of a patch's pixels lie inside a room's bounds. */
+    readonly counts: Uint32Array[];
+    readonly shapeAreas: number[];
+    /** The patch that fills each room's bounds best, if any. */
+    readonly anchors: Array<number | undefined>;
+    /** How many of a patch's pixels lie inside an undetected room's reserved shape. */
+    readonly reservedCounts: number[];
+}
+
 export interface DetectedRoomColor {
     readonly id: string;
     readonly colorKey: number;
@@ -46,6 +76,15 @@ export interface ImageDataLike {
     readonly width: number;
     readonly height: number;
     readonly data: Uint8ClampedArray;
+}
+
+/**
+ * What a detection may do beyond the plain per-room trace. The colour attribution for shared floors
+ * is on by default; a caller that needs the plain trace (the differential tests that keep the
+ * pre-attribution result as the reference) turns it off.
+ */
+export interface RoomDetectionOptions {
+    readonly roomColorAttribution?: boolean;
 }
 
 export interface RoomColorDetection {
@@ -109,6 +148,36 @@ const GOOD_FIT = 0.5;
 
 /** The least share of its own bounds a room's fill covers. */
 const MIN_COVERAGE = 0.15;
+
+/**
+ * A colour patch that lies this share inside a room's metadata shape may be that room's floor. The
+ * shape is the room's own outline when the camera publishes one, its bounds rectangle otherwise.
+ * A patch a room's own floor forms is wholly inside its shape; a neighbour's floor seen through an
+ * interlocking bounding box is only partly inside.
+ */
+const PATCH_CONTAINMENT = 0.98;
+
+/**
+ * A room's floor patch is the patch that fills its shape best (containment x coverage). A room
+ * whose best patch is also another room's best patch has no floor of its own in this colour (a
+ * nested closet whose fill touches the room around it, or an open-plan pair with no drawn
+ * boundary): the pixels cannot tell the rooms apart, so the plain trace is kept.
+ */
+const FLOOR_FIT = 0.2;
+
+/**
+ * A room keeps at least this share of the pixels the plain trace gave it, unless everything it lost
+ * is the gaining room's own floor: two interlocking L-shaped rooms share more than half of their
+ * bounding boxes, so giving a neighbour its arm back can cost a room most of what the plain trace
+ * wrongly handed it.
+ */
+const KEPT_AREA_SHARE = 0.6;
+
+/** Smallest patch that can be a room's floor rather than noise from an anti-aliased edge. */
+const MIN_PATCH = 8;
+
+/** A pixel of a contested colour that no floor patch has claimed yet. */
+const UNLABELLED = -2;
 
 /** Border colours within this per-channel distance of the dominant border colour are background. */
 const BACKGROUND_TOLERANCE = 24;
@@ -258,11 +327,19 @@ export class RoomColorDetector {
      *    nearest one. Outlines and label points come from that map.
      * 4. Taps reach a room across what is drawn at its edge (the robot, the charger, walls), up to
      *    `TAP_REACH` pixels, never across the image background.
+     *
+     * When two rooms of one colour have interlocking camera bounds, both floors lie inside the other
+     * room's bounding box, and step 2's per-room trace bridges the wall between them: one room's
+     * region takes the other's arm. The colour's connected patches are then attributed to the rooms
+     * and the plain trace's labels are corrected, but only when the correction provably does not
+     * lose a room or a floor the plain trace found (`_attributeSharedFloor`). With attribution off
+     * (`options.roomColorAttribution`), the method returns exactly the plain trace.
      */
     public static detectFromImageData(
         imageData: ImageDataLike,
         rooms: Record<string, MapExtractorRoom>,
         converter: CoordinatesConverter,
+        options: RoomDetectionOptions = {},
     ): RoomColorDetection | undefined {
         const entries = readCameraRooms(rooms)
             .map(room => this._getEntry(room, imageData, converter))
@@ -418,6 +495,14 @@ export class RoomColorDetector {
                 imageWidth,
             ),
         );
+
+        // Two same-coloured rooms whose camera bounds overlap without one containing the other: the
+        // plain trace bridges the wall between their floors and gives one room the other's arm. The
+        // colour's patches are attributed to the rooms here, before the last passes, and only when
+        // the result cannot be worse than the plain trace (`_attributeSharedFloor`).
+        if (options.roomColorAttribution !== false) {
+            this._attributeSharedFloor(chosen, labels, reserved, imageData);
+        }
 
         const grow: GrowLimits = {
             labelBounds,
@@ -787,6 +872,467 @@ export class RoomColorDetector {
         if (components.includes(option.component)) return option.component;
         const seed = option.component.pixels[0];
         return components.find(component => component.pixels.includes(seed));
+    }
+
+    /**
+     * Gives each of two same-coloured rooms with interlocking camera bounds its own floor.
+     *
+     * The plain trace above closes each room's colour over small gaps while the *other* room's
+     * bounding box is a barrier only where one box contains the other. Two interlocking L-shaped
+     * rooms around a hallway contain neither, so nothing stops the closing bridging the wall between
+     * them: the room that wins the assignment takes its neighbour's arm as well, and a tap on that
+     * arm cleans the wrong room. Here the colour's connected patches are attributed to the rooms and
+     * the plain trace's labels are corrected.
+     *
+     * The attribution is accepted for a colour only when it provably loses nothing the plain trace
+     * found - this is the guard that keeps a shared-colour map never worse than before:
+     *
+     * 1. Every room of the colour carries a floor patch of its own: a patch at least
+     *    `PATCH_CONTAINMENT` inside the room's metadata shape (its own outline, or its bounds) that
+     *    fits that shape best (`FLOOR_FIT`), and no two rooms claim the same patch. If a room has no
+     *    such patch - a nested closet whose fill touches the room around it, an open-plan pair with
+     *    no drawn boundary - the pixels cannot tell the rooms apart and the plain trace is kept.
+     * 2. A room's detected area stays above `KEPT_AREA_SHARE` of what the plain trace gave it,
+     *    unless every pixel it loses went to a room whose metadata bounds contain it. Two
+     *    interlocking L rooms can share most of their bounding boxes, so handing a neighbour its arm
+     *    back may cost a room most of what the plain trace wrongly gave it; a pixel lost to a room
+     *    whose bounds do not contain it is never accepted.
+     * 3. A pixel only ever changes to a room whose bounds contain it, and never to a room of another
+     *    colour, or into an undetected room's reserved shape (a patch half inside one is left alone).
+     *
+     * Anything else falls back to the plain trace's labels for the whole colour: the attribution can
+     * only change a result the plain trace got wrong, never a room or a floor it found.
+     *
+     * A patch no single shape contains (a piece a cleaning path or furniture cuts off a floor) is
+     * settled by one local rule: it goes to the room whose already-attributed floor it reaches
+     * through what the map draws over a floor, and only when exactly one room is reachable. A
+     * crossed colour that itself joins two rooms' floors is a wall and is never crossed, so a
+     * same-coloured neighbour is not bridged; a path, the robot or furniture is. When the pixels
+     * cannot settle it, the plain trace keeps the piece.
+     */
+    private static _attributeSharedFloor(
+        chosen: RoomOption[],
+        labels: Int16Array,
+        reserved: Uint8Array,
+        imageData: ImageDataLike,
+    ): void {
+        const groups = this._contestedGroups(chosen);
+        if (groups.size === 0) return;
+        groups.forEach((labelIndexes, colorKey) => {
+            const rooms: FloorRoom[] = labelIndexes.map(label => {
+                const option = chosen[label];
+                return {
+                    label,
+                    id: option.candidate.id,
+                    bounds: option.candidate.bounds,
+                    colorKey: option.colorKey,
+                };
+            });
+            const floors = this._colourFloors(colorKey, rooms, reserved, imageData);
+            if (!floors) return;
+            const snapshot = labels.slice();
+            if (!this._applyFloorOwnership(floors, rooms, labels, imageData)) labels.set(snapshot);
+        });
+    }
+
+    /**
+     * The colours that more than one chosen room uses while their camera bounds overlap without one
+     * containing the other. Those are the only colours where the plain trace can hand one room's
+     * floor to another; a colour repeated on rooms with disjoint or nested bounds is left alone.
+     */
+    private static _contestedGroups(chosen: RoomOption[]): Map<number, number[]> {
+        const byColor = new Map<number, number[]>();
+        chosen.forEach((option, label) => {
+            const group = byColor.get(option.colorKey);
+            if (group) group.push(label);
+            else byColor.set(option.colorKey, [label]);
+        });
+        const contested = new Map<number, number[]>();
+        byColor.forEach((labels, colorKey) => {
+            const overlaps = labels.some((left, index) =>
+                labels.slice(index + 1).some(right => {
+                    const first = chosen[left].candidate.bounds;
+                    const second = chosen[right].candidate.bounds;
+                    const intersects =
+                        first.left <= second.right &&
+                        second.left <= first.right &&
+                        first.top <= second.bottom &&
+                        second.top <= first.bottom;
+                    if (!intersects) return false;
+                    const contains = (outer: PixelBounds, inner: PixelBounds): boolean =>
+                        outer.left <= inner.left &&
+                        outer.top <= inner.top &&
+                        outer.right >= inner.right &&
+                        outer.bottom >= inner.bottom;
+                    // Nesting is the plain trace's own case (a closet inside a room's bounds).
+                    return !contains(first, second) && !contains(second, first);
+                }),
+            );
+            if (overlaps) contested.set(colorKey, labels);
+        });
+        return contested;
+    }
+
+    /**
+     * Labels every connected patch of one fill colour and measures how much of it each room's
+     * metadata shape contains. Returns undefined when the metadata cannot attribute the colour: a
+     * patch too small to be a floor, a shared anchor, or no patch filling a room's shape.
+     */
+    private static _colourFloors(
+        colorKey: number,
+        rooms: FloorRoom[],
+        reserved: Uint8Array,
+        imageData: ImageDataLike,
+    ): ColourFloors | undefined {
+        const { width, height, data } = imageData;
+        const patch = new Int32Array(width * height).fill(-1);
+        const reservedCounts: number[] = [];
+        for (let index = 0; index < patch.length; index++) {
+            const offset = index * 4;
+            if (data[offset + 3] < 128) continue;
+            if (this.getColorKey(data[offset], data[offset + 1], data[offset + 2]) !== colorKey) continue;
+            patch[index] = UNLABELLED;
+        }
+        const sizes: number[] = [];
+        const boxes: PixelBounds[] = [];
+        const stack: number[] = [];
+        // A scanline flood fill: fills are wide flat runs, and filling a run at a time is several
+        // times faster than stepping a queue pixel by pixel. 8-connected, like `_components`.
+        for (let origin = 0; origin < patch.length; origin++) {
+            if (patch[origin] !== UNLABELLED) continue;
+            const label = sizes.length;
+            let size = 0;
+            let reservedPixels = 0;
+            let leftmost = width;
+            let rightmost = 0;
+            let topmost = height;
+            let bottommost = 0;
+            stack.push(origin);
+            while (stack.length > 0) {
+                const seed = stack.pop() as number;
+                if (patch[seed] !== UNLABELLED) continue;
+                const rowStart = seed - (seed % width);
+                const y = rowStart / width;
+                const rowEnd = rowStart + width - 1;
+                let left = seed;
+                while (left > rowStart && patch[left - 1] === UNLABELLED) left--;
+                let right = seed;
+                while (right < rowEnd && patch[right + 1] === UNLABELLED) right++;
+                for (let index = left; index <= right; index++) {
+                    patch[index] = label;
+                    size++;
+                    if (reserved[index]) reservedPixels++;
+                }
+                leftmost = Math.min(leftmost, left - rowStart);
+                rightmost = Math.max(rightmost, right - rowStart);
+                topmost = Math.min(topmost, y);
+                bottommost = Math.max(bottommost, y);
+                const from = Math.max(rowStart, left - 1);
+                const to = Math.min(rowEnd, right + 1);
+                if (y > 0) {
+                    for (let index = from; index <= to; index++) {
+                        if (patch[index - width] === UNLABELLED) stack.push(index - width);
+                    }
+                }
+                if (y < height - 1) {
+                    for (let index = from; index <= to; index++) {
+                        if (patch[index + width] === UNLABELLED) stack.push(index + width);
+                    }
+                }
+            }
+            sizes.push(size);
+            reservedCounts.push(reservedPixels);
+            boxes.push({ left: leftmost, top: topmost, right: rightmost, bottom: bottommost });
+        }
+        if (sizes.length === 0) return undefined;
+
+        const counts = rooms.map(() => new Uint32Array(sizes.length));
+        const shapeAreas = rooms.map((room, index) => {
+            const { bounds } = room;
+            let area = 0;
+            for (let y = bounds.top; y <= bounds.bottom; y++) {
+                for (let x = bounds.left; x <= bounds.right; x++) {
+                    area++;
+                    const found = patch[y * width + x];
+                    if (found >= 0) counts[index][found]++;
+                }
+            }
+            return area;
+        });
+
+        const anchors: Array<number | undefined> = rooms.map((_room, index) => {
+            let best = -1;
+            let bestFit = FLOOR_FIT;
+            for (let label = 0; label < sizes.length; label++) {
+                if (sizes[label] < MIN_PATCH) continue;
+                const containment = counts[index][label] / sizes[label];
+                if (containment < PATCH_CONTAINMENT) continue;
+                const fit = containment * (counts[index][label] / shapeAreas[index]);
+                if (fit > bestFit) {
+                    bestFit = fit;
+                    best = label;
+                }
+            }
+            return best >= 0 ? best : undefined;
+        });
+        // A patch two rooms both fit best is a floor the pixels cannot split (a closet whose fill
+        // touches the room around it, an open-plan pair): leave this colour to the plain trace.
+        const anchorrooms = new Set<number>();
+        for (const anchor of anchors) {
+            if (anchor === undefined || anchorrooms.has(anchor)) return undefined;
+            anchorrooms.add(anchor);
+        }
+        return { colorKey, patch, sizes, boxes, counts, shapeAreas, anchors, reservedCounts };
+    }
+
+    /**
+     * The room that owns each patch of the colour, or undefined where the pixels cannot say.
+     *
+     * A room's own floor patch is its anchor. A patch wholly inside exactly one room's shape belongs
+     * to it. A patch several shapes contain equally is a piece cut off a floor: it goes to the one
+     * room whose anchor it reaches without crossing a wall, and only when exactly one room is so
+     * reachable. A patch no shape contains, or one mostly inside an undetected room's shape, is left
+     * as the plain trace had it.
+     */
+    private static _applyFloorOwnership(
+        floors: ColourFloors,
+        rooms: FloorRoom[],
+        labels: Int16Array,
+        imageData: ImageDataLike,
+    ): boolean {
+        const { width } = imageData;
+        const owners: Array<number | undefined> = floors.sizes.map(() => undefined);
+        const anchorRoom = new Map<number, number>();
+        floors.anchors.forEach((anchor, room) => {
+            if (anchor === undefined) return;
+            owners[anchor] = room;
+            anchorRoom.set(anchor, room);
+        });
+        // The unique room whose shape contains the patch, when there is one.
+        const containing = floors.sizes.map((size, label) => {
+            if (size < MIN_PATCH || owners[label] !== undefined) return [];
+            if (floors.reservedCounts[label] * 2 > size) return [];
+            return rooms
+                .map((_room, room) => room)
+                .filter(room => floors.counts[room][label] / size >= PATCH_CONTAINMENT);
+        });
+        const separating = new Map<number, boolean>();
+        const window = this._floorsWindow(rooms, imageData);
+        const walk = new Int32Array(floors.patch.length);
+        const wallWalk = new Int32Array(floors.patch.length);
+        const markers = { walk: 0, wall: 0 };
+        containing.forEach((found, label) => {
+            if (found.length === 1) owners[label] = found[0];
+            else if (found.length > 1)
+                owners[label] = this._fragmentOwner(
+                    label,
+                    floors,
+                    found,
+                    anchorRoom,
+                    imageData,
+                    window,
+                    separating,
+                    walk,
+                    wallWalk,
+                    markers,
+                );
+        });
+        // A pixel only ever changes to a room whose bounds contain it: every owned patch is inside
+        // its owner's bounds by construction, so this is a check rather than a filter.
+
+        // Re-label the pixels the plain trace gave another room, and refuse the whole correction
+        // when it would lose a room or more than `KEPT_AREA_SHARE` of a floor the trace found.
+        const labelRoom = new Map<number, number>();
+        rooms.forEach((room, index) => labelRoom.set(room.label, index));
+        const before = new Int32Array(rooms.length);
+        for (let index = 0; index < labels.length; index++) {
+            const room = labelRoom.get(labels[index]);
+            if (room !== undefined) before[room]++;
+        }
+        const after = before.slice();
+        const lost = new Int32Array(rooms.length);
+        const lostFloor = new Int32Array(rooms.length);
+        const lostOutside = new Int32Array(rooms.length);
+        owners.forEach((owner, label) => {
+            if (owner === undefined) return;
+            const box = floors.boxes[label];
+            const target = rooms[owner].label;
+            for (let y = box.top; y <= box.bottom; y++) {
+                for (let x = box.left; x <= box.right; x++) {
+                    const index = y * width + x;
+                    if (floors.patch[index] !== label) continue;
+                    const current = labels[index];
+                    if (current === target) continue;
+                    const previous = labelRoom.get(current);
+                    if (previous !== undefined) {
+                        if (rooms[previous].colorKey !== rooms[owner].colorKey) continue;
+                        lost[previous]++;
+                        after[previous]--;
+                        if (floors.anchors[previous] === floors.patch[index]) lostFloor[previous]++;
+                        const { bounds } = rooms[owner];
+                        if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom)
+                            lostOutside[previous]++;
+                    }
+                    labels[index] = target;
+                    after[owner]++;
+                }
+            }
+        });
+        for (let room = 0; room < rooms.length; room++) {
+            // A room the plain trace found keeps a patch of its own, and it never loses a pixel of
+            // its own floor: that floor is the one piece the metadata shape gives only this room.
+            if (before[room] > 0 && after[room] < MIN_PATCH) return false;
+            if (lostFloor[room] > 0) return false;
+            // Giving a neighbour its arm back can cost most of a bounding box, so the area may fall
+            // below `KEPT_AREA_SHARE` only for pixels the gaining room's own bounds contain: those
+            // are the pixels the metadata shapes attributed to the other room, not this one's.
+            if (
+                lost[room] > 0 &&
+                after[room] < before[room] * KEPT_AREA_SHARE &&
+                (lostFloor[room] > 0 || lostOutside[room] > 0)
+            )
+                return false;
+        }
+        return true;
+    }
+
+    /** The window the wall test reads: the contested rooms' bounds plus the closing margin. */
+    private static _floorsWindow(rooms: FloorRoom[], imageData: ImageDataLike): PixelBounds {
+        const margin = BOUNDS_MARGIN + GAP_CLOSING_RADIUS * 2;
+        return {
+            left: Math.max(0, Math.min(...rooms.map(room => room.bounds.left)) - margin),
+            top: Math.max(0, Math.min(...rooms.map(room => room.bounds.top)) - margin),
+            right: Math.min(imageData.width - 1, Math.max(...rooms.map(room => room.bounds.right)) + margin),
+            bottom: Math.min(imageData.height - 1, Math.max(...rooms.map(room => room.bounds.bottom)) + margin),
+        };
+    }
+
+    /**
+     * The room a piece cut off a floor belongs to: the only one of the candidate rooms whose anchor
+     * patch is reachable from the piece across what the map draws over a floor (a path, the robot,
+     * an icon, furniture), up to the same gap the closing bridges. A crossed colour that joins two
+     * rooms' anchors is a wall and is not crossed. Undefined when no room, or more than one, is
+     * reachable: the pixels cannot settle it.
+     */
+    private static _fragmentOwner(
+        label: number,
+        floors: ColourFloors,
+        candidates: number[],
+        anchorRoom: Map<number, number>,
+        imageData: ImageDataLike,
+        window: PixelBounds,
+        separating: Map<number, boolean>,
+        walk: Int32Array,
+        wallWalk: Int32Array,
+        markers: { walk: number; wall: number },
+    ): number | undefined {
+        const { width, height, data } = imageData;
+        const marker = ++markers.walk;
+        const reached = new Set<number>();
+        const box = floors.boxes[label];
+        let frontier: number[] = [];
+        for (let y = box.top; y <= box.bottom; y++) {
+            for (let x = box.left; x <= box.right; x++) {
+                const index = y * width + x;
+                if (floors.patch[index] !== label) continue;
+                walk[index] = marker;
+                frontier.push(index);
+            }
+        }
+        for (let step = 0; step < GAP_CLOSING_RADIUS * 2 && frontier.length > 0; step++) {
+            const next: number[] = [];
+            for (const index of frontier) {
+                const x = index % width;
+                const y = (index - x) / width;
+                for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny++) {
+                    for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx++) {
+                        if (nx < window.left || nx > window.right || ny < window.top || ny > window.bottom) continue;
+                        const neighbour = ny * width + nx;
+                        if (walk[neighbour] === marker) continue;
+                        walk[neighbour] = marker;
+                        const offset = neighbour * 4;
+                        if (data[offset + 3] < 128) continue;
+                        const found = floors.patch[neighbour];
+                        if (found >= 0) {
+                            const room = anchorRoom.get(found);
+                            if (room !== undefined && candidates.includes(room)) reached.add(room);
+                            continue;
+                        }
+                        const key = this.getColorKey(data[offset], data[offset + 1], data[offset + 2]);
+                        if (
+                            this._separatesFloors(
+                                key,
+                                neighbour,
+                                floors,
+                                anchorRoom,
+                                imageData,
+                                window,
+                                separating,
+                                wallWalk,
+                                markers,
+                            )
+                        )
+                            continue;
+                        next.push(neighbour);
+                    }
+                }
+            }
+            frontier = next;
+        }
+        if (reached.size !== 1) return undefined;
+        return [...reached][0];
+    }
+
+    /**
+     * Whether a colour separates two rooms' floors: one of its connected patches touches the anchor
+     * patches of two different rooms. That is what a wall, a map background or a solid obstacle
+     * between rooms does; a cleaning path, an icon or a piece of furniture drawn on one room touches
+     * only that room's floor (or none, outside every room). The answer is computed once per colour
+     * inside the contested rooms' window.
+     */
+    private static _separatesFloors(
+        colorKey: number,
+        start: number,
+        floors: ColourFloors,
+        anchorRoom: Map<number, number>,
+        imageData: ImageDataLike,
+        window: PixelBounds,
+        cache: Map<number, boolean>,
+        wallWalk: Int32Array,
+        markers: { walk: number; wall: number },
+    ): boolean {
+        const cached = cache.get(colorKey);
+        if (cached !== undefined) return cached;
+        const { width, data } = imageData;
+        const marker = ++markers.wall;
+        const stack = [start];
+        wallWalk[start] = marker;
+        const touched = new Set<number>();
+        while (stack.length > 0) {
+            const index = stack.pop() as number;
+            const x = index % width;
+            const y = (index - x) / width;
+            for (let ny = Math.max(window.top, y - 1); ny <= Math.min(window.bottom, y + 1); ny++) {
+                for (let nx = Math.max(window.left, x - 1); nx <= Math.min(window.right, x + 1); nx++) {
+                    const neighbour = ny * width + nx;
+                    if (wallWalk[neighbour] === marker) continue;
+                    const found = floors.patch[neighbour];
+                    if (found >= 0) {
+                        const room = anchorRoom.get(found);
+                        if (room !== undefined) touched.add(room);
+                        continue;
+                    }
+                    const offset = neighbour * 4;
+                    if (data[offset + 3] < 128) continue;
+                    if (this.getColorKey(data[offset], data[offset + 1], data[offset + 2]) !== colorKey) continue;
+                    wallWalk[neighbour] = marker;
+                    stack.push(neighbour);
+                }
+            }
+        }
+        const separates = touched.size >= 2;
+        cache.set(colorKey, separates);
+        return separates;
     }
 
     /** Marks the metadata shapes of rooms that were not detected. */

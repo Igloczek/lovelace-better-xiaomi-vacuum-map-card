@@ -305,6 +305,40 @@ function metadataRoomsCard() {
 }
 
 /**
+ * Two same-coloured L-shaped rooms around a hallway, served by the interlock fixture camera. The
+ * metadata carries bounds only, as Xiaomi Cloud Map Extractor and Dreame publish it, so the rooms
+ * are drawn and hit-tested from the colour detection (interlock-rooms.spec.ts).
+ */
+function interlockCard() {
+    return {
+        type: "custom:xiaomi-vacuum-map-card",
+        entity: "vacuum.demo_vacuum_0_ground_floor",
+        vacuum_platform: "Xiaomi Miio",
+        map_source: { camera: "camera.interlocking_map" },
+        calibration_source: {
+            calibration_points: [
+                { map: { x: 0, y: 0 }, vacuum: { x: 0, y: 0 } },
+                { map: { x: 200, y: 0 }, vacuum: { x: 2000, y: 0 } },
+                { map: { x: 0, y: 120 }, vacuum: { x: 0, y: 1200 } },
+            ],
+        },
+        map_modes: [
+            {
+                // No predefined selections: the rooms come from the camera's `rooms` attribute, and
+                // their shapes from the map colours.
+                name: "Rooms",
+                icon: "mdi:floor-plan",
+                selection_type: "ROOM",
+                service_call_schema: {
+                    service: "vacuum.send_command",
+                    service_data: { command: "app_segment_clean", params: "[[selection]]" },
+                },
+            },
+        ],
+    };
+}
+
+/**
  * The run card with a second preset for the same vacuum on another map, as a card with one preset
  * per floor has. The second map is the fixture image by URL, with the same room ids: multi-floor
  * Xiaomi, Roborock and Dreame vacuums number every map's segments the same way.
@@ -389,6 +423,15 @@ async function main() {
             config: {
                 title: "E2E stale rooms",
                 views: [{ title: "Rooms", path: "rooms", cards: [card()] }],
+            },
+        },
+        {
+            // interlock-rooms.spec.ts: two same-coloured L-shaped rooms with interlocking bounds.
+            url_path: "e2e-interlock",
+            title: "E2E interlock rooms",
+            config: {
+                title: "E2E interlock rooms",
+                views: [{ title: "Rooms", path: "rooms", cards: [interlockCard()] }],
             },
         },
         {

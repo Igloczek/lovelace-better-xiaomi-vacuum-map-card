@@ -25,7 +25,14 @@ input_boolean:
   e2e_clean_living_room:
     name: E2E clean living room
 
-# The synthetic map camera, the fake vacuum and its consumable sensor. One config entry (imported
+# The synthetic map cameras, the fake vacuum and its consumable sensor. One config entry (imported
 # from this key) so that Home Assistant attaches a device to the entities: the card resolves the
 # vacuum's sibling sensors through its registry device, and their registry entries supply tile icons.
+# The default camera is the one the bump/set_image/set_rooms services drive; the interlock camera
+# serves the two same-coloured L-shaped rooms (interlock-rooms.spec.ts) from a fixed image and
+# metadata, so a re-map in another spec cannot renumber it.
 map_fixture:
+  cameras:
+    - name: Vacuum Map
+    - name: Interlocking Map
+      map_key: interlock
