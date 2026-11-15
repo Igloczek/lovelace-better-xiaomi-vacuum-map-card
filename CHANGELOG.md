@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.4.0
+
+### Changed
+
+- The card has its own type, `custom:better-xiaomi-vacuum-map-card`, so it can be installed next to
+  the original Xiaomi Vacuum Map Card. Existing `custom:xiaomi-vacuum-map-card` dashboards keep
+  working while the original card is not installed, and the remembered map view and room run carry
+  over. New cards from the card picker and the editor use the new type. See
+  [Migrating from `custom:xiaomi-vacuum-map-card`](docs/configuration.md#migrating-from-customxiaomi-vacuum-map-card).
+- The README's Marketplace button opens the repository in the right category; the old link was
+  refused by Home Assistant.
+
+### Fixed
+
+- Two touching rooms that share a fill colour and interlock (two L-shaped rooms around a hallway)
+  keep their own floor, including a piece a cleaning path cuts off, so a tap selects the room you
+  tapped. Maps where this already worked are unchanged.
+
 ## 1.3.0
 
 ### Changed
