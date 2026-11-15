@@ -32,6 +32,7 @@ DOMAIN = "map_fixture"
 DATA_COUNTS = "map_fixture_counts"
 DATA_IMAGE = "map_fixture_image"
 DATA_CAMERAS = "map_fixture_entities"
+DATA_NAMED_CAMERAS = "map_fixture_named_entities"
 DATA_VACUUMS = "map_fixture_vacuums"
 
 PLATFORMS = [Platform.CAMERA, Platform.SENSOR, Platform.VACUUM]
@@ -57,12 +58,26 @@ def fixture_device_info() -> dict[str, Any]:
     }
 
 
+# The default camera, used when the `map_fixture:` key names none. A camera config may name its
+# camera and pick a named map; the named maps keep a fixed image and fixed room metadata, so a
+# re-map in one spec cannot renumber another spec's rooms.
+DEFAULT_CAMERAS = [{"name": "Vacuum Map", "map_key": "default"}]
+
 # The synthetic fixture map, in vacuum coordinates. The committed PNG is 200x150 and the card's
 # calibration maps 1 image pixel to 10 vacuum units, so these rectangles match the coloured blobs.
 FIXTURE_ROOMS: dict[str, dict[str, Any]] = {
     "0": {"x0": 200, "y0": 200, "x1": 800, "y1": 700, "name": "Kitchen"},
     "1": {"x0": 1000, "y0": 200, "x1": 1700, "y1": 700, "name": "Living room"},
     "2": {"x0": 200, "y0": 900, "x1": 800, "y1": 1300, "name": "Bedroom"},
+}
+
+# Two same-coloured L-shaped rooms around a hallway (test/fixtures/synthetic/interlock.png). Their
+# bounding boxes overlap, so the pixels alone do not say which fill is which room. Only the bounds
+# are published here: that is what Xiaomi Cloud Map Extractor and Dreame report, and the harder
+# case for the card. 1 image pixel is 10 vacuum units, and the rectangles are the rooms' bounds.
+INTERLOCK_ROOMS: dict[str, dict[str, Any]] = {
+    "kitchen": {"x0": 100, "y0": 100, "x1": 1100, "y1": 1100, "name": "Kitchen"},
+    "hall": {"x0": 420, "y0": 100, "x1": 1900, "y1": 1100, "name": "Hall"},
 }
 
 # A re-map that keeps the geometry but renumbers the segments, which is what makes a configured
@@ -72,6 +87,17 @@ SHIFTED_ROOMS: dict[str, dict[str, Any]] = {
     "8": {"x0": 1000, "y0": 200, "x1": 1700, "y1": 700, "name": "Living room"},
     "9": {"x0": 200, "y0": 900, "x1": 800, "y1": 1300, "name": "Bedroom"},
 }
+
+FIXTURE_IMAGES: dict[str, str] = {
+    "default": DEFAULT_IMAGE,
+    "interlock": "/config/map_interlock.png",
+}
+FIXTURE_MAP_ROOMS: dict[str, dict[str, dict[str, Any]]] = {
+    "interlock": INTERLOCK_ROOMS,
+}
+
+# The replacement image the interlock camera serves, for the path-cut piece spec.
+INTERLOCK_PATH_IMAGE = "/config/map_interlock_path.png"
 
 
 class MapFixtureImageView(HomeAssistantView):
@@ -89,8 +115,16 @@ class MapFixtureImageView(HomeAssistantView):
         token = request.query.get("v", "default")
         counts[token] = counts.get(token, 0) + 1
         counts["total"] = counts.get("total", 0) + 1
-        path = self.hass.data.get(DATA_IMAGE, DEFAULT_IMAGE)
-        if not os.path.exists(path):
+        # The default map is the one set_image swaps (the stale-rooms spec needs a re-mapped image);
+        # a named fixture map always serves its own committed file, or its path variant.
+        map_key = request.query.get("map", "default")
+        if map_key == "default":
+            path = self.hass.data.get(DATA_IMAGE, DEFAULT_IMAGE)
+        elif map_key == "interlock" and self.hass.data.get("map_fixture_interlock_path"):
+            path = INTERLOCK_PATH_IMAGE
+        else:
+            path = FIXTURE_IMAGES.get(map_key, "")
+        if not path or not os.path.exists(path):
             return web.Response(status=404, text=f"missing fixture image: {path}")
         with open(path, "rb") as handle:
             body = handle.read()
@@ -133,6 +167,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.services.async_register(DOMAIN, "set_image", set_image)
 
+    async def interlock_path(call: ServiceCall) -> None:
+        """Serve the interlock plan with the cleaning path, or the plain one again."""
+        hass.data["map_fixture_interlock_path"] = bool(call.data.get("on", True))
+        for entity in hass.data.get(DATA_NAMED_CAMERAS, []):
+            entity.bump()
+
+    hass.services.async_register(DOMAIN, "interlock_path", interlock_path)
+
     async def set_rooms(call: ServiceCall) -> None:
         """Swap the room metadata between the original ids and a re-mapped set."""
         shift = call.data.get("mode", "shift") == "shift"
@@ -158,7 +200,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(DOMAIN, "vacuum_reset", vacuum_reset)
 
     if DOMAIN in config:
-        hass.async_create_task(hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_IMPORT}))
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": SOURCE_IMPORT},
+                data=config.get(DOMAIN) or {},
+            )
+        )
     return True
 
 

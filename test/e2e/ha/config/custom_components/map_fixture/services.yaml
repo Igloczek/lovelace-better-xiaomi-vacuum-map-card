@@ -15,6 +15,13 @@ set_rooms:
     mode:
       description: shift for the re-mapped ids, reset for the original ids.
       example: shift
+interlock_path:
+  name: Set the interlock map image
+  description: Serves the interlock plan with a cleaning path, or the plain plan again.
+  fields:
+    on:
+      description: true for the pathed image, false for the plain one.
+      example: true
 vacuum_configure:
   name: Configure fake vacuum
   description: Sets how the fake vacuum misbehaves.

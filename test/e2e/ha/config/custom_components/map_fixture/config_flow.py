@@ -22,4 +22,4 @@ class MapFixtureConfigFlow(ConfigFlow, domain=DOMAIN):
         """Create the one entry the fixture needs."""
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
-        return self.async_create_entry(title="Map fixture", data={})
+        return self.async_create_entry(title="Map fixture", data=dict(import_info or {}))
