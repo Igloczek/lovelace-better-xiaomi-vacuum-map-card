@@ -547,7 +547,7 @@ export const cardStyles = css`
                 justify-content: normal;
             }
 
-            .layout-content.horizontal .map-controls > xvmc-dropdown-menu,
+            .layout-content.horizontal .map-controls > better-xvmc-dropdown-menu,
             .layout-content.horizontal .dropdown-menu {
                 display: inline;
                 max-width: none;

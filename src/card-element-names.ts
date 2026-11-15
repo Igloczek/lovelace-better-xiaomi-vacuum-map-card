@@ -1,4 +1,4 @@
-import { CARD_CUSTOM_ELEMENT_NAME, LEGACY_CARD_CUSTOM_ELEMENT_NAME } from "./const";
+import { CARD_CUSTOM_ELEMENT_NAME, LEGACY_CARD_CUSTOM_ELEMENT_NAME, UPSTREAM_SEEN_KEY } from "./const";
 import { migrateLegacyStorage, type StorageLike } from "./model/storage-migration";
 
 /**
@@ -40,6 +40,25 @@ export interface ResourceTimingLike {
 /** Reads the Resource Timing entry of a URL, or `undefined` while the fetch is still in flight. */
 export type ResourceTimingReader = (url: string) => ResourceTimingLike | undefined;
 
+/**
+ * Asks whether a resource URL is served (`true`), missing (`false`) or unknown (`undefined`). Used
+ * only when the browser exposes neither the script's `load`/`error` event in time nor a Resource
+ * Timing `responseStatus` (Safari, iOS and older Firefox), so a dead resource row is told apart from
+ * a loaded upstream bundle without waiting for the grace period.
+ */
+export type ResourceProbe = (url: string) => Promise<boolean | undefined>;
+
+async function probeResource(url: string): Promise<boolean | undefined> {
+    if (typeof fetch !== "function") return undefined;
+    try {
+        // The script was just fetched, so this is normally answered from the HTTP cache.
+        const response = await fetch(url, { method: "HEAD", cache: "force-cache", credentials: "same-origin" });
+        return response.ok;
+    } catch {
+        return undefined;
+    }
+}
+
 /** Calls `onScript` for every `<script>` appended to the document after the subscription starts. */
 export type ScriptObserver = (onScript: (script: ScriptLike) => void) => () => void;
 
@@ -68,11 +87,15 @@ export const UPSTREAM_SCRIPT_SETTLE_MS = 10_000;
 
 /** A resource URL without its cache-buster, lower-cased for a path comparison. */
 export function resourcePath(url: string): string {
+    let path: string;
     try {
-        return new URL(url, "http://localhost/").pathname.toLowerCase();
+        path = new URL(url, "http://localhost/").pathname.toLowerCase();
     } catch {
-        return url.split(/[?#]/)[0].toLowerCase();
+        path = url.split(/[?#]/)[0].toLowerCase();
     }
+    // The installer serves the same file as `/hacsfiles/<repo>/…` and `/local/community/<repo>/…`
+    // (one redirects to the other), so both spell one resource.
+    return path.replace(/^\/hacsfiles\//, "/local/community/");
 }
 
 /**
@@ -115,8 +138,10 @@ function readResourceTiming(url: string): ResourceTimingLike | undefined {
 
 function observeNewScripts(onScript: (script: ScriptLike) => void): () => void {
     if (typeof MutationObserver === "undefined" || typeof document === "undefined") return () => undefined;
-    const root = document.head ?? document.documentElement;
-    if (!root) return () => undefined;
+    // Home Assistant appends resource scripts to `document.body`; other loaders use `head`. Only the
+    // direct children are watched, so the observer stays cheap on a busy dashboard.
+    const roots = [document.head, document.body].filter((root): root is HTMLElement => !!root);
+    if (roots.length === 0) return () => undefined;
     const observer = new MutationObserver(records => {
         for (const record of records) {
             record.addedNodes.forEach(node => {
@@ -127,7 +152,7 @@ function observeNewScripts(onScript: (script: ScriptLike) => void): () => void {
             });
         }
     });
-    observer.observe(root, { childList: true, subtree: true });
+    roots.forEach(root => observer.observe(root, { childList: true }));
     return () => observer.disconnect();
 }
 
@@ -155,6 +180,7 @@ export async function decideLegacyCardAlias(options: {
     scripts?: () => ArrayLike<ScriptLike>;
     readResourceTiming?: ResourceTimingReader;
     observeScripts?: ScriptObserver;
+    probeResource?: ResourceProbe;
     graceMs?: number;
     settleMs?: number;
 }): Promise<boolean> {
@@ -162,6 +188,7 @@ export async function decideLegacyCardAlias(options: {
     const readScripts = options.scripts ?? (() => document.scripts);
     const readTiming = options.readResourceTiming ?? readResourceTiming;
     const observe = options.observeScripts ?? observeNewScripts;
+    const probe = options.probeResource ?? probeResource;
     const graceMs = options.graceMs ?? UPSTREAM_DEFINE_GRACE_MS;
     const settleMs = options.settleMs ?? UPSTREAM_SCRIPT_SETTLE_MS;
 
@@ -171,6 +198,7 @@ export async function decideLegacyCardAlias(options: {
     const failed = new Set<string>();
     const loaded = new Set<string>();
     const watched = new WeakSet<ScriptLike>();
+    const probed = new Set<string>();
     const startedAt = Date.now();
     let graceDeadline: number | undefined;
     let revision = 0;
@@ -187,13 +215,25 @@ export async function decideLegacyCardAlias(options: {
         if (loaded.has(path)) return "loaded";
         const script = scripts.get(path);
         const timing = script ? readTiming(script.src) : undefined;
-        if (timing === undefined) return "pending";
-        if (typeof timing.responseStatus === "number" && timing.responseStatus >= 400) {
-            failed.add(path);
-            return "failed";
+        if (typeof timing?.responseStatus === "number") {
+            if (timing.responseStatus >= 400) {
+                failed.add(path);
+                return "failed";
+            }
+            loaded.add(path);
+            return "loaded";
         }
-        loaded.add(path);
-        return "loaded";
+        // No status from the browser: ask the server once instead of assuming the script loaded,
+        // which would make a dead resource row cost the whole grace period on every load.
+        if (script && !probed.has(path)) {
+            probed.add(path);
+            void probe(script.src).then(served => {
+                if (served === false) failed.add(path);
+                else loaded.add(path);
+                notify();
+            });
+        }
+        return "pending";
     };
     const changed = (seen: number): Promise<void> => {
         if (revision !== seen) return Promise.resolve();
@@ -363,6 +403,7 @@ export function watchForAliasCollision(
 
 export interface LegacyAliasInstallOptions {
     ownUrl: string;
+    probeResource?: ResourceProbe;
     registry?: CustomElementRegistryLike;
     storage?: StorageLike;
     scripts?: () => ArrayLike<ScriptLike>;
@@ -394,7 +435,18 @@ export async function installLegacyCardAlias(
     if (typeof window === "undefined") return false;
     const registry = options.registry ?? customElements;
     const shouldDefine = await decideLegacyCardAlias({ ...options, registry });
-    if (!shouldDefine) return false;
+    if (!shouldDefine) {
+        // Another bundle owns the upstream name. Remember it, so a later visit after that card is
+        // removed does not copy its stored view and run into this card's keys.
+        if (registry.get(LEGACY_CARD_CUSTOM_ELEMENT_NAME)) {
+            try {
+                (options.storage ?? window.localStorage).setItem(UPSTREAM_SEEN_KEY, "1");
+            } catch {
+                // Blocked storage: nothing to remember, nothing will be migrated either.
+            }
+        }
+        return false;
+    }
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     if (!defineLegacyCardAlias(cardClass, { registry })) return false;
     try {

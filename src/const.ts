@@ -43,6 +43,8 @@ export const ACTIVE_ROOM_RUN_STORE_KEY = "better-xiaomi-vacuum-map-card.active-r
 export const LEGACY_ACTIVE_ROOM_RUN_STORE_KEY = "xiaomi-vacuum-map-card.active-room-run";
 /** Set once the legacy storage keys have been copied, so a deleted fork key is not restored. */
 export const STORAGE_MIGRATED_KEY = "better-xiaomi-vacuum-map-card.storage-migrated";
+/** Set once the upstream card was seen registering its own element: its stored state is not ours. */
+export const UPSTREAM_SEEN_KEY = "better-xiaomi-vacuum-map-card.upstream-seen";
 export const MAP_VIEW_SAVE_DEBOUNCE = 350;
 // The zoom range the card offers: the pinch-zoom element's `min-scale` and the zoom-out floor in
 // `_updateScale` for the lower bound, and the vendored pinch-zoom's `MAX_SCALE` for the upper one.

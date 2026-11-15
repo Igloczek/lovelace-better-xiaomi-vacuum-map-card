@@ -4,6 +4,7 @@ import {
     LEGACY_MAP_VIEW_STORE_KEY,
     MAP_VIEW_STORE_KEY,
     STORAGE_MIGRATED_KEY,
+    UPSTREAM_SEEN_KEY,
 } from "../const";
 
 /** The browser storage the card writes to. */
@@ -35,6 +36,9 @@ export function migrateLegacyStorage(storage: StorageLike, canMigrate: boolean):
     if (!canMigrate) return false;
     try {
         if (storage.getItem(STORAGE_MIGRATED_KEY)) return false;
+        // The upstream card was installed on this browser at some point: the old keys hold its state,
+        // not this fork's, even after it is removed.
+        if (storage.getItem(UPSTREAM_SEEN_KEY)) return false;
         copyIfMissing(storage, LEGACY_MAP_VIEW_STORE_KEY, MAP_VIEW_STORE_KEY);
         copyIfMissing(storage, LEGACY_ACTIVE_ROOM_RUN_STORE_KEY, ACTIVE_ROOM_RUN_STORE_KEY);
         storage.setItem(STORAGE_MIGRATED_KEY, "1");

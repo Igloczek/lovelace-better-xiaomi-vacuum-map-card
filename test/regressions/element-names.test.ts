@@ -14,6 +14,7 @@ import {
     LEGACY_CARD_CUSTOM_ELEMENT_NAME,
     LEGACY_MAP_VIEW_STORE_KEY,
     MAP_VIEW_STORE_KEY,
+    UPSTREAM_SEEN_KEY,
 } from "../../src/const";
 import {
     decideLegacyCardAlias,
@@ -280,6 +281,71 @@ describe("the legacy alias decision", () => {
         expect(Date.now() - started).toBeLessThan(1_000);
     });
 
+    it("asks the server about a candidate when the browser reports no status, instead of waiting", async () => {
+        // Safari, iOS and older Firefox expose no `responseStatus`, and a dead row's `error` event has
+        // usually fired before this bundle runs. Treating it as loaded cost the full grace period on
+        // every load, long enough for Home Assistant to show "Custom element doesn't exist".
+        const dead = makeScript(DEAD_UPSTREAM);
+        const probed: string[] = [];
+        const started = Date.now();
+        const decision = await decideLegacyCardAlias({
+            ownUrl: OWN,
+            registry: fakeRegistry(),
+            scripts: () => [scripts(OWN)[0], dead],
+            readResourceTiming: () => ({}),
+            probeResource: async url => {
+                probed.push(url);
+                return false;
+            },
+            observeScripts: inertObserver,
+            graceMs: 1_000,
+        });
+
+        expect(decision).toBe(true);
+        expect(probed).toEqual([DEAD_UPSTREAM]);
+        expect(Date.now() - started).toBeLessThan(500);
+    });
+
+    it("still gives a served candidate the grace period when the browser reports no status", async () => {
+        const upstream = makeScript(UPSTREAM);
+        const started = Date.now();
+        const decision = await decideLegacyCardAlias({
+            ownUrl: OWN,
+            registry: fakeRegistry(),
+            scripts: () => [scripts(OWN)[0], upstream],
+            readResourceTiming: () => ({}),
+            probeResource: async () => true,
+            observeScripts: inertObserver,
+            graceMs: 200,
+        });
+
+        expect(decision).toBe(true);
+        expect(Date.now() - started).toBeGreaterThanOrEqual(190);
+    });
+
+    it("treats the installer's /hacsfiles/ and /local/community/ URLs of this bundle as itself", () => {
+        const viaHacsfiles =
+            "http://homeassistant.local:8123/hacsfiles/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js";
+        expect(upstreamCandidateScripts(OWN_AT_UPSTREAM_PATH, scripts(viaHacsfiles))).toEqual([]);
+    });
+
+    it("sees a resource script Home Assistant appends to the body", async () => {
+        const added: string[] = [];
+        const stop = watchLateUpstreamScripts({
+            ownUrl: OWN,
+            warn: message => added.push(message),
+            readResourceTiming: () => undefined,
+        });
+        const script = document.createElement("script");
+        script.src = UPSTREAM;
+        document.body.appendChild(script);
+        await delay(0);
+        script.dispatchEvent(new Event("load"));
+        stop();
+        script.remove();
+        expect(added).toHaveLength(1);
+    });
+
     it("leaves the name to a loaded upstream bundle that registers it", async () => {
         const registry = fakeRegistry();
         const upstream = makeScript(UPSTREAM);
@@ -393,6 +459,28 @@ describe("installing the alias", () => {
         setTimeout(() => registry.define(LEGACY_CARD_CUSTOM_ELEMENT_NAME, FakeCard), 5);
 
         await expect(install).resolves.toBe(false);
+        expect(storage.values.has(MAP_VIEW_STORE_KEY)).toBe(false);
+    });
+
+    it("remembers the upstream card, so its stored state is never migrated after it is removed", async () => {
+        const storage = memoryStorage({ [LEGACY_MAP_VIEW_STORE_KEY]: "upstream" });
+        const upstreamOwned = fakeRegistry({ [LEGACY_CARD_CUSTOM_ELEMENT_NAME]: FakeCard });
+        const common = {
+            ownUrl: OWN,
+            storage,
+            observeScripts: inertObserver,
+            warn: () => undefined,
+            collisionTarget: new EventTarget(),
+        };
+        await expect(
+            installLegacyCardAlias(FakeCard, { ...common, registry: upstreamOwned, scripts: () => [] }),
+        ).resolves.toBe(false);
+        expect(storage.getItem(UPSTREAM_SEEN_KEY)).toBe("1");
+
+        // Upstream removed: the fork takes the alias, but the old keys were upstream's.
+        await expect(
+            installLegacyCardAlias(FakeCard, { ...common, registry: fakeRegistry(), scripts: () => [] }),
+        ).resolves.toBe(true);
         expect(storage.values.has(MAP_VIEW_STORE_KEY)).toBe(false);
     });
 
