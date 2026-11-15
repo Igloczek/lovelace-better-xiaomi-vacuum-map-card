@@ -84,9 +84,6 @@ Accepted in the 1.0 line, each with what would fix it:
 - **Renamed entities in tiles.** A device, area or floor rename can leave a tile label stale until
   the card reloads, because the `entityNamesChanged` re-render hook is not carried. Watch the
   registry for name changes and re-render.
-- **Empty YAML keys.** An empty `id:` or `map:` arrives as `null`, so validation throws
-  (`null.toString()`, `null.x`) and the card shows an error instead of a validation message.
-  Normalize empty scalars before validation.
 - **Renamed entities in icons.** The device registry lookup is cached for the page session, so an
   icon changed in the registry appears after a reload. Invalidate the cache on registry updates.
 - **Template-only ROOM modes.** Without colour-detected rooms, a predefined selection can look

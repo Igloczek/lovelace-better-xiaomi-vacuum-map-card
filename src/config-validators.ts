@@ -20,6 +20,7 @@ import {
     XiaomiVacuumMapCardConfig,
 } from "./types/types";
 import { localize } from "./localize/localize";
+import { normalizeConfig } from "./config-normalization";
 import { MAP_VIEW_MAX_SCALE, MAP_VIEW_MIN_SCALE } from "./const";
 import { MapMode } from "./model/map_mode/map-mode";
 import { SelectionType } from "./model/map_mode/selection-type";
@@ -258,9 +259,12 @@ function validateRoomConfig(ps: PredefinedSelectionConfig): TranslatableString[]
     return errors;
 }
 
-function validateServiceCallSchemaConfig(config: ServiceCallSchemaConfig): TranslatableString[] {
+function validateServiceCallSchemaConfig(
+    config: ServiceCallSchemaConfig,
+    field = "service_call_schema",
+): TranslatableString[] {
     if (!isMapping(config)) {
-        return [notMapping("service_call_schema")];
+        return [notMapping(field)];
     }
     if (typeof config.service !== "string" || !config.service) {
         return ["validation.preset.map_modes.service_call_schema.service.missing"];
@@ -369,6 +373,8 @@ function validatePreset(config: CardPresetConfig, nameRequired: boolean, languag
         }
     });
     if (config.map_source != null) validateMapSource(config.map_source).forEach(e => errors.push(e));
+    if (config.activate != null)
+        validateServiceCallSchemaConfig(config.activate, "activate").forEach(e => errors.push(e));
     // An empty `calibration_source:` key is YAML `null`: absent, as upstream treated it.
     if (config.calibration_source !== undefined && config.calibration_source !== null)
         validateCalibrationSource(config.calibration_source as CalibrationSourceConfig).forEach(e => errors.push(e));
@@ -448,6 +454,8 @@ export function validateConfig(config: XiaomiVacuumMapCardConfig): string[] {
     if (!isMapping(config)) {
         return [localize(notMapping("config"))];
     }
+    // An empty YAML key or a cleared editor field counts as absent before any validator reads it.
+    config = normalizeConfig(config);
     const errors: TranslatableString[] = [];
     const additionalPresets: unknown = config.additional_presets;
     const multiplePresets = Array.isArray(additionalPresets) && additionalPresets.length > 0;

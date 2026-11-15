@@ -93,3 +93,71 @@ test("malformed YAML shows Home Assistant's error card with the field", async ({
     expect(shown.text).toContain("map_modes must be a list");
     await shot(page, "config-defaults-error");
 });
+
+test("an empty icons: key renders the card; an empty id: or map: shows the error card naming the field", async ({
+    loggedIn: page,
+}) => {
+    // YAML parses an empty key (`id:`, `map:`) as `null`; that is what Home Assistant hands to
+    // setConfig for the configuration below. The card must treat it as an absent value and report
+    // the field, not crash on `null.toString()` / `null.x`.
+    const shown = await page.evaluate(async calibration => {
+        const hass = (document.querySelector("home-assistant") as any).hass;
+        const entity = Object.keys(hass.states).find(id => id.startsWith("vacuum."));
+        const card = async (config: Record<string, unknown>) => {
+            const element = document.createElement("xiaomi-vacuum-map-card") as any;
+            element.setConfig({
+                type: "custom:xiaomi-vacuum-map-card",
+                entity,
+                map_source: { camera: "camera.vacuum_map" },
+                vacuum_platform: "Xiaomi Miio",
+                ...config,
+            });
+            element.hass = hass;
+            document.body.appendChild(element);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const errorCard = element.shadowRoot?.querySelector("hui-error-card");
+            const rendered = !!element.shadowRoot?.querySelector("ha-card");
+            const text = errorCard
+                ? `${errorCard.shadowRoot?.textContent ?? ""} ${JSON.stringify(errorCard._config ?? {})}`
+                : "";
+            element.remove();
+            return { hasErrorCard: !!errorCard, rendered, text };
+        };
+        return {
+            emptyId: await card({
+                calibration_source: { calibration_points: calibration },
+                map_modes: [
+                    {
+                        name: "Rooms",
+                        icon: "mdi:floor-plan",
+                        selection_type: "ROOM",
+                        service_call_schema: { service: "vacuum.send_command" },
+                        predefined_selections: [{ id: null }],
+                    },
+                ],
+            }),
+            // `icons:` crashed the first render (`null.flatMap`) before empty keys were normalised.
+            emptyIcons: await card({ calibration_source: { calibration_points: calibration }, icons: null }),
+            emptyMap: await card({
+                calibration_source: {
+                    calibration_points: [{ map: null, vacuum: { x: 0, y: 0 } }, ...calibration.slice(1)],
+                },
+                map_modes: [
+                    {
+                        name: "Zones",
+                        icon: "mdi:shape",
+                        selection_type: "MANUAL_RECTANGLE",
+                        service_call_schema: { service: "vacuum.send_command" },
+                    },
+                ],
+            }),
+        };
+    }, CALIBRATION);
+    expect(shown.emptyId.hasErrorCard).toBe(true);
+    expect(shown.emptyId.text).toContain("Missing room id");
+    expect(shown.emptyIcons.hasErrorCard).toBe(false);
+    expect(shown.emptyIcons.rendered).toBe(true);
+    expect(shown.emptyMap.hasErrorCard).toBe(true);
+    expect(shown.emptyMap.text).toContain("Each calibration point must contain map coordinates");
+    await shot(page, "config-defaults-empty-key");
+});

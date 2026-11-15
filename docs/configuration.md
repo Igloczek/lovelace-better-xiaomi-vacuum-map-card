@@ -231,7 +231,10 @@ these values per card.
   A configured `map_modes` list is never changed.
 - **Invalid configuration.** A value of the wrong shape (a scalar where a list belongs, a `null`
   list item, an unknown or numeric `selection_type`) is reported by name in the card instead of
-  breaking it. An empty key (`repeats_type:`) counts as absent and keeps the default.
+  breaking it. An empty key at any level (`repeats_type:`, `icons:`, `id:`, `map:`) counts as
+  absent, exactly like a key that was not written, and a field cleared in the editor is the same; a
+  required field left empty is reported by name. Values inside action `data`, `service_data` and
+  `variables` are sent as written, and an explicit `label: ""` or `icon: ""` still means none.
 
 ## Map source options
 
