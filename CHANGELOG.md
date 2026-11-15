@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.1
+
+### Fixed
+
+- The warning that lists stale room ids wraps instead of cutting off after the first id, so every
+  id reads in a narrow card.
+- A stale room's `!` marker stays visible next to a selected room's pill, never under it or over
+  its name, and stays inside its room at every zoom and rotation. It follows the label font size,
+  in any unit, as soon as the theme changes it.
+
 ## 1.4.0
 
 ### Changed
