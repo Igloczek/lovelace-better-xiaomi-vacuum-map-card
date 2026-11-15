@@ -4,7 +4,7 @@ import { validateConfig } from "../../src/config-validators";
 import { cardStyles, HORIZONTAL_STACK_BREAKPOINT_PX } from "../../src/card/styles";
 import { XiaomiVacuumMapCard } from "../../src/xiaomi-vacuum-map-card";
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
-import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard } from "../harness";
+import { fixtureConfig, fixtureHass, loadSyntheticFixture, mountCard, settle } from "../harness";
 import type { CardHandle } from "../harness";
 
 /**
@@ -212,17 +212,19 @@ describe("getGridOptions", () => {
         const horizontal = XiaomiVacuumMapCard.getGridOptions("horizontal");
 
         expect(vertical).toEqual({ columns: 12 });
-        // Horizontal is a new arrangement: numeric rows are its default, but no max_rows may cap
-        // the user's own height. 9 columns is the "three quarters of a section" minimum.
-        expect(horizontal).toEqual({ columns: 12, rows: 6, min_columns: 9, min_rows: 3 });
+        // Horizontal is a new arrangement: numeric rows are its default. 9 columns is the
+        // "three quarters of a section" minimum.
+        expect(horizontal).toEqual({ columns: 12, rows: 6, min_columns: 9 });
 
         for (const options of [vertical, horizontal]) {
             expect((options.columns as number) % 3).toBe(0);
             expect(options.min_columns ?? 1).toBeLessThanOrEqual(options.columns as number);
         }
-        // HA clamps with these pairs; a table where the default sits outside its own range would
-        // silently open at the clamped size instead.
-        expect(horizontal.min_rows!).toBeLessThanOrEqual(horizontal.rows as number);
+        // The default height sits inside HA's valid range and nothing caps it: a `min_rows` or
+        // `max_rows` here would clamp the user's own `grid_options` after HA's merge.
+        expect(horizontal.min_rows).toBeUndefined();
+        expect(horizontal.max_rows).toBeUndefined();
+        expect(horizontal.rows).toBe(6);
         // Horizontal is the width-hungry arrangement: it must not be resized as narrow as vertical.
         expect(horizontal.min_columns!).toBeGreaterThan(vertical.min_columns ?? 1);
     });
@@ -235,6 +237,49 @@ describe("getGridOptions", () => {
         const horizontal = await mount({ layout: "horizontal" });
         expect(horizontal.element.getGridOptions()).toEqual(XiaomiVacuumMapCard.getGridOptions("horizontal"));
         await horizontal.cleanup();
+    });
+
+    it("never clamps the height a user sets with grid_options", async () => {
+        // Home Assistant's `hui-card.getGridOptions()` is `{...element.getGridOptions(),
+        // ...config.grid_options}`, so a `min_rows`/`max_rows` the card returns survives the merge
+        // and overrides the user's own `rows` (min/max are applied after the merge). The sections
+        // resize handle writes only `rows` and `columns`, so a card-set floor silently stopped the
+        // handle: `rows: 2` rendered as three rows. A per-card size the user picks must win.
+        for (const layout of ["vertical", "horizontal"] as const) {
+            const options = XiaomiVacuumMapCard.getGridOptions(layout);
+            expect(options.min_rows, `${layout} min_rows`).toBeUndefined();
+            expect(options.max_rows, `${layout} max_rows`).toBeUndefined();
+        }
+    });
+});
+
+describe("a sections-view cell taller than the card", () => {
+    it("makes the side-by-side layout a flex column that grows into the cell (the growth itself is proven in the visual suite)", async () => {
+        // hui-card reflects `layout = "grid"` on the element in a sections view. The card then has a
+        // definite cell height; the horizontal layout must use it instead of sitting at the map's
+        // intrinsic height with dead space below, which is what made `grid_options: {rows: N}`
+        // useless above the default.
+        const card = await mount({ layout: "horizontal" });
+        const haCard = card.shadowRoot.querySelector("ha-card") as Element;
+        const layout = card.shadowRoot.querySelector(HORIZONTAL) as Element;
+        expect(getComputedStyle(haCard).display).toBe("flow-root");
+
+        card.element.layout = "grid";
+        await settle(card.element);
+
+        expect(getComputedStyle(haCard).display).toBe("flex");
+        expect(getComputedStyle(haCard).flexDirection).toBe("column");
+        expect(getComputedStyle(layout).flexGrow).toBe("1");
+        await card.cleanup();
+    });
+
+    it("keeps the card's content height outside a sections view", async () => {
+        // Masonry and panel views do not set `layout`, and they size the card to its content. The
+        // horizontal layout must not take a flex share of a height that does not exist.
+        const card = await mount({ layout: "horizontal" });
+        const haCard = card.shadowRoot.querySelector("ha-card") as Element;
+        expect(getComputedStyle(haCard).display).toBe("flow-root");
+        await card.cleanup();
     });
 });
 

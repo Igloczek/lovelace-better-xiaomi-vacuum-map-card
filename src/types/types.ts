@@ -64,8 +64,10 @@ export type CardLayout = "vertical" | "horizontal";
  * a missing `rows` to `"auto"`, so an auto-height cell fits the card's content. The vertical layout
  * omits `rows` and the row clamps, keeping that default (issue #943 is fixed by the card filling
  * the cell it is given, not by requesting a numeric height). Only the horizontal layout asks for a
- * numeric default height; it deliberately has no `max_rows`, so a user's `grid_options` override
- * can make the card as tall as they need.
+ * numeric default height; it deliberately has neither `max_rows` nor `min_rows`, so a user's
+ * `grid_options` override can make the card as tall or as short as they need (HA merges the card's
+ * values with `grid_options` before clamping, so any clamp the card returned would survive the
+ * user's own choice).
  */
 export interface CardGridOptions {
     columns?: number | "full";

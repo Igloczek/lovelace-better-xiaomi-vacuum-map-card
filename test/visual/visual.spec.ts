@@ -910,16 +910,20 @@ test("horizontal layout adapts when the container is resized", async ({ page }) 
     await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
 });
 
-test("a sections-view grid cell makes the card fill its height and scroll", async ({ page }) => {
+test("a sections-view grid cell makes the card fill its height: scroll when short, controls use a taller one", async ({
+    page,
+}) => {
     await page.setViewportSize({ width: 840, height: 900 });
-    await page.evaluate(() => {
-        const root = document.getElementById("card-root");
-        if (!root) return;
-        root.style.width = "800px";
-        // What the sections grid gives a card with numeric rows: a definite height on the cell.
-        root.style.height = "300px";
-        root.style.overflow = "hidden";
-    });
+    const cell = (height: number) =>
+        page.evaluate(cellHeight => {
+            const root = document.getElementById("card-root");
+            if (!root) return;
+            root.style.width = "800px";
+            // What the sections grid gives a card with numeric rows: a definite height on the cell.
+            root.style.height = `${cellHeight}px`;
+            root.style.overflow = "hidden";
+        }, height);
+    await cell(300);
     await mount(page, horizontalConfig());
     // hui-card assigns this property after creating the element, exactly as in the sections view.
     await page.evaluate(() => {
@@ -929,20 +933,35 @@ test("a sections-view grid cell makes the card fill its height and scroll", asyn
     await expect(page.locator(CARD)).toHaveAttribute("layout", "grid");
     await nextLayout(page);
 
-    const metrics = await page.locator(CARD).evaluate(element => {
-        const card = element as HTMLElement;
-        const haCard = card.shadowRoot?.querySelector("ha-card") as HTMLElement;
-        return {
-            hostHeight: card.getBoundingClientRect().height,
-            cardHeight: haCard.clientHeight,
-            scrollHeight: haCard.scrollHeight,
-        };
-    });
-    expect(metrics.hostHeight).toBeCloseTo(300, 0);
-    expect(metrics.cardHeight).toBeCloseTo(300, 0);
+    const metrics = () =>
+        page.locator(CARD).evaluate(element => {
+            const card = element as HTMLElement;
+            const haCard = card.shadowRoot?.querySelector("ha-card") as HTMLElement;
+            const controls = card.shadowRoot?.querySelector(".controls-wrapper") as HTMLElement;
+            return {
+                hostHeight: card.getBoundingClientRect().height,
+                cardHeight: haCard.clientHeight,
+                scrollHeight: haCard.scrollHeight,
+                controlsHeight: controls.clientHeight,
+                controlsScrollHeight: controls.scrollHeight,
+            };
+        });
+
+    const short = await metrics();
+    expect(short.hostHeight).toBeCloseTo(300, 0);
+    expect(short.cardHeight).toBeCloseTo(300, 0);
     // The horizontal content is taller than 300 px at this width, so the card scrolls internally
     // instead of letting content spill into the next grid row.
-    expect(metrics.scrollHeight).toBeGreaterThan(metrics.cardHeight);
+    expect(short.scrollHeight).toBeGreaterThan(short.cardHeight);
+
+    // What the resize handle writes when the user makes the card taller: the extra height must be
+    // used by the controls column (a taller cell no longer sits below the map as dead space).
+    await cell(760);
+    await nextLayout(page);
+    const tall = await metrics();
+    expect(tall.hostHeight).toBeCloseTo(760, 0);
+    expect(tall.controlsHeight).toBeGreaterThan(600);
+    expect(tall.controlsScrollHeight).toBeLessThanOrEqual(tall.controlsHeight + 1);
 });
 
 test("horizontal layout keeps room, mode and tile interactions", async ({ page }) => {

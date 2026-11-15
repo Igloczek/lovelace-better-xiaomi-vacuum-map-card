@@ -325,21 +325,31 @@ export class XiaomiVacuumMapCard extends LitElement {
      * `src/panels/lovelace/common/compute-card-grid-size.ts`; the custom-card docs add that a
      * section is 12 columns and one row is 56 px plus an 8 px gap.
      *
+     * A user's per-card size arrives in the card config's `grid_options` (the sections resize
+     * handle writes it). `hui-card.getGridOptions()` merges the two as
+     * `{...this.getElementGridOptions(), ...this.getConfigGridOptions()}`, so the user's `columns`
+     * and `rows` replace these values. The element's `min_*`/`max_*` survive that merge and are
+     * applied to the merged result, which is why this table deliberately returns no `min_rows` or
+     * `max_rows`: either would silently clamp the height the user picked with the resize handle
+     * (`min_rows: 3` turned `rows: 2` into a three-row cell). `min_columns: 9` is the one floor the
+     * card asks for, because the controls column is a fixed 180–360 px; a user who widens it in
+     * `grid_options` overrides that too.
+     *
      * Vertical keeps Home Assistant's default grid size: `columns: 12` and `rows: "auto"`, which
      * sizes the cell to the card's content. That must stay the default because a numeric `rows`
      * replaces the content-sized cell with a fixed one, so a tall vertical card would scroll inside
-     * its cell even though it used to fit; a `max_rows` would additionally cap a user's own
-     * `grid_options: {rows: N}` override, because HA merges the element and config options before
-     * clamping. Issue #943 (the card not following the cell height) is fixed by the
-     * `:host([layout="grid"])` rules below, for an auto or numeric cell alike.
+     * its cell even though it used to fit. Issue #943 (the card not following the cell height) is
+     * fixed by the `:host([layout="grid"])` rules below, for an auto or numeric cell alike.
      *
-     * Horizontal is a new arrangement, so it can ask for a numeric default height. `min_columns: 9`
-     * keeps at least three quarters of a section: at the permissive half-width minimum (~250 px in
-     * a 500 px section) the 180 px controls column would leave the map about 66 px. Below a 400 px
-     * card the arrangement stacks instead (`HORIZONTAL_STACK_BREAKPOINT_PX` in
+     * Horizontal asks for a numeric default height because the controls beside the map do not set
+     * the card's content height: with `rows: "auto"` a wide map would leave the controls a one-row
+     * scroller. Six rows is a starting point, not a limit — a taller cell is filled by the layout
+     * (the controls column uses the extra height), and the user can resize it to any row count.
+     * `min_columns: 9` keeps at least three quarters of a section: at the permissive half-width
+     * minimum (~250 px in a 500 px section) the 180 px controls column would leave the map about
+     * 66 px. Below a 400 px card the arrangement stacks instead (`HORIZONTAL_STACK_BREAKPOINT_PX` in
      * `src/card/styles.ts`), so a narrower cell is usable; `min_columns` is the default the card
-     * asks for, not a limit on what a user's `grid_options` can ask for. There is no `max_rows`, so
-     * a user can size the card as tall as they like.
+     * asks for, not a limit on what a user's `grid_options` can ask for.
      *
      * HA invokes this as an instance method (`hui-card.getElementGridOptions` calls
      * `this._element.getGridOptions()`), so the instance method below delegates here with the
@@ -352,7 +362,6 @@ export class XiaomiVacuumMapCard extends LitElement {
                 columns: 12,
                 rows: 6,
                 min_columns: 9,
-                min_rows: 3,
             };
         }
         // `rows` is omitted deliberately: HA fills it with its default `"auto"` (fit content).

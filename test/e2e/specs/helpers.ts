@@ -147,13 +147,18 @@ export async function bumpCamera(page: Page): Promise<void> {
 }
 
 export async function resetCamera(page: Page): Promise<void> {
+    await setCameraImage(page, "/config/map_fixture.png");
+}
+
+/** Points the fixture camera at another PNG (a path inside the container, e.g. `/artifacts/x.png`). */
+export async function setCameraImage(page: Page, containerPath: string): Promise<void> {
     const token = await freshAccessToken();
     const response = await page.request.post("/api/services/map_fixture/set_image", {
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        data: { path: "/config/map_fixture.png" },
+        data: { path: containerPath },
     });
     // A failed reset left the camera re-mapped and the next spec waited 90 s for rooms it never got.
-    if (!response.ok()) throw new Error(`camera reset failed: ${response.status()}`);
+    if (!response.ok()) throw new Error(`camera image change failed: ${response.status()}`);
 }
 
 /** Saves a screenshot into the committed-or-linked artifacts directory. */
