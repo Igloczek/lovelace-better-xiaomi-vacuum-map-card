@@ -20,7 +20,7 @@ import type { RoomConfig, XiaomiVacuumMapCardConfig } from "../../src/types/type
  * These are geometry assertions, so they run on any machine; baselines live in `__screenshots__/`.
  */
 
-const CARD = "xiaomi-vacuum-map-card";
+const CARD = "better-xiaomi-vacuum-map-card";
 
 const ZOOMS = [0.5, 1, 2.5, 4];
 const ROTATIONS = [0, 90, 180, 270];
@@ -48,7 +48,7 @@ interface VisualWindow {
 
 function cardConfig(overrides: Partial<XiaomiVacuumMapCardConfig> = {}): XiaomiVacuumMapCardConfig {
     return {
-        type: "custom:xiaomi-vacuum-map-card",
+        type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.roborock_s7",
         map_source: { camera: "camera.vacuum_map" },
         calibration_source: { camera: true },
@@ -152,7 +152,7 @@ async function mount(page: Page, config: XiaomiVacuumMapCardConfig): Promise<voi
  */
 async function setLabelFont(page: Page, value: string): Promise<void> {
     await page.evaluate(async font => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
         card.style.setProperty("--map-card-room-label-font-size", font);
         for (let frame = 0; frame < 2; frame++) {
             await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
@@ -162,7 +162,7 @@ async function setLabelFont(page: Page, value: string): Promise<void> {
 
 async function setRotation(page: Page, degrees: number): Promise<void> {
     await page.evaluate(async rotation => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement & {
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement & {
             mapRotation: number;
             updateComplete: Promise<unknown>;
         };
@@ -398,7 +398,7 @@ test.describe("stale-room marker", () => {
         await setLabelFont(page, "12px");
         const before = await measure(page);
         const renders = await page.evaluate(async () => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement & {
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement & {
                 requestUpdate: (...args: unknown[]) => unknown;
             };
             const original = card.requestUpdate.bind(card);
