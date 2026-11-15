@@ -17,6 +17,8 @@ import type { XiaomiVacuumMapCardConfig } from "./types/types";
 
 /** Mappings whose entries are data for Home Assistant, not fields of the card's configuration. */
 const DATA_MAPPINGS = new Set([
+    // Home Assistant's `perform-action` / this card's `fire-dom-event` payload: `value: ""` is data.
+    "data",
     "variables",
     "internal_variables",
     "service_data",
@@ -30,8 +32,14 @@ function isMapping(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isEmptyScalar(value: unknown): boolean {
-    return value === null || value === "";
+/**
+ * Keys where an explicit `""` is a choice, not a cleared field: `label: ""` renders a tile with no
+ * label and `icon: ""` suppresses the fallback icon, as they did before normalisation existed.
+ */
+const EMPTY_STRING_MEANS_NONE = new Set(["label", "icon"]);
+
+function isEmptyScalar(key: string, value: unknown): boolean {
+    return value === null || (value === "" && !EMPTY_STRING_MEANS_NONE.has(key));
 }
 
 function normalizeValue(value: unknown): unknown {
@@ -50,7 +58,7 @@ function normalizeValue(value: unknown): unknown {
     let changed = false;
     const normalized: Record<string, unknown> = {};
     for (const [key, entry] of Object.entries(value)) {
-        if (isEmptyScalar(entry)) {
+        if (isEmptyScalar(key, entry)) {
             changed = true;
             continue;
         }

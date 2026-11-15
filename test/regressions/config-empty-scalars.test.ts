@@ -302,6 +302,28 @@ describe("normalising a configuration", () => {
         expect(frozen.icons).toBeNull();
     });
 
+    it("keeps an empty value inside a perform-action or fire-dom-event data payload", () => {
+        const action = {
+            action: "perform-action",
+            perform_action: "input_text.set_value",
+            data: { entity_id: "input_text.x", value: "", extra: null },
+        };
+        const normalized = normalizeConfig(config({ tiles: [{ entity: "sensor.x", tap_action: action }] }));
+        expect((normalized.tiles?.[0] as unknown as { tap_action: unknown }).tap_action).toEqual(action);
+    });
+
+    it("keeps an explicit empty label or icon: it means none, as before", () => {
+        const tile = { entity: "sensor.x", label: "", icon: "" };
+        const normalized = normalizeConfig(config({ tiles: [tile] }));
+        expect(normalized.tiles?.[0]).toEqual(tile);
+    });
+
+    it("names activate when it is not a mapping", () => {
+        expect(validateConfig(config({ activate: "vacuum.start" }))).toEqual(
+            expect.arrayContaining([expect.stringContaining("activate must be a mapping")]),
+        );
+    });
+
     it("keeps a list item that is empty: a null entry is a broken entry, not an empty key", () => {
         // `map_modes:\n  -` is not an empty key; the validation reports the broken entry.
         expect(validateConfig(config({ map_modes: [null] }))).toEqual(["Error in configuration: map_modes"]);
@@ -314,14 +336,20 @@ describe("the card renders instead of throwing", () => {
     const onError = (event: ErrorEvent): void => {
         uncaught.push(event.error);
     };
+    // A render crash in Lit's async update surfaces as an unhandled rejection, not a window error.
+    const onRejection = (reason: unknown): void => {
+        uncaught.push(reason);
+    };
     let consoleError: ReturnType<typeof vi.spyOn>;
     beforeEach(() => {
         uncaught = [];
         window.addEventListener("error", onError);
+        process.on("unhandledRejection", onRejection);
         consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     });
     afterEach(() => {
         window.removeEventListener("error", onError);
+        process.off("unhandledRejection", onRejection);
         consoleError.mockRestore();
     });
 
@@ -340,7 +368,11 @@ describe("the card renders instead of throwing", () => {
         const hass = fixtureHass(loadSyntheticFixture());
         const card = await mountCard(config(patch), hass);
         await card.updateHass(hass);
-        expect(card.shadowRoot.querySelector("hui-card, ha-card")).not.toBeNull();
+        await card.element.updateComplete;
+        // Let a rejected update reach the unhandledRejection handler before asserting.
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(card.shadowRoot.querySelector("ha-card")).not.toBeNull();
+        expect(card.shadowRoot.querySelector("hui-error-card, hui-warning")).toBeNull();
         expect(uncaught).toEqual([]);
         expect(consoleError.mock.calls.filter(args => args.some(a => a instanceof TypeError))).toEqual([]);
         await card.cleanup();

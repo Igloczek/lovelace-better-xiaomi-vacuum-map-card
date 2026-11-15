@@ -94,7 +94,9 @@ test("malformed YAML shows Home Assistant's error card with the field", async ({
     await shot(page, "config-defaults-error");
 });
 
-test("an empty id: or map: YAML key shows the error card naming the field", async ({ loggedIn: page }) => {
+test("an empty icons: key renders the card; an empty id: or map: shows the error card naming the field", async ({
+    loggedIn: page,
+}) => {
     // YAML parses an empty key (`id:`, `map:`) as `null`; that is what Home Assistant hands to
     // setConfig for the configuration below. The card must treat it as an absent value and report
     // the field, not crash on `null.toString()` / `null.x`.
@@ -114,11 +116,12 @@ test("an empty id: or map: YAML key shows the error card naming the field", asyn
             document.body.appendChild(element);
             await new Promise(resolve => setTimeout(resolve, 500));
             const errorCard = element.shadowRoot?.querySelector("hui-error-card");
+            const rendered = !!element.shadowRoot?.querySelector("ha-card");
             const text = errorCard
                 ? `${errorCard.shadowRoot?.textContent ?? ""} ${JSON.stringify(errorCard._config ?? {})}`
                 : "";
             element.remove();
-            return { hasErrorCard: !!errorCard, text };
+            return { hasErrorCard: !!errorCard, rendered, text };
         };
         return {
             emptyId: await card({
@@ -133,6 +136,8 @@ test("an empty id: or map: YAML key shows the error card naming the field", asyn
                     },
                 ],
             }),
+            // `icons:` crashed the first render (`null.flatMap`) before empty keys were normalised.
+            emptyIcons: await card({ calibration_source: { calibration_points: calibration }, icons: null }),
             emptyMap: await card({
                 calibration_source: {
                     calibration_points: [{ map: null, vacuum: { x: 0, y: 0 } }, ...calibration.slice(1)],
@@ -150,6 +155,8 @@ test("an empty id: or map: YAML key shows the error card naming the field", asyn
     }, CALIBRATION);
     expect(shown.emptyId.hasErrorCard).toBe(true);
     expect(shown.emptyId.text).toContain("Missing room id");
+    expect(shown.emptyIcons.hasErrorCard).toBe(false);
+    expect(shown.emptyIcons.rendered).toBe(true);
     expect(shown.emptyMap.hasErrorCard).toBe(true);
     expect(shown.emptyMap.text).toContain("Each calibration point must contain map coordinates");
     await shot(page, "config-defaults-empty-key");
