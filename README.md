@@ -76,7 +76,8 @@ Same card type, same YAML: [switching takes a minute](#coming-from-xiaomi-vacuum
 - **Mistakes don't break the card.** An incomplete room or zone shows a clear message instead of a
   blank card.
 - **Rooms stay correct after a re-map.** Rooms that no longer exist are marked and left out of
-  cleaning, so an old selection never sends the robot to the wrong place.
+  cleaning, so an old selection never sends the robot to the wrong place. A selection that would
+  reach the vacuum with no room ids at all is reported and refused, not sent.
 - **Styling** through CSS variables, and translations in 28 languages.
 
 ## What you need

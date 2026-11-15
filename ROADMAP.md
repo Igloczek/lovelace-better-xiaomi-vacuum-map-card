@@ -84,9 +84,6 @@ Accepted in the 1.0 line, each with what would fix it:
   registry for name changes and re-render.
 - **Renamed entities in icons.** The device registry lookup is cached for the page session, so an
   icon changed in the registry appears after a reload. Invalidate the cache on registry updates.
-- **Template-only ROOM modes.** Without colour-detected rooms, a predefined selection can look
-  selected while the template sends nothing, and the warning only covers stale configured ids.
-  Report an empty selection.
 
 ## Open questions and risks
 

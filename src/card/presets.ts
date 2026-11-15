@@ -8,10 +8,11 @@ import { PlatformGenerator } from "../model/generators/platform-generator";
 import { CoordinatesConverter } from "../model/map_objects/coordinates-converter";
 import { ServiceCallSchema } from "../model/map_mode/service-call-schema";
 import { isCameraRoomsKnown } from "../model/source-availability";
+import { SelectionType } from "../model/map_mode/selection-type";
 import type { XiaomiVacuumMapCard } from "../xiaomi-vacuum-map-card";
 import { getConfiguredRotation } from "./map-view";
 import { selectionChanged } from "./selection";
-import { captureCurrentSelection, setCurrentMode } from "./selection";
+import { captureCurrentSelection, clearPresetSelection, clearRoomSelection, setCurrentMode } from "./selection";
 import { callServiceReported } from "./run";
 
 export function getCalibration(card: XiaomiVacuumMapCard, config: CardPresetConfig): CalibrationPoint[] | undefined {
@@ -111,7 +112,9 @@ export function setPresetIndex(card: XiaomiVacuumMapCard, index: number, user = 
     const keptModeIndex = card.selectedMode;
     // Another preset, or a config re-set that changes this preset's camera, may use a camera that
     // never reports rooms; whether it has room metadata is learnt afresh.
-    if (index !== card.presetIndex || config?.map_source?.camera !== card.currentPreset?.map_source?.camera) {
+    const cameraChanged =
+        index !== card.presetIndex || config?.map_source?.camera !== card.currentPreset?.map_source?.camera;
+    if (cameraChanged) {
         card.roomMetadataSeen = false;
     }
     // A reset waiting for a layout box was asked for on the preset we are leaving; applied after the
@@ -140,15 +143,42 @@ export function setPresetIndex(card: XiaomiVacuumMapCard, index: number, user = 
     const keepMode = keptType !== undefined && card.modes[keptModeIndex]?.selectionType === keptType;
     const modeIndex = keepMode ? keptModeIndex : 0;
     card.selectedMode = modeIndex;
+    // A rebuilt ROOM selection cannot cross to another camera: ids of a re-mapped or different floor
+    // mean other rooms. Keep it only when the preset and its camera stayed the same.
+    const roomSelectionFromAnotherCamera =
+        cameraChanged && card._getCurrentMode()?.selectionType === SelectionType.ROOM;
+    const keepCurrentSelection = keepMode && !roomSelectionFromAnotherCamera;
+    // The selectable objects still describe the preset being left until the icons and tiles have
+    // loaded and the rebuild below runs, and Lit renders once in between. Drop them now: the render
+    // already shows the new preset, and reading its camera against the old preset's rooms drew every
+    // room stale and warned that a run would send nothing, on a map they do not belong to.
+    if (!keepMode) {
+        clearPresetSelection(card);
+    } else if (!keepCurrentSelection) {
+        clearRoomSelection(card);
+    }
+    if (!keepCurrentSelection) card.requestUpdate();
 
     card.presetIndex = index;
     card.currentPreset = config;
     card.internalVariables = getInternalVariables(config);
 
-    card._getIconsAndTiles(config, card.internalVariables)
+    void card
+        ._getIconsAndTiles(config, card.internalVariables)
         .then(([icons, tiles]) => setPreset(card, { ...config, tiles: tiles, icons: icons }))
         .then(() => card._scheduleDelayedCallback(() => card.requestUpdate(), 100))
+        // The rebuild must run even when a generator fails, or the card stays on the objects of the
+        // preset it left (and a mode that was never set up) until an unrelated update.
+        .catch(error => {
+            console.error("Could not generate the preset's icons and tiles", error);
+            // The generated icons and tiles (and with them the run controls) are missing until the
+            // next registry update; say so instead of showing a card with silently fewer controls.
+            card._showToast("popups.generation_failed", "mdi:alert", false);
+            setPreset(card, config);
+        })
         // The selection is read only now: a tap made while the icons and tiles loaded counts too.
+        // After a camera change the rooms (and a held room selection) were dropped above, so this is
+        // an empty ROOM snapshot: the rooms start fresh while a manual shape drawn earlier survives.
         .then(() => setCurrentMode(card, modeIndex, false, keepMode ? captureCurrentSelection(card) : undefined));
 
     if (user && card.currentPreset.activate_on_switch) {

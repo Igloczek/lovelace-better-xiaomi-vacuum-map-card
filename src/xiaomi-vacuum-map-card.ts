@@ -106,8 +106,15 @@ import {
     showInvalidEntities,
     showOldConfig,
     showToast,
+    showUnsendableRoomsWarning,
 } from "./card/render";
-import { detectRoomColors, getStaleRoomIds, handleRoomColorClick, refreshRoomsAfterColorDetection } from "./card/rooms";
+import {
+    detectRoomColors,
+    getStaleRoomIds,
+    getUnsendableRoomIds,
+    handleRoomColorClick,
+    refreshRoomsAfterColorDetection,
+} from "./card/rooms";
 import { handleServiceCallGet } from "./card/run";
 import {
     createContext,
@@ -197,6 +204,12 @@ export class XiaomiVacuumMapCard extends LitElement {
     selectedPredefinedPoints: PredefinedPoint[] = [];
     selectablePredefinedRectangles: PredefinedMultiRectangle[] = [];
     selectableRooms: Room[] = [];
+    /**
+     * Selected rooms the camera no longer reports, kept outside `selectableRooms` so the selection
+     * machinery neither restores nor sends them. They are drawn stale and named by the warning that
+     * explains why a run would send an empty room list (see `getUnsendableRoomIds`).
+     */
+    unavailableRooms: Room[] = [];
     selectablePredefinedPoints: PredefinedPoint[] = [];
     coordinatesConverter?: CoordinatesConverter;
     entitiesToManuallyUpdate: string[] = [];
@@ -536,6 +549,9 @@ export class XiaomiVacuumMapCard extends LitElement {
         updateRoomPillPalette(this);
         const mapControls = validCalibration ? createMapControls(this) : [];
         const staleRoomIds = getStaleRoomIds(this, this._getCurrentMode());
+        // A ROOM selection that would reach the service call as an empty room list: the selected
+        // rooms are not on the camera map any more (see `getUnsendableRoomIds`).
+        const unsendableRoomIds = getUnsendableRoomIds(this, this._getCurrentMode());
 
         const mapZoomerContent = html`
             <div
@@ -649,6 +665,7 @@ export class XiaomiVacuumMapCard extends LitElement {
                     </hui-warning>
                 `,
             )}
+            ${conditional(unsendableRoomIds.length > 0, () => showUnsendableRoomsWarning(this, unsendableRoomIds))}
         `;
         const hasControls =
             modes.length > 1 || mapControls.length > 0 || (icons?.length ?? 0) !== 0 || (tiles?.length ?? 0) !== 0;

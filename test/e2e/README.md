@@ -21,6 +21,7 @@ suite passes against the release candidate; screenshots are written to the gitig
 | `selection-lifecycle.spec.ts` | Two rooms are tapped in a non-id order; turning the third room's `state_entity` (`input_boolean.e2e_clean_living_room`) on adds it at the end, a camera bump keeps the order, and turning the boolean off removes only that room, with the badges renumbered to match. |
 | `service-call-contract.spec.ts` | Every platform template × map mode × string/number room id is built with the card's `MapMode` in Node and checked against the integration's service schema (`test/contract/service-contracts.ts`); modes with `evaluate_data_as_template` are rendered by this Home Assistant's `render_template`, the setup platforms' `persistent_notification.create` and every `vacuum.send_command` template are called for real (on the demo vacuum), and a template error rejects instead of hanging. |
 | `stale-rooms.spec.ts` | The fixture renumbers its segments while keeping the geometry: the card marks the configured rooms stale, warns with their ids, refuses to select them, and still selects the new live id. |
+| `empty-room-selection.spec.ts` | In a template-only ROOM mode the selected room's id leaves the camera metadata: the room is kept on the map as stale, a warning names it, and the run button sends nothing to the fake vacuum (no command at all, not even an empty one) while showing the refusal toast; a live id of the new metadata selects again and the kept room's stale marker goes with the warning. |
 | `run-lifecycle.spec.ts` | Against a fake vacuum that reports late, plans its own route, ignores a command while heading home, docks, fails a call and goes unavailable: the run is on the map from Start, the play icon is hidden while the start is pending, rooms lock only once the start is reported, the run ends when the vacuum docks, a failed call gives the selection back, `unavailable` keeps the run without locking, a stale `returning` is not taken as the start, a second tab shows the run, a run is neither shown nor locking on a second preset's map with the same room ids (`e2e-run-floors`), and the card does not number rooms for a vacuum that ignores the order. |
 | `room-pill.spec.ts` | In Home Assistant's default theme, light and dark (the browser's colour scheme), a selected room's label is a pill with its number and name, the name and the badge glyph reach 4.5:1 against the colours the theme supplies, and an unselected room keeps its plain label. Screenshots `17-room-pill-light.png` and `17-room-pill-dark.png`. |
 
@@ -74,7 +75,9 @@ the way real ones misbehave: it reports each change `lag` seconds late (a pollin
 as xiaomi_miot lags ~30 s), cleans a multi-room `app_segment_clean` in its own order (recorded in
 `cleaned_rooms`), ignores a command while returning, docks after a job, and can fail the next call
 or go unavailable. Every `poll_seconds` (2 s) it rewrites its state with a new `polled` attribute
-and the same activity, as a polling integration does. `map_fixture.vacuum_configure` sets `lag`,
+and the same activity, as a polling integration does, and its `commands` attribute lists every room
+command it received, so a spec can tell "sent nothing" from "sent an empty room list".
+`map_fixture.vacuum_configure` sets `lag`,
 `room_seconds`, `return_seconds`, `poll_seconds`, `fail_next` and `available`; `map_fixture.vacuum_reset` puts it into an activity at once.
 
 `connect-github.cjs` writes the token into the ignored Home Assistant state file

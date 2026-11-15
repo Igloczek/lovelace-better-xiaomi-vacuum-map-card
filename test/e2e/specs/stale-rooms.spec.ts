@@ -115,7 +115,15 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
             .toEqual(["7"]);
     } finally {
         // Always restore the fixture: a failure above must not renumber the camera for later specs.
+        // The room selected above came from the re-mapped metadata, so the reset takes its id away
+        // again and the card keeps it on the map as a stale warning (see `empty-room-selection.spec`):
+        // the original ids are what proves the fixture is back.
         await serviceCall("map_fixture", "set_rooms", { mode: "reset" });
-        await expect.poll(async () => (await rooms()).stale, { timeout: 15_000 }).toBe(0);
+        await expect
+            .poll(async () => (await rooms()).ids, { timeout: 15_000 })
+            .toEqual(expect.arrayContaining(["0", "1", "2"]));
+        // The configured ids are live again, so the stale configured-id warning is gone. The
+        // selected room 7 is the one the reset removed, and it stays as its own warning.
+        expect((await rooms()).warning).toBe("");
     }
 });

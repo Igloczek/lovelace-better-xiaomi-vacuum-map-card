@@ -81,6 +81,10 @@ class FakeVacuum(StateVacuumEntity):
         self._polled = 0
         self.poll_seconds = 2.0
         self._poll_unsub: Any = None
+        # Every room command the robot received, including an empty one: a spec can then tell "the
+        # card sent nothing" from "the card sent an empty room list", which look identical in
+        # `job_rooms` because a robot handed no rooms starts and stops at once.
+        self._commands: list[list[str]] = []
 
     async def async_added_to_hass(self) -> None:
         self._start_polling()
@@ -122,6 +126,7 @@ class FakeVacuum(StateVacuumEntity):
         """Put robot and reported state into `activity` at once, for a clean test start."""
         self._cancel_job()
         self._job, self._cleaned, self._current_room = [], [], None
+        self._commands = []
         self._true_activity = VacuumActivity(activity)
         self._reported = self._snapshot()
         self._available = True
@@ -140,6 +145,7 @@ class FakeVacuum(StateVacuumEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         attributes = {key: value for key, value in self._reported.items() if key != "activity"}
         attributes["polled"] = self._polled
+        attributes["commands"] = [list(command) for command in self._commands]
         return attributes
 
     def _snapshot(self) -> dict[str, Any]:
@@ -220,6 +226,7 @@ class FakeVacuum(StateVacuumEntity):
             _LOGGER.info("fake vacuum ignores %s while returning", command)
             return
         rooms = params if isinstance(params, list) else [params]
+        self._commands.append([str(room) for room in rooms])
         self._start_job([str(room) for room in rooms if str(room) in FIXTURE_ROOMS])
 
     async def async_start(self) -> None:

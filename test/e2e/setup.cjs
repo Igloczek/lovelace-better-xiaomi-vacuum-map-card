@@ -279,6 +279,32 @@ function runCard() {
 }
 
 /**
+ * A template-only ROOM mode: no `predefined_selections`, so every room and its id comes from the
+ * camera metadata. The selected room has no configured id for the stale-id audit, which is the
+ * empty-selection case `empty-room-selection.spec.ts` covers.
+ */
+function metadataRoomsCard() {
+    return {
+        ...card({ entity: "vacuum.fake_vacuum" }),
+        map_modes: [
+            {
+                name: "Rooms",
+                icon: "mdi:floor-plan",
+                selection_type: "ROOM",
+                service_call_schema: {
+                    service: "vacuum.send_command",
+                    service_data: {
+                        entity_id: "[[entity_id]]",
+                        command: "app_segment_clean",
+                        params: "[[selection]]",
+                    },
+                },
+            },
+        ],
+    };
+}
+
+/**
  * The run card with a second preset for the same vacuum on another map, as a card with one preset
  * per floor has. The second map is the fixture image by URL, with the same room ids: multi-floor
  * Xiaomi, Roborock and Dreame vacuums number every map's segments the same way.
@@ -350,6 +376,15 @@ async function main() {
             config: {
                 title: "E2E stale rooms",
                 views: [{ title: "Rooms", path: "rooms", cards: [card()] }],
+            },
+        },
+        {
+            // empty-room-selection.spec.ts: a selection that would send no room ids.
+            url_path: "e2e-empty-rooms",
+            title: "E2E empty room selection",
+            config: {
+                title: "E2E empty room selection",
+                views: [{ title: "Rooms", path: "rooms", cards: [metadataRoomsCard()] }],
             },
         },
         {

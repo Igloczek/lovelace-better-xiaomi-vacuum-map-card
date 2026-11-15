@@ -43,6 +43,12 @@ export class Context {
         public readonly showRoomOrder: () => boolean = () => true,
         /** Colours of the selected-room pill, resolved from the theme with readable contrast. */
         public readonly roomPillPalette: () => RoomPillPalette = () => DEFAULT_ROOM_PILL_PALETTE,
+        /**
+         * True when the live camera metadata lists the room id. A room whose id is gone cannot be
+         * cleaned, so it is drawn as stale even before the card rebuilds its rooms. Without room
+         * metadata everything is available: the configured rooms are the documented fallback.
+         */
+        public readonly roomAvailable: (_: string) => boolean = () => true,
     ) {}
 
     public roundMap([x, y]: PointArrayNotation): PointArrayNotation {

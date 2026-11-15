@@ -133,6 +133,21 @@ export function showInvalidCalibrationWarning(card: XiaomiVacuumMapCard): Templa
     return html` <hui-warning>${card._localize("validation.invalid_calibration")}</hui-warning> `;
 }
 
+/**
+ * A ROOM selection that would send an empty room list: the selected rooms are no longer on the
+ * camera map, so the run button would call the service with nothing to clean. The rooms are drawn
+ * stale (see `Room`), and this warning says why the run is refused. The stale configured-id warning
+ * (`validation.stale_rooms`) keeps its place; this one covers rooms picked from the metadata, which
+ * have no configured id to audit.
+ */
+export function showUnsendableRoomsWarning(card: XiaomiVacuumMapCard, roomIds: string[]): TemplateResult {
+    return html`
+        <hui-warning class="room-selection-warning">
+            ${card._localize(["validation.rooms_unavailable", "{0}", roomIds.join(", ")] as [string, string, string])}
+        </hui-warning>
+    `;
+}
+
 export function showToast(
     card: XiaomiVacuumMapCard,
     text: string,
