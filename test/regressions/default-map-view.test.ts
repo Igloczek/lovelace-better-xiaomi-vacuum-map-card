@@ -96,14 +96,55 @@ function configuredViewState(scale: number, x: number, y: number, rotation: numb
     return { mapScale: scale, mapX: offsets.x, mapY: offsets.y, mapRotation: rotation };
 }
 
-function giveMapLayout(card: CardHandle): void {
+/** The viewport and content boxes a rendered card has; zero is what a hidden container reports. */
+interface MapLayout {
+    viewportWidth: number;
+    viewportHeight: number;
+    contentWidth: number;
+    contentHeight: number;
+}
+
+const VISIBLE_LAYOUT: MapLayout = {
+    viewportWidth: VIEWPORT_WIDTH,
+    viewportHeight: VIEWPORT_HEIGHT,
+    contentWidth: CONTENT_WIDTH,
+    contentHeight: CONTENT_HEIGHT,
+};
+
+const HIDDEN_LAYOUT: MapLayout = { viewportWidth: 0, viewportHeight: 0, contentWidth: 0, contentHeight: 0 };
+
+function giveMapLayout(card: CardHandle, layout: MapLayout = VISIBLE_LAYOUT): void {
     const zoomer = card.shadowRoot.getElementById("map-zoomer") as HTMLElement;
     const content = card.shadowRoot.getElementById("map-zoomer-content") as HTMLElement;
-    vi.spyOn(zoomer, "getBoundingClientRect").mockReturnValue(rect(VIEWPORT_WIDTH, VIEWPORT_HEIGHT));
-    vi.spyOn(content, "getBoundingClientRect").mockReturnValue(rect(CONTENT_WIDTH, CONTENT_HEIGHT));
+    vi.spyOn(zoomer, "getBoundingClientRect").mockReturnValue(rect(layout.viewportWidth, layout.viewportHeight));
+    vi.spyOn(content, "getBoundingClientRect").mockReturnValue(rect(layout.contentWidth, layout.contentHeight));
     // The centring maths reads the untransformed layout box, which happy-dom reports as 0.
-    vi.spyOn(content, "offsetWidth", "get").mockReturnValue(CONTENT_WIDTH);
-    vi.spyOn(content, "offsetHeight", "get").mockReturnValue(CONTENT_HEIGHT);
+    vi.spyOn(content, "offsetWidth", "get").mockReturnValue(layout.contentWidth);
+    vi.spyOn(content, "offsetHeight", "get").mockReturnValue(layout.contentHeight);
+}
+
+/**
+ * Stands in for the browser's `ResizeObserver` so a test can deliver the callback the card
+ * registered, the way the element gaining a layout box does. The harness stub only records calls.
+ */
+function captureResizeObserver(): { fire: () => void; restore: () => void } {
+    const original = globalThis.ResizeObserver;
+    let callback: ResizeObserverCallback | undefined;
+    class CapturingResizeObserver {
+        public constructor(notification: ResizeObserverCallback) {
+            callback = notification;
+        }
+        public observe(): void {}
+        public unobserve(): void {}
+        public disconnect(): void {}
+    }
+    globalThis.ResizeObserver = CapturingResizeObserver as unknown as typeof ResizeObserver;
+    return {
+        fire: () => callback?.([], {} as ResizeObserver),
+        restore: () => {
+            globalThis.ResizeObserver = original;
+        },
+    };
 }
 
 function pinchZoom(card: CardHandle): HTMLElement & {
@@ -128,6 +169,12 @@ function viewState(card: CardHandle): MapViewState {
         mapY: state.mapY,
         mapRotation: state.mapRotation,
     };
+}
+
+/** Whether a reset is waiting for the map to get a layout box. */
+function deferredReset(card: CardHandle): boolean {
+    const state = card.element as unknown as { pendingMapViewReset?: boolean };
+    return state.pendingMapViewReset === true;
 }
 
 /** What the card renders for the rotation, which must follow the applied view, not only its field. */
@@ -235,6 +282,56 @@ describe("configured default map view in the card", () => {
             ...centredOffsets(2.5, 24, -18),
             rotation: 90,
         });
+    });
+
+    it("defers a reset fired while the map has no layout size until the map is laid out", async () => {
+        const observer = captureResizeObserver();
+        try {
+            const { card, clock, config } = await mountWithView();
+            await panAndZoom(card, 2, 10, 20);
+            await clock.advance(400);
+            expect(storedView().view).toMatchObject({ scale: 2, x: 10, y: 20 });
+
+            // A hidden dashboard tab or a closed container: the card is still attached, so the
+            // dashboard action reaches it, but its map has no layout box.
+            giveMapLayout(card, HIDDEN_LAYOUT);
+            await fireMapViewReset(card);
+            await clock.advance(400);
+
+            // The configured view cannot be centred against a zero-size layout; applying what it
+            // resolves to would pin the content's top-left corner in the viewport, and storing it
+            // would keep that wrong view on the next load. Neither may happen.
+            expect(viewState(card)).toEqual({ mapScale: 2, mapX: 10, mapY: 20, mapRotation: 90 });
+            expect(storedView().view).toMatchObject({ scale: 2, x: 10, y: 20 });
+            expect(deferredReset(card)).toBe(true);
+
+            // The map gets a layout box again: the resize observer applies the reset exactly once.
+            giveMapLayout(card);
+            observer.fire();
+            await clock.advance(400);
+            expect(viewState(card)).toEqual(configuredViewState(2.5, 24, -18, 90));
+            expect(deferredReset(card)).toBe(false);
+            expect(storedView().view).toMatchObject({
+                scale: 2.5,
+                ...centredOffsets(2.5, 24, -18),
+                rotation: 90,
+            });
+
+            // A later resize delivers the callback again; the reset must not be replayed.
+            observer.fire();
+            expect(viewState(card)).toEqual(configuredViewState(2.5, 24, -18, 90));
+
+            // The stored reset view is the one a reload opens at.
+            const reloaded = await remount(card, config);
+            expect(viewState(reloaded)).toEqual(configuredViewState(2.5, 24, -18, 90));
+
+            // And the deferred reset is not replayed over a view the user changes after the reload.
+            await panAndZoom(reloaded, 1.25, -40, 35);
+            observer.fire();
+            expect(viewState(reloaded)).toEqual({ mapScale: 1.25, mapX: -40, mapY: 35, mapRotation: 90 });
+        } finally {
+            observer.restore();
+        }
     });
 
     it("returns to the neutral view from the reset control when no default is configured", async () => {

@@ -38,8 +38,22 @@ export function toggleLock(card: XiaomiVacuumMapCard): void {
  * same debounced path as a pan, zoom or rotation, so a reload keeps the reset view and the map
  * refresh policy sees no additional work. A transition makes the move visible, exactly like the
  * pre-B9 reset control.
+ *
+ * A card whose map has no layout box — a hidden dashboard view, a closed container, a zero-size
+ * cell — cannot compute the view: the configured offsets are measured from the centred view, and
+ * against a zero-size viewport the content's top-left corner would be stored instead. The reset is
+ * then remembered and applied by `applyPendingMapViewReset` with the first real layout, so the
+ * dashboard action still lands while the card is not shown.
  */
 export function resetMapView(card: XiaomiVacuumMapCard): void {
+    const layoutWidth = getMapLayoutWidth(card);
+    if (!layoutWidth) {
+        card.pendingMapViewReset = true;
+        return;
+    }
+    card.pendingMapViewReset = false;
+    // The offsets this reset stores were taken at this width; a later resize scales from it.
+    card.mapViewLayoutWidth = layoutWidth;
     const zoomerContent = card._getMapZoomerContent();
     if (zoomerContent) {
         zoomerContent.style.transitionDuration = card._getCssProperty("--map-card-internal-transitions-duration");
@@ -68,6 +82,50 @@ export function resetMapView(card: XiaomiVacuumMapCard): void {
         card._scheduleDelayedCallback(() => (zoomerContent.style.transitionDuration = "0s"), 300);
     }
     card.requestUpdate();
+}
+
+/**
+ * Applies a reset that arrived while the map had no layout box, once such a box exists.
+ *
+ * Called from the resize observer (the card being shown again), from the restore path and after a
+ * render, so whichever happens first applies it. Returns `true` when it did. The flag is cleared
+ * before applying, so a further resize does not replay the reset over a view the user has changed
+ * since.
+ */
+export function applyPendingMapViewReset(card: XiaomiVacuumMapCard): boolean {
+    if (!card.pendingMapViewReset || !getMapLayoutWidth(card)) {
+        return false;
+    }
+    // A card that was never laid out has not resolved its map-view key yet, and `persistMapView`
+    // refuses to store a view for an unresolved key. Without this the reset would apply but its
+    // stored view would be lost, and the next reload would bring back the old one.
+    if (card.restoredMapViewKey === undefined) {
+        card.restoredMapViewKey = card._getMapViewKey();
+    }
+    resetMapView(card);
+    return true;
+}
+
+/**
+ * The map content's untransformed layout width, or `undefined` while the card has no layout box.
+ *
+ * `getBoundingClientRect()` and `offsetWidth` are the layout the view maths needs: they are zero
+ * for a card in a hidden view or an unopened container, which is attached and still receives the
+ * dashboard's actions. `realScale` deliberately does not use the rect (see AGENTS.md); this is
+ * only for viewport and content geometry.
+ */
+function getMapLayoutWidth(card: XiaomiVacuumMapCard): number | undefined {
+    const pinchZoom = card._getPinchZoom();
+    const content = card._getMapZoomerContent();
+    if (!pinchZoom || !content) {
+        return undefined;
+    }
+    const bounds = pinchZoom.getBoundingClientRect();
+    const contentWidth = content.offsetWidth;
+    if (!bounds.width || !bounds.height || !contentWidth || !content.offsetHeight) {
+        return undefined;
+    }
+    return contentWidth;
 }
 
 /** The neutral view: the state the card renders before any stored or configured view applies. */
@@ -198,6 +256,8 @@ export function updateMapResizeObserver(card: XiaomiVacuumMapCard): void {
             calculateBasicScale(card);
         }
         fitMapViewToLayoutWidth(card);
+        // A card shown again after a reset was fired while it was hidden gets its view now.
+        applyPendingMapViewReset(card);
     });
     card.mapResizeObserver.observe(mapCanvas);
 }
@@ -446,6 +506,11 @@ export function getMapViewKey(card: XiaomiVacuumMapCard): string {
  * unless the new key has a stored view of its own.
  */
 export function restoreMapView(card: XiaomiVacuumMapCard): void {
+    // A reset fired while the card was hidden outranks a stored view: it is what the user asked
+    // for last. Applying it here also covers a card that has just gained its first layout box.
+    if (applyPendingMapViewReset(card)) {
+        return;
+    }
     const pinchZoom = card._getPinchZoom();
     if (!pinchZoom) {
         return;
@@ -520,6 +585,11 @@ export function persistMapView(card: XiaomiVacuumMapCard): void {
     }
     const key = card._getMapViewKey();
     if (card.restoredMapViewKey !== key) {
+        return;
+    }
+    // Never store a view measured against a zero-size layout: the offsets, and the width saved with
+    // them, would frame the content's top-left corner instead of the part of the map on screen.
+    if (!getMapLayoutWidth(card)) {
         return;
     }
     card.pendingMapViewKey = key;

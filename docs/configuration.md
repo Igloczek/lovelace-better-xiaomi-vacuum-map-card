@@ -140,6 +140,11 @@ remembered, `map_view` also applies with `persist_map_view: false`.
 The configured view is part of the stored view's lookup, so editing `map_view` starts from the new
 default instead of keeping the view remembered for the old one.
 
+The reset also works on a card the user is not looking at. A card in a hidden dashboard view or a
+closed container has no map layout to centre the view against, so the reset waits: it is applied
+once, with the first real layout, and the stored view is the centred default rather than the map's
+top-left corner.
+
 ```yaml
 type: custom:xiaomi-vacuum-map-card
 entity: vacuum.roborock_s7
