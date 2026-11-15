@@ -314,6 +314,11 @@ export function normalizeJinjaQuotes(template: string): string {
 
 export function replaceInTarget(target: Record<string, unknown>, keyReplacer: KeyReplacer): void {
     for (const [key, value] of Object.entries(target)) {
+        // A `null` value is not a container: a registry entry without an icon of its own stores
+        // `null`, and `Object.entries(null)` used to throw and reject the whole tile list.
+        if (value === null) {
+            continue;
+        }
         if (typeof value == "object") {
             replaceInTarget(value as Record<string, unknown>, keyReplacer);
         } else if (typeof value == "string") {
