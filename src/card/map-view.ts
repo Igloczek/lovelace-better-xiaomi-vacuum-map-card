@@ -52,6 +52,12 @@ export function resetMapView(card: XiaomiVacuumMapCard): void {
         return;
     }
     card.pendingMapViewReset = false;
+    // A reset before the session's first restore (the card has only just got a layout box) must
+    // resolve the map-view key itself: `persistMapView` refuses an unresolved key, and the delayed
+    // restore would then put the old stored view back over the reset.
+    if (card.restoredMapViewKey === undefined) {
+        card.restoredMapViewKey = card._getMapViewKey();
+    }
     // The offsets this reset stores were taken at this width; a later resize scales from it.
     card.mapViewLayoutWidth = layoutWidth;
     const zoomerContent = card._getMapZoomerContent();
@@ -95,12 +101,6 @@ export function resetMapView(card: XiaomiVacuumMapCard): void {
 export function applyPendingMapViewReset(card: XiaomiVacuumMapCard): boolean {
     if (!card.pendingMapViewReset || !getMapLayoutWidth(card)) {
         return false;
-    }
-    // A card that was never laid out has not resolved its map-view key yet, and `persistMapView`
-    // refuses to store a view for an unresolved key. Without this the reset would apply but its
-    // stored view would be lost, and the next reload would bring back the old one.
-    if (card.restoredMapViewKey === undefined) {
-        card.restoredMapViewKey = card._getMapViewKey();
     }
     resetMapView(card);
     return true;

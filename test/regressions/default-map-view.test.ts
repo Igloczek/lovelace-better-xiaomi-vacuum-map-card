@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { setPresetIndex } from "../../src/card/presets";
 import { MAP_VIEW_STORE_KEY } from "../../src/const";
 import { getMapView } from "../../src/model/map-view-store";
 import type { CalibrationPoint, XiaomiVacuumMapCardConfig } from "../../src/types/types";
@@ -332,6 +333,40 @@ describe("configured default map view in the card", () => {
         } finally {
             observer.restore();
         }
+    });
+
+    it("keeps a reset fired before the session's first restore instead of restoring over it", async () => {
+        const { card, clock } = await mountWithView();
+        await panAndZoom(card, 2, 10, 20);
+        await clock.advance(400);
+        expect(storedView().view).toMatchObject({ scale: 2, x: 10, y: 20 });
+
+        // A card that has only just got a layout box has not resolved its map-view key yet; the
+        // delayed restore that resolves it runs after the reset.
+        const state = card.element as unknown as { restoredMapViewKey?: string };
+        state.restoredMapViewKey = undefined;
+        await fireMapViewReset(card);
+        card.element._restoreMapView();
+        await clock.advance(400);
+
+        expect(viewState(card)).toEqual(configuredViewState(2.5, 24, -18, 90));
+        expect(storedView().view).toMatchObject({ scale: 2.5, ...centredOffsets(2.5, 24, -18), rotation: 90 });
+    });
+
+    it("drops a deferred reset when the card switches to another preset", async () => {
+        const second = { ...defaultViewConfig(), preset_name: "Second" };
+        const { card } = await mountWithView({
+            preset_name: "First",
+            additional_presets: [second] as XiaomiVacuumMapCardConfig[],
+        });
+        giveMapLayout(card, HIDDEN_LAYOUT);
+        await fireMapViewReset(card);
+        expect(deferredReset(card)).toBe(true);
+
+        // The reset was asked for on the preset being left; applied after the switch it would
+        // overwrite the other preset's stored view.
+        setPresetIndex(card.element, 1);
+        expect(deferredReset(card)).toBe(false);
     });
 
     it("returns to the neutral view from the reset control when no default is configured", async () => {
