@@ -85,7 +85,7 @@ function warningLayout(target: CardHandle) {
     });
 }
 
-/** The screen boxes of the stale marker, the pill and the badge a selected live room draws. */
+/** The screen boxes of the stale marker, the pill, its badge and its name text. */
 function markerAndPill(target: CardHandle, staleId: string, liveId: string) {
     return target.evaluate(
         (element, ids) => {
@@ -102,6 +102,7 @@ function markerAndPill(target: CardHandle, staleId: string, liveId: string) {
                 markerRoom: box(`.room-${ids.staleId}-wrapper .room-outline`),
                 pill: box(`.room-${ids.liveId}-wrapper .room-pill`),
                 badge: box(`.room-${ids.liveId}-wrapper .room-pill-badge`),
+                name: box(`.room-${ids.liveId}-wrapper .room-pill-name`),
                 // Stale rooms are appended after the live ones, so their marker paints above a pill.
                 staleAfterLive: !!(
                     stale &&
@@ -115,23 +116,25 @@ function markerAndPill(target: CardHandle, staleId: string, liveId: string) {
 }
 
 /**
- * The marker is clear of the pill and its badge, or - when the room is too small for that - it
- * stays inside the room and is painted above them.
+ * The marker never covers the pill's name, whatever the theme font does to the pill's height, and it
+ * is either clear of the pill and its badge or painted above the pill it overlaps. A room shorter
+ * than the pill cannot hold the marker at a large font - the pill alone is taller than the room - so
+ * `stale-marker.spec.ts` is where the room's outline is checked, with the room's own space measured.
  */
 function expectMarkerVisible(geometry: Awaited<ReturnType<typeof markerAndPill>>, where: string): void {
-    const { marker, markerRoom, pill, badge, staleAfterLive } = geometry;
+    const { marker, pill, badge, name, staleAfterLive } = geometry;
     expect(marker, `the stale marker must be drawn (${where})`).not.toBeNull();
     expect(pill, `the pill must be drawn (${where})`).not.toBeNull();
     expect(badge, `the badge must be drawn (${where})`).not.toBeNull();
+    expect(name, `the pill's name must be drawn (${where})`).not.toBeNull();
+    const coversName =
+        marker!.right > name!.left &&
+        name!.right > marker!.left &&
+        marker!.bottom > name!.top &&
+        name!.bottom > marker!.top;
+    expect(coversName, `the marker must not cover the pill's name (${where})`).toBe(false);
     const clear = marker!.bottom <= pill!.top - 2 && marker!.bottom <= badge!.top - 2;
     if (clear) return;
-    expect(markerRoom, `the stale room must be drawn (${where})`).not.toBeNull();
-    expect(marker!.top, `a marker overlapping the pill must stay in its room (${where})`).toBeGreaterThanOrEqual(
-        markerRoom!.top - 2,
-    );
-    expect(marker!.bottom, `a marker overlapping the pill must stay in its room (${where})`).toBeLessThanOrEqual(
-        markerRoom!.bottom + 2,
-    );
     expect(staleAfterLive, `a marker overlapping the pill must paint above it (${where})`).toBe(true);
 }
 
@@ -262,9 +265,9 @@ test("a phone-width card shows every stale id and keeps the marker clear of the 
         await expect.poll(async () => (await markerAndPill(target, "0", LIVE_KITCHEN_ID)).pill !== null).toBe(true);
 
         for (const font of [12, 32, 40]) {
+            // The marker and the pill are sized by the stylesheet: a theme font needs no render.
             await target.evaluate((element, value) => {
                 element.style.setProperty("--map-card-room-label-font-size", `${value}px`);
-                (element as unknown as { requestUpdate: () => void }).requestUpdate();
             }, font);
             await page.waitForTimeout(200);
             for (const scale of [1, 0.5, 2.5]) {

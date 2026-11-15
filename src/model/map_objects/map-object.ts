@@ -144,8 +144,10 @@ export abstract class MapObject {
      * sitting below its icon stays below it however far the map is turned, instead of swinging around
      * and landing on top of it. At 0deg the result is identical to placing the label outright.
      *
-     * `style` adds element-specific declarations (a caller that sizes the text itself). The anchor,
-     * the offset and the counter-rotation stay in this one rule, so no caller repeats them.
+     * `style` adds element-specific declarations. The anchor, the offset and the counter-rotation
+     * stay in this one rule, so no caller repeats them; a caller that works out its own placement
+     * (the stale marker) sets `--label-shift-x`/`--label-shift-y`, which the same rule adds to the
+     * offset on screen.
      */
     protected renderLabel(
         config: LabelConfig | undefined,
@@ -221,11 +223,17 @@ export abstract class MapObject {
                    screen, so a label configured to sit below its icon stays below it at any angle.
                    At 0deg this is exactly the old plain offset.
                    The origin has to be the anchor itself, not the middle of the glyphs, or the
-                   text drifts by however far the two differ - doubled at 180deg. */
+                   text drifts by however far the two differ - doubled at 180deg.
+                   --label-shift-* is the same screen-space step, for a label whose placement is
+                   computed in CSS (the stale-room marker): it is added to the offset, so both end up
+                   in one translate. */
                 transform-box: view-box;
                 transform-origin: var(--label-anchor-x, 0px) var(--label-anchor-y, 0px);
                 transform: rotate(calc(-1 * var(--map-rotation, 0deg)))
-                    translate(var(--label-offset-x, 0px), var(--label-offset-y, 0px));
+                    translate(
+                        calc(var(--label-offset-x, 0px) + var(--label-shift-x, 0px)),
+                        calc(var(--label-offset-y, 0px) + var(--label-shift-y, 0px))
+                    );
             }
         `;
     }

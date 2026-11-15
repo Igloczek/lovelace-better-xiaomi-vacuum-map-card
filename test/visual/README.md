@@ -76,6 +76,19 @@ cover the checkmark when the order is off, a dark dashboard with `transparent_ba
 geometry case also takes a screenshot (`room-pill-<theme>-zoom-<z>-rotation-<r>.png`,
 `room-pill-<theme>-checkmark.png`, `room-pill-dark-transparent.png`).
 
+`stale-marker.spec.ts` covers the stale-room `!` marker, which a selected room's pill shares a point
+with. It hands the card the label font the way a theme may - `12px`, `1.4rem`, `2em`,
+`calc(10px + 1vw)` and `40px` - and asserts that the marker's rendered size is 1.4 x the font the
+pill resolved, so no unit is parsed. A theme change is made without `requestUpdate()` (the test
+counts the renders) and must still move and resize the marker. Across zoom 0.5-4 and rotation
+0/90/180/270 it asserts that the marker's box never intersects the pill's name box, that it is drawn
+and not clipped by the map, that it is clear of the whole pill wherever the room has the space for
+it, and that it is inside the room's outline polygon - sampled with `isPointInFill` - wherever the
+room has the space above the name; a 100 px square room, a room at the image's top edge and an
+L-shaped room whose notch sits above the label point cover the rooms a bounding box would get wrong.
+Where the room is shorter than that footprint the test asserts the marker is painted above the pill
+it overlaps instead, and the name box is checked in every one of those cases.
+
 Run the assertions on any machine without the baselines with `npx playwright test --ignore-snapshots`.
 The server listens on `VISUAL_PORT` (default 4173); set it when another checkout's harness server
 already holds the port, or `reuseExistingServer` tests that checkout's bundle instead of yours.

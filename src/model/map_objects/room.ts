@@ -12,23 +12,17 @@ import { cssRgb } from "../room-pill-palette";
 const CHECK_PATH = "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
 
 /**
- * The stale-room marker's size in multiples of its own font, in screen pixels. The marker is a `!`
- * drawn at 1.4 label fonts (see the stylesheet); its SVG text box is about 1.15 font sizes tall and
- * 0.33 wide, and the anchor sits about 0.65 font sizes above the middle of it. The box is therefore
- * measured from the anchor as 0.7 font sizes above, 0.55 below and 0.2 either side, rounded up so the
- * glyph always lands inside the room and clear of the pill. The pill is two label fonts tall (its
- * height is `--map-card-internal-room-label-font-size * 2`), which is where the clearance comes from
- * - a theme may make it taller by raising the font, and the marker follows.
+ * Free space from a room's label point along one screen direction, in map units: how far the marker
+ * may travel that way before it leaves the room's outline. The marker's own size and lift are never
+ * measured here - they are stylesheet expressions of the pill's variables - so this is the only
+ * geometry the card hands the stylesheet, and it is the same at every zoom.
  */
-const STALE_MARKER_FONT_SCALE = 1.4;
-const STALE_MARKER_BOX_WIDTH = 0.4;
-const STALE_MARKER_BOX_ABOVE = 0.7;
-const STALE_MARKER_BOX_BELOW = 0.55;
-const STALE_MARKER_GAP = 6;
-/** Distance in screen pixels between the room outline and the marker, when the room is big enough. */
-const STALE_MARKER_ROOM_INSET = 1;
-/** `--map-card-room-label-font-size`'s default, for a frontend that cannot resolve the variable. */
-const DEFAULT_LABEL_FONT_SIZE = 12;
+interface StaleMarkerSpace {
+    readonly up: number;
+    readonly down: number;
+    readonly left: number;
+    readonly right: number;
+}
 
 export interface RoomRenderOptions {
     readonly imageOutline?: Array<[number, number]>;
@@ -224,117 +218,104 @@ export class Room extends PredefinedMapObject {
      * drawn from its last known outline and marked with an exclamation mark above its label point;
      * the card's warning names the ids. It is never clickable or selected (issue #928).
      *
-     * The marker is placed in map coordinates, not by a stylesheet lift: the position has to respect
-     * the room's outline and the map's edge, and both change with the zoom while the marker stays a
-     * fixed size on screen. It hangs off the label point (where the pill of the live room with the
-     * same geometry is centred, the label offset excluded), lifted on screen by the pill's own half
-     * height (one label font, its height is two) plus half the marker glyph and a gap. The lift is
-     * therefore independent of `--map-card-room-icon-wrapper-size`.
+     * The marker's size and its clearance from the pill are entirely stylesheet expressions of the
+     * same variables the pill uses (`--map-card-internal-room-label-font-size`, divided by
+     * `--map-scale`), so a theme font in any unit - `rem`, `em`, `vw`, `calc()` - and a live theme
+     * change reach the marker with no card render and no computed-style read: the card never learns
+     * how big the marker is. What the stylesheet cannot know is the room: it decides where inside
+     * the outline there is space, so the card hands it the free space from the label point along
+     * each screen direction, in map units, as custom properties on the marker, and CSS picks the
+     * placement from those with `min()`/`max()`.
      *
-     * A room too small to take the marker clear of the pill still gets it: the glyph shrinks to fit
-     * and is clamped inside the outline, and it is painted after every live room's pill (stale rooms
-     * are appended last in `setCurrentMode`), so it stays visible over the pill's edge. At rotations
-     * other than 0 the "up" of the lift is the screen's up, so the lift is turned back into map
-     * coordinates with the shared map rotation; the marker's own transform stays `renderLabel`'s, so
-     * nothing here repeats it.
+     * Preferred is above the pill, clear of the whole of it. Where the room has no space for that,
+     * the marker moves to the pill's badge side, above the pill's name - the one clearance from a
+     * name that another element's CSS cannot measure, because the pill is as wide as its text - and
+     * where the room has no space above at all the same clearance is taken below the pill, which is
+     * what keeps a room at the image's top edge from clipping it. A room with none of the three still
+     * gets the marker, over the pill's edge; stale rooms are appended after the live ones in
+     * `setCurrentMode`, so it stays painted above them.
+     *
+     * The space is measured on screen: at a rotation other than 0 the screen's "up" is a turned
+     * direction in map coordinates, and the marker's own transform stays `renderLabel`'s, so nothing
+     * here repeats the counter-rotation.
      */
     private renderStaleMarker(stale: boolean): SVGTemplateResult {
         if (!stale) return svg``;
-        // The same point the pill would be centred on: the label, else the icon (a badge-only room),
-        // else the middle of the outline. The label's configured offset is deliberately excluded.
+        // The point the live room with the same geometry centres its pill on: the label, else the
+        // icon (a badge-only room), else the middle of the outline. The label's configured offset is
+        // deliberately excluded - a detected room's label has none.
         const anchor = this._config.label ?? this._config.icon ?? this._outlineCenter();
-        const bounds = this._outlineBounds();
-        if (!anchor || !bounds) return svg``;
+        const outline = this._outlinePoints();
+        if (!anchor || outline.length < 3) return svg``;
 
-        const scale = this._context.scale();
-        const rotation = (this._context.mapRotation() * Math.PI) / 180;
-        const cos = Math.cos(rotation);
-        const sin = Math.sin(rotation);
-        const [labelX, labelY] = this.vacuumToScaledMap(anchor.x, anchor.y);
-        const font = this._cssPixels("--map-card-internal-room-label-font-size", DEFAULT_LABEL_FONT_SIZE);
-        const below = font * STALE_MARKER_FONT_SCALE * STALE_MARKER_BOX_BELOW;
-        const lift = font + below + STALE_MARKER_GAP;
-
-        // A room smaller than the marker shrinks the glyph so the whole marker can stay inside its
-        // outline; the extents are the screen box turned into map axes (a rotated glyph covers more
-        // ground along a map axis than its upright width).
-        const inset = STALE_MARKER_ROOM_INSET / scale;
-        let markerFont = font * STALE_MARKER_FONT_SCALE;
-        let extents = this._staleMarkerExtents(markerFont, cos, sin, scale);
-        const innerWidth = bounds.maxX - bounds.minX - 2 * inset;
-        const innerHeight = bounds.maxY - bounds.minY - 2 * inset;
-        const fit = Math.min(
-            1,
-            extents.width > 0 ? innerWidth / extents.width : 1,
-            extents.height > 0 ? innerHeight / extents.height : 1,
-        );
-        if (fit > 0 && fit < 1) {
-            markerFont *= fit;
-            extents = this._staleMarkerExtents(markerFont, cos, sin, scale);
-        }
-
-        // The screen's "up" is a rotated direction in map coordinates: turn (0, -lift) by -rotation.
-        const x = this._clampToOutline(
-            labelX + (-lift * sin) / scale,
-            bounds.minX + inset - extents.minX,
-            bounds.maxX - inset - extents.maxX,
-        );
-        const y = this._clampToOutline(
-            labelY + (-lift * cos) / scale,
-            bounds.minY + inset - extents.minY,
-            bounds.maxY - inset - extents.maxY,
-        );
-
-        // `renderLabel` applies an offset on screen after the counter-rotation; give it the screen
-        // vector from the label point to the clamped map point.
-        const deltaX = x - labelX;
-        const deltaY = y - labelY;
+        const [x, y] = this.vacuumToScaledMap(anchor.x, anchor.y);
+        const space = this._staleMarkerSpace(outline, [x, y], this._context.mapRotation());
         return this.renderLabel(
-            {
-                x: anchor.x,
-                y: anchor.y,
-                text: "!",
-                offset_x: (deltaX * cos - deltaY * sin) * scale,
-                offset_y: (deltaX * sin + deltaY * cos) * scale,
-            },
+            { x: anchor.x, y: anchor.y, text: "!" },
             "room-stale-marker",
             undefined,
-            `--map-card-internal-room-stale-marker-font-size: ${markerFont}px;`,
+            `--stale-marker-up: ${space.up}px; --stale-marker-down: ${space.down}px;
+             --stale-marker-left: ${space.left}px; --stale-marker-right: ${space.right}px;`,
         );
     }
 
     /**
-     * The marker's box relative to its anchor, in map units: its extremes on both axes and its
-     * size. The anchor is not the box's centre (SVG text hangs its middle baseline on the anchor),
-     * so the box is measured as the four screen corners turned into map coordinates.
+     * The free space from `point` to the outline, along each of the four screen directions, in map
+     * units (the unit the label's offset is measured in). A ray per direction, against the polygon
+     * itself: a bounding box would put the space of an L-shaped room's leg into its notch, and the
+     * marker would land in the neighbouring room.
      */
-    private _staleMarkerExtents(
-        fontSize: number,
-        cos: number,
-        sin: number,
-        scale: number,
-    ): { minX: number; maxX: number; minY: number; maxY: number; width: number; height: number } {
-        const halfWidth = (fontSize * STALE_MARKER_BOX_WIDTH) / 2;
-        const above = fontSize * STALE_MARKER_BOX_ABOVE;
-        const below = fontSize * STALE_MARKER_BOX_BELOW;
-        const mapped = [
-            [-halfWidth, -above],
-            [halfWidth, -above],
-            [-halfWidth, below],
-            [halfWidth, below],
-        ].map(([x, y]) => [(cos * x + sin * y) / scale, (-sin * x + cos * y) / scale]);
-        const xs = mapped.map(point => point[0]);
-        const ys = mapped.map(point => point[1]);
-        const minX = Math.min(...xs);
-        const maxX = Math.max(...xs);
-        const minY = Math.min(...ys);
-        const maxY = Math.max(...ys);
-        return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
+    private _staleMarkerSpace(
+        outline: Array<[number, number]>,
+        point: [number, number],
+        rotation: number,
+    ): StaleMarkerSpace {
+        const radians = (rotation * Math.PI) / 180;
+        const cos = Math.cos(radians);
+        const sin = Math.sin(radians);
+        // A screen direction in map coordinates: the map is drawn turned by `rotation`, so a screen
+        // vector is turned back by the same angle before it is traced through the outline.
+        const trace = (screenX: number, screenY: number): number => {
+            const direction: [number, number] = [screenX * cos + screenY * sin, -screenX * sin + screenY * cos];
+            // A ray that never crosses the outline (a label point outside its own room, a degenerate
+            // outline) leaves no space that way; the stylesheet then treats it as such instead of
+            // receiving an infinite length.
+            const distance = this._distanceToOutline(outline, point, direction);
+            return Number.isFinite(distance) ? Math.max(0, distance) : 0;
+        };
+        return {
+            up: trace(0, -1),
+            down: trace(0, 1),
+            left: trace(-1, 0),
+            right: trace(1, 0),
+        };
     }
 
-    /** Keeps `value` between `min` and `max`, or centres it when the range is empty. */
-    private _clampToOutline(value: number, min: number, max: number): number {
-        return min <= max ? Math.min(Math.max(value, min), max) : (min + max) / 2;
+    /**
+     * How far a ray from `origin` along the unit `direction` travels before it crosses the polygon,
+     * in map units; `Infinity` when it never does. The nearest crossing is the outline in front of
+     * the point, whichever way the outline runs.
+     */
+    private _distanceToOutline(
+        outline: Array<[number, number]>,
+        origin: [number, number],
+        direction: [number, number],
+    ): number {
+        let nearest = Infinity;
+        for (let index = 0; index < outline.length; index++) {
+            const start = outline[index];
+            const end = outline[(index + 1) % outline.length];
+            const edge: [number, number] = [end[0] - start[0], end[1] - start[1]];
+            // origin + t * direction = start + u * edge
+            const denominator = direction[0] * edge[1] - direction[1] * edge[0];
+            if (Math.abs(denominator) < 1e-9) continue;
+            const offsetX = start[0] - origin[0];
+            const offsetY = start[1] - origin[1];
+            const t = (offsetX * edge[1] - offsetY * edge[0]) / denominator;
+            const u = (offsetX * direction[1] - offsetY * direction[0]) / denominator;
+            if (t > 1e-6 && u >= -1e-9 && u <= 1 + 1e-9) nearest = Math.min(nearest, t);
+        }
+        return nearest;
     }
 
     /** The configured or detected outline in scaled map coordinates. */
@@ -342,24 +323,6 @@ export class Room extends PredefinedMapObject {
         return this._imageOutline
             ? this._imageOutline.map(p => this.realScaled2Point(p) as [number, number])
             : (this._config?.outline ?? []).map(p => this.vacuumToScaledMap(p[0], p[1]) as [number, number]);
-    }
-
-    /** The bounds of `_outlinePoints()` in scaled map coordinates. */
-    private _outlineBounds(): { minX: number; minY: number; maxX: number; maxY: number } | undefined {
-        const points = this._outlinePoints();
-        if (points.length === 0) return undefined;
-        return {
-            minX: Math.min(...points.map(p => p[0])),
-            minY: Math.min(...points.map(p => p[1])),
-            maxX: Math.max(...points.map(p => p[0])),
-            maxY: Math.max(...points.map(p => p[1])),
-        };
-    }
-
-    /** A CSS length in screen pixels, or `fallback` when the frontend cannot resolve it. */
-    private _cssPixels(property: string, fallback: number): number {
-        const value = parseFloat(this._context.cssEvaluator(property));
-        return Number.isFinite(value) ? value : fallback;
     }
 
     /**
@@ -538,19 +501,124 @@ export class Room extends PredefinedMapObject {
             }
 
             /* A configured room whose id is no longer in the camera metadata: an exclamation mark
-               placed above the room's label point. renderStaleMarker computes the position in map
-               coordinates - it has to stay inside the room's outline and the map, and both of those
-               change with the zoom - and passes it through the label-text offset. The text is only
-               sized and coloured here; the counter-rotation, the anchor and the offset come from the
-               shared label-text rule, never from a copy. The glyph shrinks in a room too small to
-               hold it, so its size is set per marker as a screen length divided by the zoom. */
+               placed above the room's label point. Its size and its clearance from the pill are CSS
+               expressions of the very variables the label and the pill are sized with, so a theme
+               font in any unit (px, rem, em, %, vw, calc()) and a live theme change reach the marker
+               with no card render and no computed-style read. The card supplies only the room, as
+               --stale-marker-up/-down/-left/-right: the free space from the label point to the
+               outline along each screen direction, in map units. The anchor, the counter-rotation and
+               the transform come from the shared .label-text rule; this rule adds the placement to it
+               with --label-shift-x and --label-shift-y.
+               Lengths are map units: a screen length divided by the zoom, exactly like the label's
+               own font, so the marker stays the same size on screen at every zoom. */
             text.room-stale-marker {
-                font-size: calc(
-                    var(
-                            --map-card-internal-room-stale-marker-font-size,
-                            calc(var(--map-card-internal-room-label-font-size) * 1.4)
+                /* The marker's own box, measured from the rendered glyph: an SVG text's box carries
+                   the font's ascent and descent and sits a little above its anchor - 1.16 em tall,
+                   about 0.66 em above the anchor and 0.5 em below. */
+                --stale-marker-above: 0.66em;
+                --stale-marker-below: 0.5em;
+                --stale-marker-half-width: 0.2em;
+                /* The distance kept from the room's outline, on screen. */
+                --stale-marker-inset: calc(1px / var(--map-scale));
+                /* The pill: two label fonts tall, its name one font tall in the middle of it. */
+                --stale-marker-pill-half: calc(var(--map-card-internal-room-label-font-size) / var(--map-scale));
+                --stale-marker-gap: calc(6px / var(--map-scale));
+                /* Clear of the whole pill above: the marker's lower half clears the pill's top edge. */
+                --stale-marker-clear-up: calc(
+                    var(--stale-marker-pill-half) + var(--stale-marker-gap) + var(--stale-marker-below)
+                );
+                /* Above the pill's name, which ends half a label font above the pill's middle. The
+                   pill's width is its text's, which no element's CSS can measure from another, so a
+                   name is the one clearance the marker cannot prove horizontally: it proves it
+                   vertically, and every arm below keeps this one. */
+                --stale-marker-name-up: calc(
+                    var(--stale-marker-pill-half) / 2 + var(--stale-marker-gap) + var(--stale-marker-below)
+                );
+                /* The same two clearances below the pill, where the marker's upper half is the one
+                   that has to clear. */
+                --stale-marker-clear-down: calc(
+                    var(--stale-marker-pill-half) + var(--stale-marker-gap) + var(--stale-marker-above)
+                );
+                --stale-marker-name-down: calc(
+                    var(--stale-marker-pill-half) / 2 + var(--stale-marker-gap) + var(--stale-marker-above)
+                );
+                /* Beside the pill's badge end. The pill is as wide as its text, which no element's
+                   CSS can measure here, so the clearance is taken from its height: the badge is a
+                   disc of the pill's height, and one more height covers its padding and the gap. */
+                --stale-marker-beside: calc(
+                    var(--stale-marker-pill-half) * 2 + var(--stale-marker-gap) + var(--stale-marker-half-width)
+                );
+                /* How short the room is, in map units, of the placement above and of the badge side:
+                   zero when it is not short at all. A shortage is multiplied up, so it can stand in
+                   for a branch in the two placements below. "Above" is judged by the least the marker
+                   needs up there - clear of the pill's name - so a room that cannot hold the whole
+                   pill's clearance still keeps the marker above it, hugging the room's top edge. */
+                --stale-marker-short-above: max(
+                    0px,
+                    var(--stale-marker-name-up) + var(--stale-marker-above) - var(--stale-marker-up)
+                );
+                --stale-marker-short-left: max(
+                    0px,
+                    var(--stale-marker-half-width) - var(--stale-marker-left)
+                );
+                /* How short the room is of the whole pill's clearance above: the marker overlaps the
+                   pill whenever it is not zero, and takes the pill's badge side. */
+                --stale-marker-short-clear: max(
+                    0px,
+                    var(--stale-marker-clear-up) + var(--stale-marker-above) - var(--stale-marker-up)
+                );
+                /* Above the pill while the room has the space there, else as high as the room allows,
+                   and never lower than above the pill's name. When even that does not fit the room,
+                   the same clearance is taken below the pill: a room at the map's top edge has no
+                   space above it, and a marker pushed there is cut off by the map. */
+                --label-shift-y: min(
+                    calc(
+                        -1 *
+                            min(
+                                var(--stale-marker-clear-up),
+                                max(
+                                    calc(var(--stale-marker-up) - var(--stale-marker-above) - var(--stale-marker-inset)),
+                                    var(--stale-marker-name-up)
+                                )
+                            ) + 10000 * var(--stale-marker-short-above)
+                    ),
+                    min(
+                        var(--stale-marker-clear-down),
+                        max(
+                            calc(var(--stale-marker-down) - var(--stale-marker-below) - var(--stale-marker-inset)),
+                            var(--stale-marker-name-down)
                         )
-                        / var(--map-scale)
+                    )
+                );
+                /* The horizontal placement, used only when the way above is too short: the badge side
+                   of the room, or the other side when that one has no room, never past the outline. */
+                --stale-marker-away-left: min(
+                    0px,
+                    max(calc(-1 * var(--stale-marker-beside)), calc(var(--stale-marker-half-width) - var(--stale-marker-left)))
+                );
+                --stale-marker-away-right: max(
+                    0px,
+                    min(var(--stale-marker-beside), calc(var(--stale-marker-right) - var(--stale-marker-half-width)))
+                );
+                --label-shift-x: max(
+                    calc(-10000 * var(--stale-marker-short-clear)),
+                    var(--stale-marker-away-left),
+                    min(
+                        var(--stale-marker-away-right),
+                        calc(var(--stale-marker-away-left) + 10000 * var(--stale-marker-short-left))
+                    )
+                );
+                /* 1.4 label fonts, and never so large that the room cannot hold it even in its longer
+                   direction: a room smaller than the marker still shows it, shrunk. */
+                font-size: min(
+                    calc(var(--map-card-internal-room-label-font-size) * 1.4 / var(--map-scale)),
+                    calc(
+                        min(
+                                calc(var(--stale-marker-up) + var(--stale-marker-down)),
+                                calc(var(--stale-marker-left) + var(--stale-marker-right))
+                            ) *
+                            0.5
+                    )
                 );
                 font-weight: 700;
                 text-anchor: middle;

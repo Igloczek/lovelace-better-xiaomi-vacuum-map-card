@@ -61,8 +61,8 @@ function roomsConfig(selections: RoomConfig[]): XiaomiVacuumMapCardConfig {
 }
 
 /**
- * A configured stale room larger than the fixture map (the map is 200 × 150 image px), so a
- * marker placed above its centre stays far from every outline edge and the clamp cannot move it.
+ * A configured stale room larger than the fixture map (the map is 200 x 150 image px): its outline is
+ * 200 map units from the label point on every side, far enough that no placement reaches an edge.
  */
 function hugeRoom(id: string): RoomConfig {
     return {
@@ -77,11 +77,42 @@ function hugeRoom(id: string): RoomConfig {
     };
 }
 
-/** A stale marker's label offset on one axis, in map units (the harness runs at a scale of 1). */
-function markerStyleOffset(marker: Element, axis: "x" | "y"): number {
-    const match = marker.getAttribute("style")?.match(new RegExp(`--label-offset-${axis}:\\s*(-?[\\d.]+)px`));
-    expect(match, `the marker has no --label-offset-${axis}`).not.toBeNull();
+/**
+ * The custom properties a rendered element sets inline, in order. The harness runs at a scale of 1,
+ * so every length here is in map units.
+ */
+function inlineProperties(element: Element): Array<[string, string]> {
+    const style = element.getAttribute("style") ?? "";
+    return [...style.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map(match => [match[1], match[2].trim()]);
+}
+
+/** One inline property of a rendered element, as a number of map units. */
+function inlinePixels(element: Element, property: string): number {
+    const entry = inlineProperties(element).find(([name]) => name === property);
+    expect(entry, `the element sets no ${property}`).toBeDefined();
+    const match = /^(-?[\d.]+)px$/.exec(entry![1]);
+    expect(match, `${property} is not a pixel length: ${entry![1]}`).not.toBeNull();
     return Number(match![1]);
+}
+
+/**
+ * A room shaped like an L: a bar across the top and a leg below its left half, with the label in the
+ * leg. Its bounding box says the room extends 450 vacuum units to the label's right; the outline
+ * ends 150 units to the right, in the notch, where the neighbouring room starts.
+ */
+function lShapedRoom(id: string): RoomConfig {
+    return {
+        id,
+        label: { text: "Old office", x: 1150, y: 850 },
+        outline: [
+            [1000, 200],
+            [1600, 200],
+            [1600, 700],
+            [1300, 700],
+            [1300, 1000],
+            [1000, 1000],
+        ],
+    };
 }
 
 /** Mounts with the camera metadata a re-map would leave behind (`3,4,5` instead of `0,1,2`). */
@@ -229,30 +260,88 @@ describe("stale ROOM selections (#928)", () => {
     });
 
     /**
-     * A selected room's pill is centred on the room's label point and is twice the label font size
-     * tall, so the stale marker is lifted above that point by the pill's own half height plus the
-     * marker's glyph and a gap. The marker is positioned in map coordinates (it has to respect the
-     * room's outline and the map edge), so the lift reaches the DOM as the label offset.
-     *
-     * A large outline keeps the room's edge out of the way: the fixture map is 200 × 150 image px,
-     * and this room spans 400 × 400 map px, so the clamp cannot move the marker.
+     * The marker's size and its clearance from the pill are stylesheet expressions of the variables
+     * the pill itself uses, so a themed font - in whatever unit the theme expresses it - and a live
+     * theme change reach the marker with no render and no computed-style read. What the card hands
+     * the stylesheet is the room: the free space from the label point to the outline along each
+     * screen direction, in map units. The assertions below therefore need no browser: the marker's
+     * inline style carries the anchor and that space, and no size.
      */
-    it("lifts the stale marker above the label point by the label font", async () => {
+    it("hands the stylesheet the room's free space and no measured font", async () => {
         const { card } = await mountAfterRemap([hugeRoom("0")]);
         const marker = roomElement(card, "0")?.querySelector(".room-stale-marker");
         expect(marker).not.toBeNull();
 
-        // Default 12 px label font: one label font (the pill's half height) + the marker's lower
-        // half (0.55 of its 1.4-font glyph box) + the 6 px gap.
-        expect(markerStyleOffset(marker!, "y")).toBeCloseTo(-(12 + 16.8 * 0.55 + 6), 1);
+        // The anchor, the label's own (unused) offset, and one length per screen direction. No size:
+        // a per-marker font size was the reviewed bug, because the card had to parse the theme's
+        // length and `parseFloat("1.4rem")` is 1.4.
+        expect(inlineProperties(marker!).map(([name]) => name)).toEqual([
+            "--label-anchor-x",
+            "--label-anchor-y",
+            "--label-offset-x",
+            "--label-offset-y",
+            "--stale-marker-up",
+            "--stale-marker-down",
+            "--stale-marker-left",
+            "--stale-marker-right",
+        ]);
 
-        // A theme font scales the clearance, and the icon wrapper size does not enter it at all.
-        vi.spyOn(card.element, "_getCssProperty").mockReturnValue("40px");
+        // The fixture calibration is 10 vacuum units per image pixel, and this room's outline spans
+        // [-1000, 3000] around a label at (1000, 1000): 200 map units to every side.
+        expect(inlinePixels(marker!, "--stale-marker-up")).toBeCloseTo(200, 3);
+        expect(inlinePixels(marker!, "--stale-marker-down")).toBeCloseTo(200, 3);
+        expect(inlinePixels(marker!, "--stale-marker-left")).toBeCloseTo(200, 3);
+        expect(inlinePixels(marker!, "--stale-marker-right")).toBeCloseTo(200, 3);
+    });
+
+    it("measures the room's space from its outline, not from its bounding box", async () => {
+        // An L-shaped outline: to the label's right the room ends in the notch, 150 vacuum units
+        // away, while the bounding box would claim 450 - enough for the marker to be put down in the
+        // neighbouring room. Up the leg and the bar it is 650; down the leg 150; left 150.
+        const { card } = await mountAfterRemap([lShapedRoom("0")]);
+        const marker = roomElement(card, "0")?.querySelector(".room-stale-marker");
+        expect(marker).not.toBeNull();
+
+        expect(inlinePixels(marker!, "--stale-marker-right")).toBeCloseTo(15, 3);
+        expect(inlinePixels(marker!, "--stale-marker-left")).toBeCloseTo(15, 3);
+        expect(inlinePixels(marker!, "--stale-marker-down")).toBeCloseTo(15, 3);
+        expect(inlinePixels(marker!, "--stale-marker-up")).toBeCloseTo(65, 3);
+    });
+
+    it("never reads the label font from the computed style", async () => {
+        // `_getCssProperty` is the card's only computed-style read (`getComputedStyle(mapImage)`).
+        // Parsing the theme's length out of it made every unit but px break, and repeated the read
+        // for every stale room on every hass update and pinch frame.
+        const { card } = await mountAfterRemap([hugeRoom("0")]);
+        const read = vi.spyOn(card.element, "_getCssProperty");
+
         card.element.requestUpdate();
         await settle(card.element);
-        const larger = roomElement(card, "0")?.querySelector(".room-stale-marker");
-        expect(markerStyleOffset(larger!, "y")).toBeCloseTo(-(40 + 56 * 0.55 + 6), 1);
-        expect(markerStyleOffset(larger!, "x")).toBeCloseTo(0, 5);
+
+        expect(read).not.toHaveBeenCalledWith("--map-card-internal-room-label-font-size");
+        expect(roomElement(card, "0")?.querySelector(".room-stale-marker")).not.toBeNull();
+    });
+
+    it("sizes the marker from the pill's own variables in the stylesheet", async () => {
+        const styles = String((Room.styles as CSSResult).cssText);
+        const blocks = [...styles.matchAll(/text\.room-stale-marker\s*\{([^}]*)\}/g)];
+        expect(blocks).toHaveLength(1);
+        const rule = blocks[0][1];
+
+        // The nominal size is the label font, and every length is divided by the zoom like the
+        // label's own font: a theme font in rem, em, % or calc() is resolved by CSS, not by the card.
+        const fontSize = /font-size:\s*min\(([\s\S]*?)\);/.exec(rule);
+        expect(fontSize, "the marker must derive its size in the stylesheet").not.toBeNull();
+        expect(fontSize![1]).toContain("var(--map-card-internal-room-label-font-size)");
+        expect(fontSize![1]).toContain("var(--map-scale)");
+        // The clearance from the pill is the pill's own half height: it is two label fonts tall.
+        expect(rule).toContain(
+            "--stale-marker-pill-half: calc(var(--map-card-internal-room-label-font-size) / var(--map-scale))",
+        );
+        // The placement is handed to the single shared label transform, never a second one.
+        expect(rule).toMatch(/--label-shift-y:\s*min\(/);
+        expect(rule).toMatch(/--label-shift-x:\s*max\(/);
+        expect(rule).not.toMatch(/(^|;|\s)transform\s*:/);
     });
 
     it("does not repeat the label transform for the stale marker", async () => {
