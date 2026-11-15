@@ -178,6 +178,69 @@ describe("selected-room pill", () => {
         expect(icon("0")).not.toBeNull();
     });
 
+    it("sits exactly where the plain label is: same origin, same offset, centred, no pointer", async () => {
+        // Kitchen has an icon with a label offset below it, so the label turns around the icon and
+        // steps its offset on screen; Living room has a label of its own.
+        const card = await mount({
+            cleaning_order: true,
+            predefined_selections: [
+                {
+                    id: 0,
+                    icon: { name: "mdi:silverware-fork-knife", x: 500, y: 450 },
+                    label: { text: "Kitchen", x: 500, y: 450, offset_y: 30 },
+                    outline: [
+                        [200, 200],
+                        [800, 200],
+                        [800, 700],
+                        [200, 700],
+                    ],
+                },
+                {
+                    id: 1,
+                    label: { text: "Living room", x: 1350, y: 450, offset_x: -10 },
+                    outline: [
+                        [1000, 200],
+                        [1700, 200],
+                        [1700, 700],
+                        [1000, 700],
+                    ],
+                },
+            ],
+        } as Partial<MapModeConfig>);
+        const labelPlacement = (id: string): string[] => {
+            const text = wrapper(card, id).querySelector("text.room-label") as SVGTextElement;
+            return [
+                text.getAttribute("x")!,
+                text.getAttribute("y")!,
+                text.style.getPropertyValue("--label-offset-x"),
+                text.style.getPropertyValue("--label-offset-y"),
+            ];
+        };
+        const before = { "0": labelPlacement("0"), "1": labelPlacement("1") };
+
+        await clickRoom(card, "0");
+        await clickRoom(card, "1");
+        for (const id of ["0", "1"] as const) {
+            const anchor = wrapper(card, id).querySelector("foreignObject.room-pill-anchor")!;
+            const pill = wrapper(card, id).querySelector(".room-pill") as HTMLElement;
+            expect(
+                [
+                    anchor.getAttribute("x"),
+                    anchor.getAttribute("y"),
+                    pill.style.getPropertyValue("--room-pill-offset-x"),
+                    pill.style.getPropertyValue("--room-pill-offset-y"),
+                ],
+                `room ${id}`,
+            ).toEqual(before[id]);
+        }
+        // Centred on that point like the label text, not lifted above it on a pointer.
+        const css = (card.element.constructor as unknown as { styles: unknown }).styles;
+        const text = JSON.stringify(css);
+        expect(text).not.toContain("room-pill-pointer");
+        expect(text).not.toContain(".room-pill::after");
+        expect(text).toMatch(/\.room-pill \{[^}]*translate\(-50%, -50%\)/);
+    });
+
     it("shows the badge alone for a room without a label", async () => {
         // The camera reports no room metadata (metadata rooms always get a name, `Room 1` at
         // worst), so the configured room is drawn as configured: without a label.

@@ -88,7 +88,7 @@ export class Room extends PredefinedMapObject {
         const order = this._context.showRoomOrder() ? position : 0;
         const highlighted = this._selected || runOrder > 0;
         // A highlighted room's label becomes a pill (badge + name). A stale room never shows one:
-        // it is not a valid part of a run, and its `!` marker sits where the pill would.
+        // it is not a valid part of a run, and a pill would cover its `!` marker.
         const pill = highlighted && !this._stale;
         return svg`
             <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${this._stale ? "room-stale" : ""}
@@ -111,18 +111,19 @@ export class Room extends PredefinedMapObject {
 
     /**
      * The label of a selected room, or of a room in a started run, drawn as a pill in the style of
-     * the Xiaomi Home app: a badge at its left end and the room name, with a small pointer at the
-     * room's anchor. The badge holds the room's place in the order when the mode numbers rooms
+     * the Xiaomi Home app: a round badge at its left end and the room name, drawn exactly where the
+     * plain label is (centred on the label's point, with its offset). The badge holds the room's place in the order when the mode numbers rooms
      * (`cleaning_order`) and a checkmark otherwise. A room without a label shows the badge alone.
      *
-     * The pill is HTML in a foreignObject so it sizes to its text. Like the labels it is turned back
-     * against the map rotation and divided by the zoom, so it stays upright and the same size on
-     * screen; it ignores pointer events, so a tap reaches the room underneath. Its colours come from
+     * The pill is HTML in a foreignObject so it sizes to its text. Like the label it is turned back
+     * against the map rotation around the same origin and stepped away by the same offset, and it is
+     * divided by the zoom, so it stays upright and the same size on screen; it ignores pointer events, so a tap reaches the room underneath. Its colours come from
      * the resolved palette (`roomPillPalette`), which keeps every text pair at 4.5:1 or better.
      */
     private renderPill(order: number): SVGTemplateResult {
         const anchor = this._pillAnchor();
         if (!anchor) return svg``;
+        const { origin, offset } = anchor;
         const palette = this._context.roomPillPalette();
         const name = this._config.label?.text?.trim();
         const style = [
@@ -131,6 +132,8 @@ export class Room extends PredefinedMapObject {
             `--room-pill-ring: ${cssRgb(palette.ring)}`,
             `--room-pill-badge: ${cssRgb(palette.badge)}`,
             `--room-pill-badge-text: ${cssRgb(palette.badgeText)}`,
+            `--room-pill-offset-x: ${offset[0]}px`,
+            `--room-pill-offset-y: ${offset[1]}px`,
         ].join("; ");
         const badge =
             order > 0
@@ -139,7 +142,7 @@ export class Room extends PredefinedMapObject {
                       ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CHECK_PATH}"></path></svg
                   ></span>`;
         return svg`
-            <foreignObject class="room-pill-anchor" x="${anchor[0]}px" y="${anchor[1]}px" width="1" height="1">
+            <foreignObject class="room-pill-anchor" x="${origin[0]}px" y="${origin[1]}px" width="1" height="1">
                 <body xmlns="http://www.w3.org/1999/xhtml" style="margin: 0">
                     ${html`<div class="room-pill ${name ? "" : "badge-only"} ${palette.badgeRing ? "badge-ring" : ""}"
                                 style="${style}">${badge}${name ? html`<span class="room-pill-name">${name}</span>` : ""}</div>`}
@@ -149,24 +152,33 @@ export class Room extends PredefinedMapObject {
     }
 
     /**
-     * Where the pill's pointer meets the room, in scaled map pixels: the label's position with its
-     * offset, otherwise the icon, otherwise the middle of the outline.
+     * Where the pill goes, in scaled map pixels, computed as `renderLabel` places the plain label:
+     * the origin it turns around (the icon when the room has one, else the label) and the offset it
+     * then steps on screen. A room without a label is centred on its icon, else on the middle of its
+     * outline.
      */
-    private _pillAnchor(): [number, number] | undefined {
+    private _pillAnchor(): { origin: [number, number]; offset: [number, number] } | undefined {
         const label = this._config.label;
-        if (label) {
-            const [x, y] = this.vacuumToScaledMap(label.x, label.y);
-            return [x + this.scaled(label.offset_x ?? 0), y + this.scaled(label.offset_y ?? 0)];
-        }
         const icon = this._config.icon;
+        if (label) {
+            const mapped = this.vacuumToScaledMap(label.x, label.y);
+            const origin = icon ? this.vacuumToScaledMap(icon.x, icon.y) : mapped;
+            return {
+                origin: [origin[0], origin[1]],
+                offset: [
+                    mapped[0] - origin[0] + this.scaled(label.offset_x ?? 0),
+                    mapped[1] - origin[1] + this.scaled(label.offset_y ?? 0),
+                ],
+            };
+        }
         if (icon) {
             const [x, y] = this.vacuumToScaledMap(icon.x, icon.y);
-            return [x, y];
+            return { origin: [x, y], offset: [0, 0] };
         }
         const centre = this._outlineCenter();
         if (!centre) return undefined;
         const [x, y] = this.vacuumToScaledMap(centre.x, centre.y);
-        return [x, y];
+        return { origin: [x, y], offset: [0, 0] };
     }
 
     /**
@@ -271,10 +283,11 @@ export class Room extends PredefinedMapObject {
             }
 
             /* The selected-room pill (see renderPill). The foreignObject is a 1 px box at the
-               anchor; the pill overflows it. Transforms apply right to left: step up and to the
-               left in the pill's own pixels so the pointer tip lands on the anchor, turn back
-               against the map rotation, then divide by the zoom - so the pill stays upright and the
-               same size on screen at any zoom and rotation. */
+               label's origin; the pill overflows it. Transforms apply right to left: centre the
+               pill on its own middle, divide by the zoom, step the label's offset, then turn back
+               against the map rotation around the origin - the same placement as .label-text, so
+               the pill sits exactly where the plain label was, upright and the same size on screen
+               at any zoom and rotation. */
             .room-pill-anchor {
                 overflow: visible;
                 pointer-events: none;
@@ -282,8 +295,6 @@ export class Room extends PredefinedMapObject {
 
             .room-pill {
                 --room-pill-height: calc(var(--map-card-internal-room-label-font-size) * 2);
-                --room-pill-pointer: 5px;
-                position: relative;
                 box-sizing: border-box;
                 display: flex;
                 align-items: center;
@@ -295,7 +306,7 @@ export class Room extends PredefinedMapObject {
                 background: var(--room-pill-background);
                 color: var(--room-pill-text);
                 /* Set apart from the map by depth, not a hard outline: a hairline from the text
-                   colour, and a soft two-layer shadow that also follows the pointer. */
+                   colour, and a soft two-layer shadow. */
                 box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-pill-ring) 18%, transparent);
                 filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.2)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.14));
                 font-size: var(--map-card-internal-room-label-font-size);
@@ -305,25 +316,14 @@ export class Room extends PredefinedMapObject {
                 white-space: nowrap;
                 pointer-events: none;
                 transform-origin: 0 0;
-                transform: scale(calc(1 / var(--map-scale)))
-                    rotate(calc(-1 * var(--map-rotation, 0deg)))
-                    translate(-50%, calc(-100% - var(--room-pill-pointer)));
+                transform: rotate(calc(-1 * var(--map-rotation, 0deg)))
+                    translate(var(--room-pill-offset-x, 0px), var(--room-pill-offset-y, 0px))
+                    scale(calc(1 / var(--map-scale)))
+                    translate(-50%, -50%);
             }
 
             .room-pill.badge-only {
                 padding: 0 3px;
-            }
-
-            /* The pointer under the pill, its tip on the room's anchor. */
-            .room-pill::after {
-                content: "";
-                position: absolute;
-                left: 50%;
-                top: calc(100% - 0.5px);
-                transform: translateX(-50%);
-                border: var(--room-pill-pointer) solid transparent;
-                border-top-color: var(--room-pill-background);
-                border-bottom-width: 0;
             }
 
             .room-pill-badge {
