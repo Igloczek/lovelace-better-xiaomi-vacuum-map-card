@@ -51,6 +51,21 @@ function blockAt(css: string, opener: string): string {
     return css.slice(start);
 }
 
+/**
+ * The stylesheet as a browser without container-query support applies it: every `@container` block
+ * removed, leaving the base rules that browser uses.
+ */
+function withoutContainerQueries(css: string): string {
+    let out = "";
+    let index = 0;
+    for (;;) {
+        const start = css.indexOf("@container", index);
+        if (start < 0) return out + css.slice(index);
+        out += css.slice(index, start);
+        index = start + blockAt(css.slice(start), "@container").length;
+    }
+}
+
 describe("layout: vertical (default)", () => {
     it("renders the map above the controls and keeps the upstream wrapper-free DOM", async () => {
         const card = await mount();
@@ -87,39 +102,41 @@ describe("layout: vertical (default)", () => {
 });
 
 describe("layout: horizontal", () => {
-    it("declares the two-column grid the side-by-side arrangement renders", async () => {
-        for (const width of [400, 800]) {
-            const container = document.createElement("div");
-            container.style.width = `${width}px`;
-            document.body.appendChild(container);
-            const card = await mountCard(cardConfig({ layout: "horizontal" }), fixtureHass(loadSyntheticFixture()), {
-                container,
-            });
-            await card.fireMapLoad();
+    it("marks only the horizontal card as the size container and leaves the vertical DOM untouched", async () => {
+        // The horizontal wrapper is a two-column grid whose children are the map and the controls
+        // column, and the container hook sits on `ha-card`; the container query then reads the
+        // card's own width, which a sections cell, a phone, a sidebar or a popup sets.
+        const horizontal = await mount({ layout: "horizontal" });
+        const horizontalCard = horizontal.shadowRoot.querySelector("ha-card") as Element;
+        expect(horizontalCard.getAttribute("class")).toBe("layout-horizontal");
 
-            const wrapper = card.shadowRoot.querySelector(HORIZONTAL);
-            expect(wrapper, `horizontal wrapper at ${width}px`).not.toBeNull();
+        const wrapper = horizontal.shadowRoot.querySelector(HORIZONTAL) as Element;
+        const map = wrapper?.querySelector(".map-wrapper") as Element;
+        const column = wrapper?.querySelector(".controls-column") as Element;
+        expect(map, "map inside the horizontal wrapper").not.toBeNull();
+        expect(column, "controls column inside the horizontal wrapper").not.toBeNull();
+        expect(follows(map, column)).toBe(true);
+        await horizontal.cleanup();
 
-            const map = wrapper?.querySelector(".map-wrapper");
-            const column = wrapper?.querySelector(".controls-column");
-            const controls = column?.querySelector(".controls-wrapper");
-            expect(map, `map at ${width}px`).not.toBeNull();
-            expect(column, `controls column at ${width}px`).not.toBeNull();
-            expect(controls, `controls at ${width}px`).not.toBeNull();
+        // FORK.md promises the vertical arrangement keeps upstream's DOM. A `class=""` attribute
+        // would be a change too, and card-mod selectors keyed on `ha-card` would see it appear.
+        const vertical = await mount();
+        const verticalCard = vertical.shadowRoot.querySelector("ha-card") as Element;
+        expect(verticalCard.hasAttribute("class"), "the vertical card renders no class attribute").toBe(false);
+        await vertical.cleanup();
+    });
 
-            // Side by side: map in grid column 1, controls in grid column 2, same row. happy-dom
-            // applies no container query, so this is the base rule; which width actually renders
-            // the grid is asserted in Chromium by the visual suite.
-            expect(map?.getAttribute("class")).toContain("map-wrapper");
-            expect(follows(map as Element, column as Element)).toBe(true);
-            const wrapperStyle = getComputedStyle(wrapper as Element);
-            expect(wrapperStyle.display).toBe("grid");
-            expect(wrapperStyle.gridTemplateColumns).toMatch(/1fr/);
-            expect(wrapperStyle.gridTemplateColumns).toMatch(/clamp\(180px, 38%, 360px\)/);
-
-            await card.cleanup();
-            container.remove();
-        }
+    it("keeps an intrinsic width for a parent that sizes the card from its content", () => {
+        // `container-type: inline-size` brings inline-size containment, which by itself makes the
+        // card's intrinsic width 0: an inline-block, a flex row's `flex: 0 1 auto` child or a
+        // `fit-content` wrapper would render a 0 px card. `contain-intrinsic-inline-size` applies
+        // to inline-size containment and gives the card a width there; the visual suite proves the
+        // rendered box in Chromium (a shrink-to-fit parent, a flex-centred parent and `fit-content`).
+        const css = (cardStyles as unknown as { cssText: string }).cssText;
+        expect(css).toMatch(/ha-card\.layout-horizontal\s*\{[^}]*container-type:\s*inline-size/);
+        // The query is named, so the container must carry the name too.
+        expect(css).toMatch(/ha-card\.layout-horizontal\s*\{[^}]*container-name:\s*xvmc-card/);
+        expect(css).toMatch(/ha-card\.layout-horizontal\s*\{[^}]*contain-intrinsic-inline-size:\s*\d+px/);
     });
 
     it("stacks the map above the controls below the card-width breakpoint, by a container query", () => {
@@ -127,11 +144,6 @@ describe("layout: horizontal", () => {
         // contract; Chromium proves the rendered boxes in `test/visual/visual.spec.ts` (a card
         // resized across the breakpoint) and in the real Home Assistant (`layout.spec.ts`).
         const css = (cardStyles as unknown as { cssText: string }).cssText;
-
-        // A size container on the card surface: the query follows the card's own width, which a
-        // sections cell, a phone, a sidebar or a popup sets, rather than the window's.
-        expect(css).toMatch(/ha-card\.layout-horizontal\s*\{[^}]*container-type:\s*inline-size/);
-        expect(css).toContain("container-name: xvmc-card");
 
         const stackedOpener = `@container xvmc-card (width < ${HORIZONTAL_STACK_BREAKPOINT_PX}px)`;
         expect(css, "the breakpoint is a container query, not a viewport media query").toContain(stackedOpener);
@@ -147,27 +159,30 @@ describe("layout: horizontal", () => {
         expect(stacked).toMatch(/\.controls-wrapper\s*\{[^}]*position:\s*static/);
         expect(stacked).toMatch(/\.controls-wrapper\s*\{[^}]*overflow:\s*visible/);
 
-        // The column-only tweaks (wrap, ellipsis) are for the side-by-side arrangement: a stacked
-        // card is as wide as a vertical one and must use the shared control rules instead.
-        const sideBySide = blockAt(css, `@container xvmc-card (width >= ${HORIZONTAL_STACK_BREAKPOINT_PX}px)`);
-        expect(sideBySide).toMatch(/\.dropdown-menu-button-text\s*\{[^}]*text-overflow:\s*ellipsis/);
-        expect(sideBySide).toMatch(/\.map-actions-list\s*\{[^}]*flex-wrap:\s*wrap/);
+        // The clamped-column tweaks are the base rules (see the next test), so the stacked query
+        // has to take them back: the full-width controls row gets the vertical arrangement's
+        // values, keeping the action buttons their height and the mode name wrapping.
+        expect(stacked).toMatch(/\.map-actions-list\s*\{[^}]*flex-wrap:\s*nowrap/);
+        expect(stacked).toMatch(/\.dropdown-menu-button-text\s*\{[^}]*text-overflow:\s*clip/);
+        expect(stacked).toMatch(/\.dropdown-menu-button-text\s*\{[^}]*display:\s*inline-flex/);
+        expect(stacked).toMatch(/\.map-actions-list\s*\{[^}]*margin-inline-start:\s*auto/);
     });
 
-    it("keeps the map, warnings and controls in stacking order inside the wrapper", async () => {
-        // The DOM order is what the single-column stack renders: map, then any warning, then the
-        // controls. The side-by-side grid reorders with explicit rows; the stack must not need to.
-        const card = await mount({ layout: "horizontal" });
-        const wrapper = card.shadowRoot.querySelector(HORIZONTAL) as Element;
-        const map = wrapper.querySelector(".map-wrapper") as Element;
-        const column = wrapper.querySelector(".controls-column") as Element;
-        expect(follows(map, column)).toBe(true);
-        expect(map.parentElement).toBe(wrapper);
-        expect(column.parentElement).toBe(wrapper);
-        // No row/column start on the controls column that a single-column stack would inherit.
-        expect((column as HTMLElement).style.gridRow).toBe("");
-        expect((column as HTMLElement).style.gridColumn).toBe("");
-        await card.cleanup();
+    it("keeps the side-by-side control tweaks as base rules, so a browser without container queries is unchanged", () => {
+        // Container queries arrived in Chromium 105, Firefox 110 and Safari 16. A browser without
+        // them never enters the stacked query, so the horizontal card must already be arranged
+        // there: the action buttons wrap inside the clamped column and a long mode name ellipsizes
+        // instead of being clipped. Putting these inside `@container (width >= 400px)` lost both.
+        const css = withoutContainerQueries((cardStyles as unknown as { cssText: string }).cssText);
+        expect(css).toMatch(/\.layout-content\.horizontal \.map-actions-list\s*\{[^}]*flex-wrap:\s*wrap/);
+        expect(css).toMatch(/\.layout-content\.horizontal \.map-actions-list\s*\{[^}]*height:\s*auto/);
+        expect(css).toMatch(/\.layout-content\.horizontal \.map-controls\s*\{[^}]*justify-content:\s*center/);
+        expect(css).toMatch(/\.layout-content\.horizontal \.dropdown-menu\s*\{[^}]*max-width:\s*100%/);
+        expect(css).toMatch(/\.layout-content\.horizontal \.dropdown-menu-button\s*\{[^}]*display:\s*flex/);
+        expect(css).toMatch(
+            /\.layout-content\.horizontal \.dropdown-menu-button-text\s*\{[^}]*text-overflow:\s*ellipsis/,
+        );
+        expect(css).toMatch(/\.layout-content\.horizontal \.dropdown-menu-button-text\s*\{[^}]*white-space:\s*nowrap/);
     });
 
     it("omits the horizontal wrapper when there are no controls", async () => {

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { CSSResultGroup, html, LitElement, PropertyValues, TemplateResult } from "lit";
+import { CSSResultGroup, html, LitElement, nothing, PropertyValues, TemplateResult } from "lit";
 import { customElement, property, query, queryAll, state } from "lit/decorators.js";
 import { forwardHaptic, LovelaceCardEditor } from "custom-card-helpers";
 import "./editor";
@@ -697,9 +697,11 @@ export class XiaomiVacuumMapCard extends LitElement {
                       </div>
                   `
                 : html`${mapSection}${warningSection}${controlsSection}`;
+        // The container hook goes on the horizontal card only, and the vertical card keeps no class
+        // attribute at all (not `class=""`), so its DOM stays exactly what upstream renders.
         return html`
             <ha-card
-                class="${this._getCardLayout() === "horizontal" ? "layout-horizontal" : ""}"
+                class=${this._getCardLayout() === "horizontal" ? "layout-horizontal" : nothing}
                 style="--map-scale: ${this.mapScale}; --real-scale: ${this.realScale}; --map-rotation: ${
                     this.mapRotation
                 }deg;">

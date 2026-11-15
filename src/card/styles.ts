@@ -354,10 +354,21 @@ export const cardStyles = css`
          * sections cell, a sidebar, a popup and a phone all narrow the card without narrowing the
          * window. Only the horizontal arrangement is made a container, so a vertical card keeps
          * exactly the box it had before this rule existed.
+         *
+         * Inline-size containment is also why the card needs 'contain-intrinsic-inline-size': a
+         * container is not sized by its contents, so a parent that sizes the card from its content
+         * (a 'display: inline-block', a flex row's 'flex: 0 1 auto' child, 'width: fit-content',
+         * card-mod centring) would get 0 px and render the horizontal card invisible. The
+         * property applies to inline-size containment and gives the card the width it asks for in
+         * exactly that case (Chromium 95+, Firefox 107+, Safari 17+; MDN "widely available").
+         * Where a dashboard cell gives the card a width - masonry, sections, a stack - it is not
+         * used and nothing changes. 500 px is the width of a 12-column sections cell, where the
+         * map and controls sit side by side.
          */
         ha-card.layout-horizontal {
             container-type: inline-size;
             container-name: xvmc-card;
+            contain-intrinsic-inline-size: 500px;
         }
 
         /*
@@ -423,56 +434,57 @@ export const cardStyles = css`
 
         /*
          * The clamped controls column needs its own tweaks: it wraps its action buttons, and a long
-         * mode name must ellipsize instead of widening (and clipping) the column. They apply only
-         * while the map and the controls are side by side; stacked, the controls row is as wide as
-         * any vertical card's and the shared rules are the right ones.
+         * mode name must ellipsize instead of widening (and clipping) the column.
+         *
+         * They are the base rules on purpose, not a 'width >= 400px' container query: a browser
+         * without container queries never runs the stacked query below, and it must keep the
+         * side-by-side arrangement exactly as it is today. The stacked query takes these rules
+         * back for the full-width controls row, which is as wide as a vertical card's.
          */
-        @container xvmc-card (width >= ${HORIZONTAL_STACK_BREAKPOINT_PX}px) {
-            .layout-content.horizontal .map-actions-list {
-                flex-wrap: wrap;
-                height: auto;
-                justify-content: center;
-                margin-inline-start: 0;
-            }
+        .layout-content.horizontal .map-actions-list {
+            flex-wrap: wrap;
+            height: auto;
+            justify-content: center;
+            margin-inline-start: 0;
+        }
 
-            .layout-content.horizontal .map-controls {
-                justify-content: center;
-            }
+        .layout-content.horizontal .map-controls {
+            justify-content: center;
+        }
 
-            /*
-             * A long mode name must ellipsize inside the controls column instead of widening the
-             * dropdown and having the column's overflow-x: hidden clip the mode icon. The chain
-             * from the flex item down to the text has to be allowed to shrink at every level:
-             * xvmc-dropdown-menu and ha-dropdown are block boxes clamped to the column, the button
-             * is the flex row, the text is the one shrinkable child and the icon keeps its size.
-             * max-width: 100% on the button alone was measured against those content-sized
-             * parents, so the button stayed as wide as its text and nothing ellipsized.
-             */
-            .layout-content.horizontal .map-controls > xvmc-dropdown-menu,
-            .layout-content.horizontal .dropdown-menu {
-                display: block;
-                min-width: 0;
-                max-width: 100%;
-            }
+        /*
+         * A long mode name must ellipsize inside the controls column instead of widening the
+         * dropdown and having the column's overflow-x: hidden clip the mode icon. The chain
+         * from the flex item down to the text has to be allowed to shrink at every level:
+         * xvmc-dropdown-menu and ha-dropdown are block boxes clamped to the column, the button
+         * is the flex row, the text is the one shrinkable child and the icon keeps its size.
+         * max-width: 100% on the button alone was measured against those content-sized
+         * parents, so the button stayed as wide as its text and nothing ellipsized.
+         */
+        .layout-content.horizontal .map-controls > xvmc-dropdown-menu,
+        .layout-content.horizontal .dropdown-menu {
+            display: block;
+            min-width: 0;
+            max-width: 100%;
+        }
 
-            .layout-content.horizontal .dropdown-menu-button {
-                display: flex;
-                min-width: 0;
-                max-width: 100%;
-            }
+        .layout-content.horizontal .dropdown-menu-button {
+            display: flex;
+            min-width: 0;
+            max-width: 100%;
+        }
 
-            .layout-content.horizontal .dropdown-menu-button-text {
-                /* text-overflow only renders on a block container; the shared rule is inline-flex. */
-                display: block;
-                min-width: 0;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
+        .layout-content.horizontal .dropdown-menu-button-text {
+            /* text-overflow only renders on a block container; the shared rule is inline-flex. */
+            display: block;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
 
-            .layout-content.horizontal .dropdown-menu-button-button {
-                flex-shrink: 0;
-            }
+        .layout-content.horizontal .dropdown-menu-button-button {
+            flex-shrink: 0;
         }
 
         /*
@@ -495,6 +507,44 @@ export const cardStyles = css`
                 position: static;
                 overflow: visible;
                 overscroll-behavior: auto;
+            }
+
+            /* The stacked controls row is as wide as a vertical card's, so it gets the vertical
+               arrangement's control rules back from the clamped-column rules above: the buttons
+               keep their own height and right alignment instead of wrapping and centring, and the
+               mode name wraps instead of being ellipsized. These values mirror '.map-actions-list',
+               '.map-controls' and 'DropdownMenu.styles'; keep them in step with those. */
+            .layout-content.horizontal .map-actions-list {
+                flex-wrap: nowrap;
+                height: min-content;
+                justify-content: normal;
+                margin-inline-start: auto;
+            }
+
+            .layout-content.horizontal .map-controls {
+                justify-content: normal;
+            }
+
+            .layout-content.horizontal .map-controls > xvmc-dropdown-menu,
+            .layout-content.horizontal .dropdown-menu {
+                display: inline;
+                max-width: none;
+            }
+
+            .layout-content.horizontal .dropdown-menu-button {
+                display: inline-flex;
+                max-width: none;
+            }
+
+            .layout-content.horizontal .dropdown-menu-button-text {
+                display: inline-flex;
+                overflow: visible;
+                text-overflow: clip;
+                white-space: normal;
+            }
+
+            .layout-content.horizontal .dropdown-menu-button-button {
+                flex-shrink: 1;
             }
         }
 

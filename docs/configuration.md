@@ -189,6 +189,20 @@ In a sections view that is the narrowest span: a 12-column section is about 500 
 card asks for `min_columns: 9`, so its narrowest cell is about 373 px and stacks. A cell shorter than
 the stacked map and controls scrolls inside the card, like any vertical card in a fixed-height cell.
 
+That scroll is the accepted cost of stacking on the narrowest span. The horizontal layout's default
+cell is 6 rows (about 300 px), and if the map keeps its height the controls start below the cell's
+fold, so reaching them needs a scroll inside the card. The alternative — squeezing both into one cell
+— is the arrangement the 400 px breakpoint exists to avoid, so the default stays. Raise
+`grid_options.rows` for that card to give the stacked controls their own room:
+
+```yaml
+type: custom:xiaomi-vacuum-map-card
+entity: vacuum.roborock_s7
+layout: horizontal
+grid_options:
+  rows: 9
+```
+
 In the sections view the card uses Home Assistant's default grid size for the vertical layout: 12
 columns wide with `rows: "auto"`, so the cell fits the card's content as it always has. The
 horizontal layout is a new arrangement and reports a numeric default height (6 rows) with

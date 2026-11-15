@@ -44,6 +44,7 @@ transform, and the living room's outline against the room's place in the rendere
 | `touch gestures` | real CDP touch input: a two-finger twist rotates, stays aligned, does not select the room under the fingers and is remembered; a twist near 90° snaps; a locked map ignores pans and twists; `two_finger_pan` pans only with two fingers; a one-finger tap still selects a room |
 | `map appearance` | `transparent_background` clears the white background in a dark theme, keeps room colours and detection, and labels stay light with a dark outline |
 | `horizontal layout at phone widths` | at 320, 360 and 390 px the card does not overflow sideways and stacks the map above the full-width controls; at 412 px it stays side by side with the map right of the card's share and the controls beside it |
+| `horizontal layout in a parent that sizes the card from its content` | in an inline-block parent, a flex row that centres the card and a `fit-content` wrapper the horizontal card keeps a real width (not the 0 px inline-size containment gives it), stays two columns and keeps its room overlay aligned |
 | `cards mounted while hidden` | a card created inside a `display: none` container applies its stored view and base scale once shown, with no further `hass` update |
 | `map lock persistence` | the lock and the locked view survive a reload; `persist_map_lock: false` keeps the view but not the lock |
 
