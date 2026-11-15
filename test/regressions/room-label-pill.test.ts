@@ -221,12 +221,11 @@ describe("selected-room pill", () => {
         await clickRoom(card, "0");
         await clickRoom(card, "1");
         for (const id of ["0", "1"] as const) {
-            const anchor = wrapper(card, id).querySelector("foreignObject.room-pill-anchor")!;
             const pill = wrapper(card, id).querySelector(".room-pill") as HTMLElement;
             expect(
                 [
-                    anchor.getAttribute("x"),
-                    anchor.getAttribute("y"),
+                    pill.style.getPropertyValue("--room-pill-x"),
+                    pill.style.getPropertyValue("--room-pill-y"),
                     pill.style.getPropertyValue("--room-pill-offset-x"),
                     pill.style.getPropertyValue("--room-pill-offset-y"),
                 ],
@@ -239,6 +238,22 @@ describe("selected-room pill", () => {
         expect(text).not.toContain("room-pill-pointer");
         expect(text).not.toContain(".room-pill::after");
         expect(text).toMatch(/\.room-pill \{[^}]*translate\(-50%, -50%\)/);
+    });
+
+    it("gives the pill a foreignObject box that contains it, so removing it repaints all of it", async () => {
+        // A browser repaints only what changed. With a 1 px foreignObject and the pill overflowing
+        // it, deselecting left most of the pill painted over the map (seen in a real dashboard).
+        const card = await mount({});
+        await clickRoom(card, "1");
+        const box = wrapper(card, "1").querySelector("foreignObject.room-pill-anchor")!;
+        expect([
+            box.getAttribute("x"),
+            box.getAttribute("y"),
+            box.getAttribute("width"),
+            box.getAttribute("height"),
+        ]).toEqual(["-50%", "-50%", "200%", "200%"]);
+        await clickRoom(card, "1");
+        expect(wrapper(card, "1").querySelector("foreignObject.room-pill-anchor")).toBeNull();
     });
 
     it("shows the badge alone for a room without a label", async () => {

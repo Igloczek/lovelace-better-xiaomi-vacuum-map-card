@@ -115,7 +115,11 @@ export class Room extends PredefinedMapObject {
      * plain label is (centred on the label's point, with its offset). The badge holds the room's place in the order when the mode numbers rooms
      * (`cleaning_order`) and a checkmark otherwise. A room without a label shows the badge alone.
      *
-     * The pill is HTML in a foreignObject so it sizes to its text. Like the label it is turned back
+     * The pill is HTML in a foreignObject so it sizes to its text. The foreignObject covers the map
+     * and half of it again on every side, so its own box always contains the pill: a browser that
+     * repaints only what changed (Chromium, WebKit) repaints that box when the pill goes, where a
+     * small box with the pill overflowing it left the rest of the pill painted over the map after
+     * deselection. Like the label it is turned back
      * against the map rotation around the same origin and stepped away by the same offset, and it is
      * divided by the zoom, so it stays upright and the same size on screen; it ignores pointer events, so a tap reaches the room underneath. Its colours come from
      * the resolved palette (`roomPillPalette`), which keeps every text pair at 4.5:1 or better.
@@ -132,6 +136,8 @@ export class Room extends PredefinedMapObject {
             `--room-pill-ring: ${cssRgb(palette.ring)}`,
             `--room-pill-badge: ${cssRgb(palette.badge)}`,
             `--room-pill-badge-text: ${cssRgb(palette.badgeText)}`,
+            `--room-pill-x: ${origin[0]}px`,
+            `--room-pill-y: ${origin[1]}px`,
             `--room-pill-offset-x: ${offset[0]}px`,
             `--room-pill-offset-y: ${offset[1]}px`,
         ].join("; ");
@@ -142,8 +148,8 @@ export class Room extends PredefinedMapObject {
                       ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CHECK_PATH}"></path></svg
                   ></span>`;
         return svg`
-            <foreignObject class="room-pill-anchor" x="${origin[0]}px" y="${origin[1]}px" width="1" height="1">
-                <body xmlns="http://www.w3.org/1999/xhtml" style="margin: 0">
+            <foreignObject class="room-pill-anchor" x="-50%" y="-50%" width="200%" height="200%">
+                <body xmlns="http://www.w3.org/1999/xhtml" class="room-pill-canvas">
                     ${html`<div class="room-pill ${name ? "" : "badge-only"} ${palette.badgeRing ? "badge-ring" : ""}"
                                 style="${style}">${badge}${name ? html`<span class="room-pill-name">${name}</span>` : ""}</div>`}
                 </body>
@@ -282,8 +288,10 @@ export class Room extends PredefinedMapObject {
                     background var(--map-card-internal-transitions-duration) ease;
             }
 
-            /* The selected-room pill (see renderPill). The foreignObject is a 1 px box at the
-               label's origin; the pill overflows it. Transforms apply right to left: centre the
+            /* The selected-room pill (see renderPill). The foreignObject spans the map plus half of
+               it on every side, so its box contains the pill and removing the pill repaints all of
+               it; the pill is placed at the label's origin inside it (the body is twice the map, so
+               25% of it is the map's own top-left corner). Transforms apply right to left: centre the
                pill on its own middle, divide by the zoom, step the label's offset, then turn back
                against the map rotation around the origin - the same placement as .label-text, so
                the pill sits exactly where the plain label was, upright and the same size on screen
@@ -293,8 +301,19 @@ export class Room extends PredefinedMapObject {
                 pointer-events: none;
             }
 
+            .room-pill-canvas {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                pointer-events: none;
+            }
+
             .room-pill {
                 --room-pill-height: calc(var(--map-card-internal-room-label-font-size) * 2);
+                position: absolute;
+                left: calc(25% + var(--room-pill-x, 0px));
+                top: calc(25% + var(--room-pill-y, 0px));
                 box-sizing: border-box;
                 display: flex;
                 align-items: center;
