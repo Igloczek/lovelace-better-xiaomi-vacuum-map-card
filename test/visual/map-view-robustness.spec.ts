@@ -626,7 +626,7 @@ test.describe("horizontal layout at phone widths", () => {
             }),
         );
         const metrics = await page.evaluate(() => {
-            const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+            const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
             const root = card.shadowRoot as ShadowRoot;
             const haCard = root.querySelector("ha-card") as HTMLElement;
             const map = (root.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
@@ -688,13 +688,13 @@ test.describe("horizontal layout in a parent that sizes the card from its conten
             // from the card itself, which is exactly the case containment broke. Home Assistant
             // renders the element as a block, so pin that and leave the parent to size it.
             await page.evaluate(() => {
-                const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+                const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
                 card.style.display = "block";
             });
             await nextLayout(page);
 
             const metrics = await page.evaluate(() => {
-                const card = document.querySelector("xiaomi-vacuum-map-card") as HTMLElement;
+                const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
                 const root = card.shadowRoot as ShadowRoot;
                 const haCard = root.querySelector("ha-card") as HTMLElement;
                 const map = (root.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();

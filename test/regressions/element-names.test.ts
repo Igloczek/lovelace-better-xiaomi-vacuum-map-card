@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
     ACTION_HANDLER_CUSTOM_ELEMENT_NAME,
@@ -12,31 +12,67 @@ import {
     EVENT_SERVICE_CALL,
     EVENT_SERVICE_CALL_GET,
     LEGACY_CARD_CUSTOM_ELEMENT_NAME,
+    LEGACY_MAP_VIEW_STORE_KEY,
+    MAP_VIEW_STORE_KEY,
 } from "../../src/const";
 import {
+    decideLegacyCardAlias,
     defineLegacyCardAlias,
-    hasCompetingCardResource,
+    installLegacyCardAlias,
     resourcePath,
-    shouldDefineLegacyCardAlias,
+    upstreamCandidateScripts,
+    watchForAliasCollision,
+    watchLateUpstreamScripts,
+    type CustomElementRegistryLike,
+    type ScriptLike,
 } from "../../src/card-element-names";
 import { XiaomiVacuumMapCard } from "../../src/xiaomi-vacuum-map-card";
 
 /**
  * The fork registers its own element names so it can be installed next to the upstream card. The
- * upstream name stays as an alias, but only when the upstream bundle is not loaded: registering it
- * while upstream is present would make the upstream bundle's `@customElement` throw.
+ * upstream name stays as an alias, but only on evidence that the upstream card is not going to
+ * register it: a dead resource row from the renamed repository must not keep the alias away, and a
+ * resource that loaded must get its chance to register the element before the fork takes the name.
  */
 
 const OWN =
     "http://homeassistant.local:8123/local/community/lovelace-better-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js?v=1.2.3";
 const UPSTREAM = "http://homeassistant.local:8123/hacsfiles/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js";
+/**
+ * How the fork's own Marketplace install is actually served: the folder keeps the repository's
+ * pre-rename name, so this is upstream's path word for word and the fork's own URL at the same time.
+ */
+const OWN_AT_UPSTREAM_PATH =
+    "http://homeassistant.local:8123/local/community/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js?v=1456693146-v1.3.0";
+/** The row an installer upgrade leaves behind: the old repository's file is gone, the row is not. */
+const DEAD_UPSTREAM =
+    "http://homeassistant.local:8123/local/community/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js";
 
 function scripts(...urls: string[]): { src: string }[] {
     return urls.map(src => ({ src }));
 }
 
-function fakeRegistry(defined: Record<string, CustomElementConstructor> = {}) {
+interface FakeScript extends ScriptLike {
+    fire(type: "load" | "error"): void;
+}
+
+/** A script element stand-in that a test can settle explicitly, at a controlled moment. */
+function makeScript(url: string): FakeScript {
+    const target = new EventTarget();
+    return {
+        src: url,
+        addEventListener: (type, listener, options) =>
+            target.addEventListener(type, listener as EventListener, options),
+        fire: type => target.dispatchEvent(new Event(type)),
+    } as FakeScript;
+}
+
+function fakeRegistry(defined: Record<string, CustomElementConstructor> = {}): CustomElementRegistryLike & {
+    definedNames: string[];
+    get(name: string): CustomElementConstructor | undefined;
+} {
     const entries = new Map(Object.entries(defined));
+    const waiters = new Map<string, ((constructor: CustomElementConstructor) => void)[]>();
     const definedNames: string[] = [];
     return {
         entries,
@@ -45,6 +81,40 @@ function fakeRegistry(defined: Record<string, CustomElementConstructor> = {}) {
         define: (name: string, constructor: CustomElementConstructor) => {
             definedNames.push(name);
             entries.set(name, constructor);
+            for (const resolve of waiters.get(name) ?? []) resolve(constructor);
+            waiters.delete(name);
+        },
+        whenDefined: (name: string) => {
+            const existing = entries.get(name);
+            if (existing) return Promise.resolve(existing);
+            return new Promise<CustomElementConstructor>(resolve => {
+                waiters.set(name, [...(waiters.get(name) ?? []), resolve]);
+            });
+        },
+    } as CustomElementRegistryLike & {
+        definedNames: string[];
+        get(name: string): CustomElementConstructor | undefined;
+    };
+}
+
+class FakeCard extends HTMLElement {}
+
+/** No observer and no timers from the real document: the test drives every settlement itself. */
+function inertObserver(): () => void {
+    return () => undefined;
+}
+
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function memoryStorage(initial: Record<string, string> = {}) {
+    const values = new Map(Object.entries(initial));
+    return {
+        values,
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+            values.set(key, value);
         },
     };
 }
@@ -62,7 +132,7 @@ describe("custom element names", () => {
     });
 
     it("returns the fork's editor for the card editor and for the alias", async () => {
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await delay(20);
         const editor = await XiaomiVacuumMapCard.getConfigElement();
         expect(editor.localName).toBe(EDITOR_CUSTOM_ELEMENT_NAME);
         const alias = customElements.get(LEGACY_CARD_CUSTOM_ELEMENT_NAME) as typeof XiaomiVacuumMapCard;
@@ -71,8 +141,7 @@ describe("custom element names", () => {
     });
 
     it("registers the upstream name as a subclass when no other card bundle is loaded", async () => {
-        // The module schedules the alias one task after evaluation.
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await delay(20);
 
         const alias = customElements.get(LEGACY_CARD_CUSTOM_ELEMENT_NAME);
         expect(alias).toBeDefined();
@@ -111,66 +180,313 @@ describe("card <-> editor events", () => {
     });
 });
 
-describe("detecting the upstream bundle", () => {
-    it("sees any other loaded resource that names the upstream card", () => {
-        expect(hasCompetingCardResource(OWN, scripts(OWN))).toBe(false);
-        expect(hasCompetingCardResource(OWN, scripts(OWN, UPSTREAM))).toBe(true);
+describe("candidate upstream resources", () => {
+    it("collects a resource whose URL names the upstream card", () => {
+        const list = upstreamCandidateScripts(OWN, scripts(OWN, UPSTREAM));
+        expect(list.map(script => script.src)).toEqual([UPSTREAM]);
+
         expect(
-            hasCompetingCardResource(OWN, scripts("http://homeassistant.local:8123/local/xiaomi-vacuum-map-card.js")),
-        ).toBe(true);
-        expect(
-            hasCompetingCardResource(
+            upstreamCandidateScripts(
                 OWN,
-                scripts("http://homeassistant.local:8123/local/xiaomi-vacuum-map-card.js?v=9"),
-            ),
-        ).toBe(true);
-        expect(hasCompetingCardResource(OWN, scripts("http://homeassistant.local:8123/local/other-card.js"))).toBe(
-            false,
+                scripts("http://homeassistant.local:8123/local/xiaomi-vacuum-map-card.js"),
+            ).map(script => script.src),
+        ).toEqual(["http://homeassistant.local:8123/local/xiaomi-vacuum-map-card.js"]);
+        expect(upstreamCandidateScripts(OWN, scripts(`${DEAD_UPSTREAM}?v=9`)).map(script => script.src)).toEqual([
+            `${DEAD_UPSTREAM}?v=9`,
+        ]);
+    });
+
+    it("leaves out unrelated resources and this bundle's own URL", () => {
+        expect(upstreamCandidateScripts(OWN, scripts("http://homeassistant.local:8123/local/other-card.js"))).toEqual(
+            [],
         );
+        // This bundle served with another cache-buster is still this card.
+        expect(upstreamCandidateScripts(OWN, scripts(OWN.replace("?v=1.2.3", "?v=branch-abc")))).toEqual([]);
+        // The folder name is not written by the fork: a Marketplace install that predates the
+        // repository rename lives at upstream's path and must be recognised as this card itself.
+        expect(upstreamCandidateScripts(OWN_AT_UPSTREAM_PATH, scripts(OWN_AT_UPSTREAM_PATH))).toEqual([]);
+    });
+
+    it("lists another URL of the same bundle, because only its behaviour tells", () => {
+        // A second copy of this bundle at another path defines the compatibility alias itself (or
+        // does not). Its path says nothing; the decision waits for what it does.
+        const otherCopy =
+            "http://homeassistant.local:8123/local/community/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js?v=1";
+        expect(upstreamCandidateScripts(OWN, scripts(otherCopy))).toEqual([{ src: otherCopy }]);
+        // A different bundle at the upstream path is still a candidate when this card runs from
+        // elsewhere: only the executing bundle is excluded.
+        expect(upstreamCandidateScripts(OWN, scripts(OWN_AT_UPSTREAM_PATH))).toEqual([{ src: OWN_AT_UPSTREAM_PATH }]);
     });
 
     it("compares resources without their cache-busters and regardless of case", () => {
         expect(resourcePath(`${OWN}&v=other`)).toBe(resourcePath(OWN));
         expect(resourcePath("HTTP://HOST/Local/Xiaomi-Vacuum-Map-Card.js")).toBe("/local/xiaomi-vacuum-map-card.js");
-        expect(hasCompetingCardResource(OWN, scripts(OWN.replace("?v=1.2.3", "?v=branch-abc")))).toBe(false);
-    });
-
-    it("does not mistake another copy of this fork for the upstream card", () => {
-        expect(
-            hasCompetingCardResource(
-                OWN,
-                scripts(
-                    "http://homeassistant.local:8123/local/community/lovelace-better-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js?v=old",
-                ),
-            ),
-        ).toBe(false);
     });
 });
 
 describe("the legacy alias decision", () => {
-    class FakeCard extends HTMLElement {}
+    it("defines the alias when the old repository's resource row is dead", async () => {
+        // The repository was renamed, so an installer upgrade leaves this row next to the working
+        // file. It 404s: it can register nothing, so waiting on its name would break every legacy
+        // card on the page.
+        const dead = makeScript(DEAD_UPSTREAM);
+        const decision = await decideLegacyCardAlias({
+            ownUrl: OWN,
+            registry: fakeRegistry(),
+            scripts: () => [scripts(OWN)[0], dead],
+            readResourceTiming: url => (url === dead.src ? { responseStatus: 404 } : undefined),
+            observeScripts: inertObserver,
+            graceMs: 2_000,
+        });
 
-    it("defines the alias when only this card is loaded", () => {
+        expect(decision).toBe(true);
+    });
+
+    it("defines the alias when this card itself is served from the upstream path", async () => {
+        // The real Marketplace folder is still `lovelace-xiaomi-vacuum-map-card`: a path-only
+        // heuristic read the fork's own script as the upstream card and never aliased.
+        const own = makeScript(OWN_AT_UPSTREAM_PATH);
+        const started = Date.now();
+        const decision = await decideLegacyCardAlias({
+            ownUrl: OWN_AT_UPSTREAM_PATH,
+            registry: fakeRegistry(),
+            scripts: () => [own],
+            readResourceTiming: () => ({}),
+            observeScripts: inertObserver,
+            graceMs: 500,
+        });
+
+        expect(decision).toBe(true);
+        // If the own script counted as a candidate it would be "loaded" and the decision would
+        // wait the whole grace period.
+        expect(Date.now() - started).toBeLessThan(400);
+    });
+
+    it("defines the alias as soon as a dead row's fetch fails", async () => {
+        const dead = makeScript(DEAD_UPSTREAM);
+        const decision = decideLegacyCardAlias({
+            ownUrl: OWN,
+            registry: fakeRegistry(),
+            scripts: () => [scripts(OWN)[0], dead],
+            readResourceTiming: () => undefined,
+            observeScripts: inertObserver,
+            graceMs: 2_000,
+        });
+        setTimeout(() => dead.fire("error"), 5);
+
+        const started = Date.now();
+        await expect(decision).resolves.toBe(true);
+        // The grace period is for a resource that loaded; a failed fetch is decided at once.
+        expect(Date.now() - started).toBeLessThan(1_000);
+    });
+
+    it("leaves the name to a loaded upstream bundle that registers it", async () => {
         const registry = fakeRegistry();
-        expect(defineLegacyCardAlias(FakeCard, { ownUrl: OWN, scripts: scripts(OWN), registry })).toBe(true);
+        const upstream = makeScript(UPSTREAM);
+        const decision = decideLegacyCardAlias({
+            ownUrl: OWN,
+            registry,
+            scripts: () => [scripts(OWN)[0], upstream],
+            readResourceTiming: () => ({}),
+            observeScripts: inertObserver,
+            graceMs: 2_000,
+        });
+        setTimeout(() => {
+            registry.define(LEGACY_CARD_CUSTOM_ELEMENT_NAME, FakeCard);
+            upstream.fire("load");
+        }, 5);
+
+        await expect(decision).resolves.toBe(false);
+        expect(registry.definedNames).toEqual([LEGACY_CARD_CUSTOM_ELEMENT_NAME]);
+    });
+
+    it("defines the alias after the grace period when a loaded resource never registers", async () => {
+        const registry = fakeRegistry();
+        const proxy = makeScript("http://homeassistant.local:8123/local/xiaomi-vacuum-map-card.js");
+        const decision = decideLegacyCardAlias({
+            ownUrl: OWN,
+            registry,
+            scripts: () => [scripts(OWN)[0], proxy],
+            readResourceTiming: () => ({}),
+            observeScripts: inertObserver,
+            graceMs: 80,
+        });
+
+        // It must not take the name while the loaded resource can still register it.
+        await expect(Promise.race([decision.then(() => "defined"), delay(20).then(() => "waiting")])).resolves.toBe(
+            "waiting",
+        );
+        await expect(decision).resolves.toBe(true);
+        expect(registry.definedNames).toEqual([]);
+    });
+
+    it("defines the alias when no resource can register the upstream name", async () => {
+        await expect(
+            decideLegacyCardAlias({
+                ownUrl: OWN,
+                registry: fakeRegistry(),
+                scripts: () => [scripts(OWN)[0]],
+                observeScripts: inertObserver,
+            }),
+        ).resolves.toBe(true);
+    });
+
+    it("never takes a name another bundle already registered", async () => {
+        const registry = fakeRegistry({ [LEGACY_CARD_CUSTOM_ELEMENT_NAME]: FakeCard });
+        await expect(
+            decideLegacyCardAlias({
+                ownUrl: OWN,
+                registry,
+                scripts: () => [scripts(OWN)[0]],
+                observeScripts: inertObserver,
+            }),
+        ).resolves.toBe(false);
+        expect(defineLegacyCardAlias(FakeCard, { registry })).toBe(false);
+        expect(registry.definedNames).toEqual([]);
+    });
+
+    it("registers the alias as a subclass when the name is still free", () => {
+        const registry = fakeRegistry();
+        expect(defineLegacyCardAlias(FakeCard, { registry })).toBe(true);
         expect(registry.definedNames).toEqual([LEGACY_CARD_CUSTOM_ELEMENT_NAME]);
         expect(Object.getPrototypeOf(registry.get(LEGACY_CARD_CUSTOM_ELEMENT_NAME))).toBe(FakeCard);
     });
+});
 
-    it("leaves the name to a loaded upstream card, in either resource order", () => {
-        // Upstream listed before this card and after it: the fork evaluates with both scripts already
-        // in the document, so the decision is the same.
-        for (const list of [scripts(UPSTREAM, OWN), scripts(OWN, UPSTREAM)]) {
-            const registry = fakeRegistry();
-            expect(defineLegacyCardAlias(FakeCard, { ownUrl: OWN, scripts: list, registry })).toBe(false);
-            expect(registry.definedNames).toEqual([]);
-        }
+describe("installing the alias", () => {
+    it("migrates the stored view exactly when it registers the alias", async () => {
+        const dead = makeScript(DEAD_UPSTREAM);
+        const storage = memoryStorage({ [LEGACY_MAP_VIEW_STORE_KEY]: "legacy" });
+        const registry = fakeRegistry();
+
+        const installed = await installLegacyCardAlias(FakeCard, {
+            ownUrl: OWN,
+            registry,
+            scripts: () => [scripts(OWN)[0], dead],
+            readResourceTiming: url => (url === dead.src ? { responseStatus: 404 } : undefined),
+            storage,
+            observeScripts: inertObserver,
+            warn: () => undefined,
+            collisionTarget: new EventTarget(),
+        });
+
+        expect(installed).toBe(true);
+        expect(registry.definedNames).toEqual([LEGACY_CARD_CUSTOM_ELEMENT_NAME]);
+        expect(storage.getItem(MAP_VIEW_STORE_KEY)).toBe("legacy");
     });
 
-    it("does not redefine a name that is already registered", () => {
-        const registry = fakeRegistry({ [LEGACY_CARD_CUSTOM_ELEMENT_NAME]: FakeCard });
-        expect(defineLegacyCardAlias(FakeCard, { ownUrl: OWN, scripts: scripts(OWN), registry })).toBe(false);
-        expect(shouldDefineLegacyCardAlias(OWN, scripts(OWN), registry)).toBe(false);
-        expect(registry.definedNames).toEqual([]);
+    it("neither aliases nor migrates while the upstream card owns the name", async () => {
+        const registry = fakeRegistry();
+        const upstream = makeScript(UPSTREAM);
+        const storage = memoryStorage({ [LEGACY_MAP_VIEW_STORE_KEY]: "upstream" });
+        const install = installLegacyCardAlias(FakeCard, {
+            ownUrl: OWN,
+            registry,
+            scripts: () => [scripts(OWN)[0], upstream],
+            readResourceTiming: () => ({}),
+            storage,
+            observeScripts: inertObserver,
+            warn: () => undefined,
+            collisionTarget: new EventTarget(),
+            graceMs: 50,
+        });
+        setTimeout(() => registry.define(LEGACY_CARD_CUSTOM_ELEMENT_NAME, FakeCard), 5);
+
+        await expect(install).resolves.toBe(false);
+        expect(storage.values.has(MAP_VIEW_STORE_KEY)).toBe(false);
+    });
+
+    it("aliases and migrates when the fork is served from the upstream path", async () => {
+        // The production layout: one resource row, at the old repository's path, loading this
+        // bundle. No other card is installed, so the legacy type must keep rendering and the view
+        // and run must follow the card to its own keys.
+        const storage = memoryStorage({ [LEGACY_MAP_VIEW_STORE_KEY]: "legacy" });
+        const registry = fakeRegistry();
+        const installed = await installLegacyCardAlias(FakeCard, {
+            ownUrl: OWN_AT_UPSTREAM_PATH,
+            registry,
+            scripts: () => [makeScript(OWN_AT_UPSTREAM_PATH)],
+            readResourceTiming: () => ({}),
+            storage,
+            observeScripts: inertObserver,
+            warn: () => undefined,
+            collisionTarget: new EventTarget(),
+            graceMs: 500,
+        });
+
+        expect(installed).toBe(true);
+        expect(registry.definedNames).toEqual([LEGACY_CARD_CUSTOM_ELEMENT_NAME]);
+        expect(storage.getItem(MAP_VIEW_STORE_KEY)).toBe("legacy");
+    });
+});
+
+describe("an upstream resource that arrives later", () => {
+    it("warns once, naming both cards, when it is added after the alias is registered", () => {
+        const warn = vi.fn();
+        let observer: ((script: ScriptLike) => void) | undefined;
+        watchLateUpstreamScripts({
+            ownUrl: OWN,
+            warn,
+            observeScripts: onScript => {
+                observer = onScript;
+                return () => undefined;
+            },
+        });
+        const late = makeScript(UPSTREAM);
+        observer?.(late);
+        late.fire("load");
+        late.fire("load");
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        const [message] = warn.mock.calls[0];
+        expect(message).toContain("better-xiaomi-vacuum-map-card");
+        expect(message).toContain("xiaomi-vacuum-map-card");
+        expect(message).toContain("reload");
+    });
+
+    it("stays quiet when the late resource failed to load", () => {
+        const warn = vi.fn();
+        let observer: ((script: ScriptLike) => void) | undefined;
+        watchLateUpstreamScripts({
+            ownUrl: OWN,
+            warn,
+            observeScripts: onScript => {
+                observer = onScript;
+                return () => undefined;
+            },
+            readResourceTiming: () => ({ responseStatus: 404 }),
+        });
+        observer?.(makeScript(DEAD_UPSTREAM));
+
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("warns once when a renamed bundle fails to register the name", () => {
+        const target = new EventTarget();
+        const warn = vi.fn();
+        watchForAliasCollision(warn, target);
+
+        const failure = new Event("error") as Event & { message: string };
+        failure.message =
+            "Failed to execute 'define' on 'CustomElementRegistry': the name " +
+            '"xiaomi-vacuum-map-card" has already been used with this registry';
+        target.dispatchEvent(failure);
+        target.dispatchEvent(failure);
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toContain("xiaomi-vacuum-map-card");
+        expect(warn.mock.calls[0][0]).toContain("better-xiaomi-vacuum-map-card");
+    });
+
+    it("ignores unrelated page errors", () => {
+        const target = new EventTarget();
+        const warn = vi.fn();
+        watchForAliasCollision(warn, target);
+
+        const failure = new Event("error") as Event & { message: string };
+        failure.message = "Uncaught TypeError: something else broke";
+        target.dispatchEvent(failure);
+
+        expect(warn).not.toHaveBeenCalled();
     });
 });

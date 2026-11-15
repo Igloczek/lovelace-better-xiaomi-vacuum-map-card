@@ -233,14 +233,23 @@ type: custom:better-xiaomi-vacuum-map-card
 ### Migrating from `custom:xiaomi-vacuum-map-card`
 
 The old type still works: when the original card's resource is not loaded, this card answers to
-`custom:xiaomi-vacuum-map-card` too, so an existing dashboard keeps rendering without an edit. It
-stops doing that as soon as the original card is installed as well, because the original must keep
+`custom:xiaomi-vacuum-map-card` too, so an existing dashboard keeps rendering without an edit. The
+decision looks at what the dashboard's resources did, not at their file names, so the dead resource
+row an upgrade from the original repository's path leaves behind does not matter. It stops
+answering to the old name as soon as the original card registers it, because the original must keep
 its own element name. A dashboard that should keep working next to the original card needs the new
 type. The card picker, the editor and `type: custom:better-xiaomi-vacuum-map-card` in new YAML use
 the new name.
 
-Your remembered zoom, position and room run move to the card's own storage keys on first load. When
-the original card is installed too, that state stays with it and this card starts fresh.
+Adding the original card as a resource in a running session needs a page reload, and with both
+cards installed a `fire-dom-event` action should name its `action_handler_id`, because both listen
+for the same event. [The configuration docs](docs/configuration.md#migrating-from-customxiaomi-vacuum-map-card)
+spell out both limits, including the console warning that names the two cards when a bundle the
+card could not recognise registers too late.
+
+Your remembered zoom, position and room run move to the card's own storage keys on first load,
+exactly when this card takes the old element name. When the original card is installed too, that
+state stays with it and this card starts fresh.
 
 A few defaults differ, and each can be switched back:
 

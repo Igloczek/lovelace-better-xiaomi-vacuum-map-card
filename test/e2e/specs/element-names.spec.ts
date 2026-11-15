@@ -21,6 +21,32 @@ const UPSTREAM_RELEASE =
     "https://github.com/PiotrMachowski/lovelace-xiaomi-vacuum-map-card/releases/download/v2.4.1/xiaomi-vacuum-map-card.js";
 const FORK_TAG = "better-xiaomi-vacuum-map-card";
 const LEGACY_TAG = "xiaomi-vacuum-map-card";
+/**
+ * The fork's own Marketplace folder, created before the repository rename: the fork is served from
+ * upstream's path word for word. The suite proves that this is recognised as the fork itself.
+ */
+const OLD_PATH_URL = "/local/community/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js";
+const OLD_PATH_FILE = path.join(
+    __dirname,
+    "..",
+    "ha",
+    "config",
+    "www",
+    "community",
+    "lovelace-xiaomi-vacuum-map-card",
+    "xiaomi-vacuum-map-card.js",
+);
+const INSTALLED_FILE = path.join(
+    __dirname,
+    "..",
+    "ha",
+    "config",
+    "www",
+    "community",
+    "lovelace-better-xiaomi-vacuum-map-card",
+    "xiaomi-vacuum-map-card.js",
+);
+const BUILT_FILE = path.join(__dirname, "..", "..", "dist", "xiaomi-vacuum-map-card.js");
 
 interface Resource {
     id: string;
@@ -31,7 +57,52 @@ interface Resource {
 let forkResourceUrl: string | undefined;
 
 function isCardResource(resource: Resource): boolean {
-    return resource.url.includes(FORK_MARKER) || resource.url.startsWith("/local/upstream/xiaomi-vacuum-map-card.js");
+    return (
+        resource.url.includes(FORK_MARKER) ||
+        resource.url.startsWith("/local/upstream/xiaomi-vacuum-map-card.js") ||
+        resource.url.startsWith(OLD_PATH_URL)
+    );
+}
+
+/** Copies the branch build to the pre-rename folder, so it is served from upstream's own path. */
+function installOldPathBundle(): void {
+    const source = fs.existsSync(INSTALLED_FILE) ? INSTALLED_FILE : BUILT_FILE;
+    if (!fs.existsSync(source)) throw new Error(`missing ${source}; run npm run build and the installer steps`);
+    fs.mkdirSync(path.dirname(OLD_PATH_FILE), { recursive: true });
+    fs.copyFileSync(source, OLD_PATH_FILE);
+}
+
+/** Deletes that copy, so a resource row at the old path is a dead row that 404s. */
+function removeOldPathBundle(): void {
+    fs.rmSync(OLD_PATH_FILE, { force: true });
+}
+
+/** Registers exactly one card resource, at the given URL. */
+async function setOnlyCardResource(url: string): Promise<void> {
+    const resources = await wsSend<Resource[]>("lovelace/resources");
+    const fork = resources.find(resource => resource.url.includes(FORK_MARKER));
+    if (fork) forkResourceUrl = fork.url;
+    for (const resource of resources) {
+        if (isCardResource(resource)) {
+            await wsSend("lovelace/resources/delete", { resource_id: resource.id });
+        }
+    }
+    await wsSend("lovelace/resources/create", { res_type: "module", url });
+}
+
+/** Deletes the card resources and registers the fork's installed URL plus one extra resource. */
+async function setForkResourcePlus(url: string): Promise<void> {
+    const resources = await wsSend<Resource[]>("lovelace/resources");
+    const fork = resources.find(resource => resource.url.includes(FORK_MARKER));
+    if (fork) forkResourceUrl = fork.url;
+    if (!forkResourceUrl) throw new Error("the fork's Lovelace resource is missing; run marketplace-install.cjs");
+    for (const resource of resources) {
+        if (isCardResource(resource)) {
+            await wsSend("lovelace/resources/delete", { resource_id: resource.id });
+        }
+    }
+    await wsSend("lovelace/resources/create", { res_type: "module", url: forkResourceUrl });
+    await wsSend("lovelace/resources/create", { res_type: "module", url });
 }
 
 /**
@@ -110,6 +181,7 @@ test.describe("custom element names", () => {
     test.describe.configure({ mode: "serial" });
 
     test.afterAll(async () => {
+        removeOldPathBundle();
         await keepOnlyTheForkResource();
     });
 
@@ -181,6 +253,65 @@ test.describe("custom element names", () => {
         await waitForHaReady(page);
         await expectCardRendered(page, FORK_TAG);
         expect(errors).toEqual([]);
+    });
+
+    test("serves this card from upstream's path without waiting on itself", async ({ page }) => {
+        // The real production layout: the Marketplace folder predates the repository rename, so the
+        // only card resource is `/local/community/lovelace-xiaomi-vacuum-map-card/...`, which is
+        // upstream's path and this card's own URL at the same time. No upstream bundle is loaded.
+        installOldPathBundle();
+        await setOnlyCardResource(`${OLD_PATH_URL}?v=e2e-old-path`);
+        const errors = recordRegistrationErrors(page);
+        const storedView = { "card-e2e-old-path": { s: 2, x: 5, y: 6, r: 0, ts: 1 } };
+
+        await login(page);
+        await page.addInitScript(value => {
+            window.localStorage.setItem("xiaomi-vacuum-map-card.map-view", JSON.stringify(value));
+        }, storedView);
+        await page.goto("/e2e-element-names/legacy");
+        await waitForHaReady(page);
+        await expectCardRendered(page, LEGACY_TAG);
+
+        const migrated = await page.evaluate(() => ({
+            view: window.localStorage.getItem("better-xiaomi-vacuum-map-card.map-view"),
+            isAlias: (() => {
+                const legacy = customElements.get("xiaomi-vacuum-map-card");
+                const fork = customElements.get("better-xiaomi-vacuum-map-card");
+                return !!legacy && !!fork && Object.getPrototypeOf(legacy) === fork;
+            })(),
+        }));
+        expect(migrated.isAlias).toBe(true);
+        expect(JSON.parse(migrated.view ?? "{}")).toHaveProperty(["card-e2e-old-path"]);
+        expect(errors).toEqual([]);
+        await shot(page, "43-element-name-old-path");
+    });
+
+    test("renders the legacy type next to a dead resource row at the old path", async ({ page }) => {
+        // The upgrade state from the rename: a resource row still points at the pre-rename path, the
+        // installer deleted that file, and the working file is the fork's. The 404 must not stop the
+        // alias: it is evidence that nothing can register upstream's name.
+        removeOldPathBundle();
+        await setForkResourcePlus(`${OLD_PATH_URL}?v=e2e-dead-row`);
+        const errors = recordRegistrationErrors(page);
+
+        await login(page);
+        const status = await page.request.get(`${OLD_PATH_URL}?v=e2e-dead-row`);
+        expect(status.status(), "the old path must really 404 for this test to mean anything").toBe(404);
+        await page.goto("/e2e-element-names/legacy");
+        await waitForHaReady(page);
+        await expectCardRendered(page, LEGACY_TAG);
+
+        const isAlias = await page.evaluate(
+            (tags: { legacy: string; fork: string }) => {
+                const legacy = customElements.get(tags.legacy);
+                const fork = customElements.get(tags.fork);
+                return !!legacy && !!fork && Object.getPrototypeOf(legacy) === fork;
+            },
+            { legacy: LEGACY_TAG, fork: FORK_TAG },
+        );
+        expect(isAlias).toBe(true);
+        expect(errors).toEqual([]);
+        await shot(page, "44-element-name-dead-row");
     });
 });
 

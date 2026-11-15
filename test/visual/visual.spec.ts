@@ -825,7 +825,7 @@ test("horizontal layout stacks at 360 px", async ({ page }) => {
     expect(pageOverflow, "the stacked card must not overflow the page").toBeLessThanOrEqual(1);
 
     const metrics = await page.evaluate(() => {
-        const card = document.querySelector("xiaomi-vacuum-map-card") as unknown as {
+        const card = document.querySelector("better-xiaomi-vacuum-map-card") as unknown as {
             shadowRoot: ShadowRoot;
         };
         const haCard = card.shadowRoot.querySelector("ha-card") as HTMLElement;

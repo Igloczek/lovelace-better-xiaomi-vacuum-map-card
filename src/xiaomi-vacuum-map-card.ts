@@ -15,8 +15,7 @@ import {
     EVENT_ROOM_CONFIG_GET,
     EVENT_SERVICE_CALL_GET,
 } from "./const";
-import { hasCompetingCardResource, scheduleLegacyCardAlias } from "./card-element-names";
-import { migrateLegacyStorage } from "./model/storage-migration";
+import { installLegacyCardAlias } from "./card-element-names";
 import { MapView } from "./model/map-view-store";
 import { MapRefreshState } from "./model/map-refresh-policy";
 import { RotateEventDetail } from "./pinch-zoom/pinch-zoom";
@@ -990,14 +989,10 @@ export class XiaomiVacuumMapCard extends LitElement {
     }
 }
 
-// A dashboard with `type: custom:xiaomi-vacuum-map-card` keeps working, but only while the upstream
-// bundle is absent: defining that name would make the upstream card's own registration throw.
-scheduleLegacyCardAlias(XiaomiVacuumMapCard, import.meta.url);
-
-// The map view and the active run moved to fork-namespaced storage keys. Copy the old ones once,
-// unless the upstream card is loaded: then they are its state, not this card's.
-try {
-    migrateLegacyStorage(window.localStorage, !hasCompetingCardResource(import.meta.url));
-} catch {
-    // Blocked storage: the card still works without a remembered view or run.
-}
+// A dashboard with `type: custom:xiaomi-vacuum-map-card` keeps working while the original card is
+// not going to register that name; defining it over the upstream card would make upstream's own
+// registration throw. The stored view and run are copied to the fork's keys only when this card
+// takes the name, so an instance with both cards does not hand upstream's state to this one.
+void installLegacyCardAlias(XiaomiVacuumMapCard, { ownUrl: import.meta.url }).catch(() => {
+    // The card works without the compatibility alias; a failure here never breaks this bundle.
+});

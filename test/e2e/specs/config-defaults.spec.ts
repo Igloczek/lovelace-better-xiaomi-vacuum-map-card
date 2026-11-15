@@ -104,9 +104,9 @@ test("an empty icons: key renders the card; an empty id: or map: shows the error
         const hass = (document.querySelector("home-assistant") as any).hass;
         const entity = Object.keys(hass.states).find(id => id.startsWith("vacuum."));
         const card = async (config: Record<string, unknown>) => {
-            const element = document.createElement("xiaomi-vacuum-map-card") as any;
+            const element = document.createElement("better-xiaomi-vacuum-map-card") as any;
             element.setConfig({
-                type: "custom:xiaomi-vacuum-map-card",
+                type: "custom:better-xiaomi-vacuum-map-card",
                 entity,
                 map_source: { camera: "camera.vacuum_map" },
                 vacuum_platform: "Xiaomi Miio",
