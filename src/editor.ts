@@ -11,6 +11,7 @@ import {
     XiaomiVacuumMapCardConfig,
 } from "./types/types";
 import { localizeWithHass } from "./localize/localize";
+import { normalizeConfig } from "./config-normalization";
 import { PlatformGenerator } from "./model/generators/platform-generator";
 import {
     CARD_VERSION,
@@ -111,7 +112,7 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
     }
 
     public setConfig(config: XiaomiVacuumMapCardConfig): void {
-        this._config = config;
+        this._config = normalizeConfig(config);
         this.loadCardHelpers();
     }
 
@@ -537,7 +538,7 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
     }
 
     private _setConfig(config: XiaomiVacuumMapCardConfig): void {
-        this._config = { ...config };
+        this._config = normalizeConfig(config);
         fireEvent(this, "config-changed", { config: this._config });
     }
 

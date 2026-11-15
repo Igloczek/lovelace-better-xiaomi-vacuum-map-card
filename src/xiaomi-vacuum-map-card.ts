@@ -40,6 +40,7 @@ import { RoomColorDetection } from "./model/room-color-detector";
 import { createTapGuard } from "./model/tap-guard";
 import { ActiveRoomRun } from "./model/active-room-run";
 import { areAllEntitiesDefined, isOldConfig, validateConfig } from "./config-validators";
+import { normalizeConfig } from "./config-normalization";
 import { MapMode } from "./model/map_mode/map-mode";
 import { SelectionType } from "./model/map_mode/selection-type";
 import { GeneratorWrapper } from "./model/generators/generator-wrapper";
@@ -279,7 +280,9 @@ export class XiaomiVacuumMapCard extends LitElement {
         if (!config) {
             throw new Error(this._localize("common.invalid_configuration"));
         }
-        this.config = config;
+        // Empty YAML keys and cleared editor fields are absent for everything below, not only for
+        // the validators: `icons:` used to reach the renderer as `null` and crash it.
+        this.config = normalizeConfig(config);
         this.mapViewCardKey = undefined;
         this.mapViewCardKeyPath = undefined;
         this.restoredMapViewKey = undefined;
