@@ -26,9 +26,9 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
   removal of `ha-formfield`; keep watching Home Assistant frontend releases for the next element
   that disappears.
 - **Default Marketplace listing.** The README button adds the repository as a custom repository.
-  Getting into the Marketplace catalog needs a pull request to `hacs/default` adding the repository
-  to `plugin`. Once it merges, switch the install steps to a catalog search and add the default
-  badge.
+  The pull request adding it to `plugin` in `hacs/default` is open and waiting for review:
+  [hacs/default#14136](https://github.com/hacs/default/pull/14136) (opened 2026-11-14). Once it
+  merges, switch the install steps to a catalog search and add the default badge.
 
 ## Next
 
