@@ -97,18 +97,12 @@ async function sendSelection(
     showOnly: boolean,
 ): Promise<boolean> {
     const entity = card._getCurrentPreset().entity;
+    // `runSelection` refuses a ROOM selection that would send nothing before it gets here, and an
+    // empty `selection` takes the `no_selection` path, so a ROOM run always carries a room id.
     const runRoomIds =
         currentMode.selectionType === SelectionType.ROOM
             ? getUsableSelectedRooms(card, currentMode).map(room => String(room.toVacuum()))
             : [];
-    // `runSelection` refuses this before it gets here; the guard stays because a room list that is
-    // empty at the last moment must never become a service call that cleans nothing (or, on some
-    // integrations, everything).
-    if (currentMode.selectionType === SelectionType.ROOM && runRoomIds.length === 0) {
-        card._showToast("popups.rooms_unavailable", "mdi:close", false);
-        forwardHaptic("failure");
-        return false;
-    }
     let serviceCall: ServiceCall;
     try {
         serviceCall = await currentMode.getServiceCall(card.hass, entity, selection, card.repeats, {

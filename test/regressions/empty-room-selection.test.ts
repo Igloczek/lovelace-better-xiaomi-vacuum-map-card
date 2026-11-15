@@ -3,16 +3,26 @@ import { describe, expect, it, vi } from "vitest";
 import { PlatformGenerator } from "../../src/model/generators/platform-generator";
 import { MapMode } from "../../src/model/map_mode/map-mode";
 import { SelectionType } from "../../src/model/map_mode/selection-type";
-import type { MapModeConfig, RoomConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
+import { setPresetIndex } from "../../src/card/presets";
+import type {
+    IconActionConfig,
+    MapModeConfig,
+    RoomConfig,
+    TileConfig,
+    XiaomiVacuumMapCardConfig,
+} from "../../src/types/types";
 import { SelectionState } from "../../src/types/types";
 import type { CardHandle, MockHass } from "../harness";
 import {
+    cameraEntity,
+    extractorRoom,
     fixtureConfig,
     fixtureHass,
     loadSyntheticFixture,
     loadSyntheticShiftedRoomIdsCamera,
     mountCard,
     settle,
+    syntheticCalibrationPoints,
     useHarnessClock,
     withState,
 } from "../harness";
@@ -261,6 +271,10 @@ describe("a ROOM selection that would send no room ids", () => {
         await clickRoom(card, "5");
         expect(selectedIds(card)).toEqual(["5"]);
         expect(emptySelectionWarning(card)).toBeUndefined();
+        // The kept room was only the report of an empty selection: once a run has a usable room,
+        // its stale marker goes too instead of staying red for the life of the card.
+        expect(card.shadowRoot.querySelectorAll(".room-stale")).toHaveLength(0);
+        expect(roomElement(card, "0")).toBeNull();
 
         vi.mocked(hass.callService).mockClear();
         await runSelection(card);
@@ -292,5 +306,184 @@ describe("a ROOM selection that would send no room ids", () => {
         expect(toast).toHaveBeenCalledWith("popups.no_selection", "mdi:close", false);
         // Keep VACUUM referenced: the fixture's vacuum is the card's entity in every case above.
         expect(VACUUM).toMatch(/^vacuum\./);
+    });
+
+    it("restores a kept room to its place when its id comes back in the next camera update", async () => {
+        useHarnessClock();
+        const hass = fixtureHass(BEFORE);
+        const card = await mountCardWith(configFor("Xiaomi Miio", "vacuum_clean_segment"), hass);
+
+        // Click order 1 then 0: the cleaning order is what a restore has to keep.
+        await clickRoom(card, "1");
+        await clickRoom(card, "0");
+        expect(selectedIds(card)).toEqual(["1", "0"]);
+
+        // One update reports only room 2, so the whole selection would send nothing.
+        const rooms = BEFORE.camera.attributes.rooms as Record<string, unknown>;
+        const blipped = withState(hass, BEFORE.camera.entity_id, {
+            attributes: { ...BEFORE.camera.attributes, rooms: { "2": rooms["2"] } },
+            last_updated: SHIFTED.last_updated,
+            last_changed: SHIFTED.last_changed,
+        }).hass;
+        await card.updateHass(blipped);
+        await settle(card.element);
+        expect(selectedIds(card)).toEqual([]);
+        expect(emptySelectionWarning(card)).toContain("0");
+        expect(emptySelectionWarning(card)).toContain("1");
+
+        // The next update reports them again: the kept selection comes back, in its click order,
+        // instead of vanishing silently with the warning.
+        const restored = withState(blipped, BEFORE.camera.entity_id, {
+            attributes: BEFORE.camera.attributes,
+            last_updated: BEFORE.camera.last_updated,
+            last_changed: BEFORE.camera.last_changed,
+        }).hass;
+        await card.updateHass(restored);
+        await settle(card.element);
+
+        expect(selectedIds(card)).toEqual(["1", "0"]);
+        expect(emptySelectionWarning(card)).toBeUndefined();
+        expect(card.shadowRoot.querySelectorAll(".room-stale")).toHaveLength(0);
+        expect(roomElement(card, "0")?.classList.contains("selected")).toBe(true);
+        expect(roomElement(card, "1")?.classList.contains("selected")).toBe(true);
+    });
+});
+
+/**
+ * A preset switch swaps the preset, its camera and its modes synchronously but rebuilds the
+ * selectable rooms after the icons and tiles have loaded. The render in between must not read the
+ * old preset's rooms against the new preset's camera: that drew them all stale and warned that a
+ * run would send nothing, on a map they do not belong to. If loading fails, the rebuild still has
+ * to happen.
+ */
+const SECOND_CAMERA = "camera.vacuum_upstairs";
+
+function upstairsRooms(): Record<string, ReturnType<typeof extractorRoom>> {
+    return {
+        "7": extractorRoom(200, 200, 800, 700, "Office"),
+        "8": extractorRoom(1000, 200, 1700, 700, "Loft"),
+        "9": extractorRoom(200, 900, 800, 1300, "Bathroom"),
+    };
+}
+
+function twoPresetConfig(): XiaomiVacuumMapCardConfig {
+    const base = fixtureConfig(BEFORE);
+    return {
+        ...base,
+        preset_name: "Downstairs",
+        map_modes: [{ template: "vacuum_clean_segment" }],
+        tiles: [],
+        icons: [],
+        persist_map_view: false,
+        additional_presets: [
+            {
+                ...base,
+                preset_name: "Upstairs",
+                map_source: { camera: SECOND_CAMERA },
+                calibration_source: { camera: true },
+                map_modes: [{ template: "vacuum_clean_segment" }],
+                tiles: [],
+                icons: [],
+            },
+        ],
+    };
+}
+
+function twoCameraHass(): MockHass {
+    const upstairs = cameraEntity({
+        entity_id: SECOND_CAMERA,
+        rooms: upstairsRooms(),
+        calibration_points: syntheticCalibrationPoints(),
+    });
+    return withState(fixtureHass(BEFORE), SECOND_CAMERA, {
+        attributes: upstairs.attributes,
+        last_updated: upstairs.last_updated,
+        last_changed: upstairs.last_changed,
+    }).hass;
+}
+
+function roomIds(card: CardHandle): string[] {
+    return Array.from(card.shadowRoot.querySelectorAll(".room-wrapper"))
+        .map(element => element.getAttribute("class") ?? "")
+        .map(className => /room-([^\s]+)-wrapper/.exec(className)?.[1])
+        .filter((id): id is string => id !== undefined);
+}
+
+/** A `_getIconsAndTiles` that stays pending until the test resolves it, so the gap is inspectable. */
+function heldPresetLoad(): { promise: Promise<[IconActionConfig[], TileConfig[]]>; finish: () => void } {
+    let finish!: () => void;
+    const promise = new Promise<[IconActionConfig[], TileConfig[]]>(resolve => {
+        finish = (): void => resolve([[], []]);
+    });
+    return { promise, finish };
+}
+
+describe("a preset switch and the rooms of the preset it leaves", () => {
+    it("never reads the old preset's rooms against the new preset's camera", async () => {
+        useHarnessClock();
+        const card = await mountCardWith(twoPresetConfig(), twoCameraHass());
+        await clickRoom(card, "0");
+        expect(selectedIds(card)).toEqual(["0"]);
+
+        const held = heldPresetLoad();
+        vi.spyOn(card.element, "_getIconsAndTiles").mockReturnValue(held.promise);
+        setPresetIndex(card.element, 1, true);
+        // The render in the gap: the new preset's camera is shown, the old preset's rooms are gone
+        // until the rebuild. Nothing may be evaluated across the two cameras.
+        await card.element.updateComplete;
+        expect(card.element._getCurrentPreset().map_source.camera).toBe(SECOND_CAMERA);
+        expect(card.shadowRoot.querySelectorAll(".room-stale")).toHaveLength(0);
+        expect(emptySelectionWarning(card)).toBeUndefined();
+
+        held.finish();
+        await settle(card.element, 200);
+        expect(roomIds(card)).toEqual(["7", "8", "9"]);
+        expect(selectedIds(card)).toEqual([]);
+        expect(card.shadowRoot.querySelectorAll(".room-stale")).toHaveLength(0);
+        expect(emptySelectionWarning(card)).toBeUndefined();
+    });
+
+    it("still builds the new preset's mode when loading its icons and tiles fails", async () => {
+        useHarnessClock();
+        const base = fixtureConfig(BEFORE);
+        const card = await mountCard(
+            {
+                ...base,
+                preset_name: "Downstairs",
+                map_modes: [{ template: "vacuum_clean_segment" }],
+                tiles: [],
+                icons: [],
+                persist_map_view: false,
+                additional_presets: [
+                    {
+                        ...base,
+                        preset_name: "Zones",
+                        map_modes: [
+                            {
+                                template: "vacuum_clean_zone",
+                                selection_type: "PREDEFINED_RECTANGLE",
+                                predefined_selections: [{ zones: [[200, 200, 800, 700]] }],
+                            } as unknown as MapModeConfig,
+                        ],
+                        tiles: [],
+                        icons: [],
+                    },
+                ],
+            },
+            twoCameraHass(),
+        );
+        await card.fireMapLoad();
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        vi.spyOn(card.element, "_getIconsAndTiles").mockRejectedValue(new Error("generator failed"));
+
+        setPresetIndex(card.element, 1, true);
+        await settle(card.element, 300);
+
+        // The mode the card switched to was built even though the generator failed: its zone is on
+        // the map and the previous preset's rooms are gone, instead of the card staying half-switched.
+        expect(card.element._getCurrentMode()?.selectionType).toBe(SelectionType.PREDEFINED_RECTANGLE);
+        expect(card.shadowRoot.querySelectorAll(".predefined-rectangle-wrapper")).toHaveLength(1);
+        expect(card.shadowRoot.querySelectorAll(".room-wrapper")).toHaveLength(0);
+        consoleError.mockRestore();
     });
 });

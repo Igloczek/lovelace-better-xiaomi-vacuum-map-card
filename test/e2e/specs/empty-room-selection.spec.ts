@@ -111,19 +111,26 @@ test("a selection that has no room ids left is reported and never sent", async (
         expect(await selected(target)).toEqual([]);
         await shot(page, "18-empty-room-selection");
 
-        // The run is refused: the fake vacuum receives no command and the card says why.
-        expect(await attribute(page, "job_rooms")).toEqual([]);
+        // The run is refused: the fake vacuum receives no command at all (an empty call would show
+        // up as an empty entry in `commands`), and the card says why.
+        expect(await attribute(page, "commands")).toEqual([]);
         await pressStart(page, target);
+        expect(await attribute(page, "commands")).toEqual([]);
         expect(await attribute(page, "job_rooms")).toEqual([]);
         expect(await attribute(page, "cleaned_rooms")).toEqual([]);
         expect(await toast(target)).toContain("no longer on the camera map");
 
-        // A live room of the new metadata is selectable again, and the warning goes away.
+        // A live room of the new metadata is selectable again, the warning goes away, and the kept
+        // room's stale marker goes with it instead of staying red for the life of the card.
         const livePoint = await roomPoint(target, "7");
         expect(livePoint, "the re-mapped room 7 must be live").not.toBeNull();
         await page.mouse.click(livePoint!.x, livePoint!.y);
         await expect.poll(() => selected(target)).toEqual(["7"]);
         expect(await warning(target)).toBe("");
+        await expect.poll(async () => (await shownRooms(target)).stale).toEqual([]);
+        const afterSelection = await shownRooms(target);
+        expect(afterSelection.ids).toEqual(["7", "8", "9"]);
+        expect(afterSelection.selected).toEqual(["7"]);
     } finally {
         // Always restore the fixture: a failure above must not renumber the camera for later specs.
         // The room selected above is stale again after the reset, by design; the original ids are
