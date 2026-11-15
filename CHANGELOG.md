@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- A selected room's pill sits exactly where the room's label was, centred on it, instead of above
+  it like a tooltip, and it no longer has a pointer at the bottom. See
+  [Selected room label](docs/configuration.md#selected-room-label).
+
 ## 1.2.1
 
 ### Fixed

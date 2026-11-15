@@ -4,7 +4,7 @@ import type { MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/t
 
 /**
  * The selected-room pill (Xiaomi Home app style): a badge with the room's place in the order, or a
- * checkmark, and the room name, with a pointer at the room's anchor.
+ * checkmark, and the room name, centred where the plain label was.
  *
  * Every case asserts geometry and computed colours, so it runs on any machine; the screenshots are
  * the visual record and their baselines are generated in the pinned Playwright image (see
@@ -84,7 +84,7 @@ async function select(page: Page, ids: string[]): Promise<void> {
 
 /**
  * The room label's anchor on screen: its `x`/`y` through the SVG's screen transform. The label is
- * drawn centred on that point (and turned around it), so it is where the pill's pointer must end.
+ * drawn centred on that point (and turned around it), so it is where the pill's middle must be.
  */
 async function labelCentre(page: Page, id: string): Promise<{ x: number; y: number }> {
     return page.locator(CARD).evaluate((card: Element, roomId: string) => {
@@ -207,11 +207,11 @@ for (const theme of ["light", "dark"] as const) {
                 expect(Math.abs(pill.box.width - reference.width), `${label}: width`).toBeLessThanOrEqual(1);
                 expect(Math.abs(pill.box.height - reference.height), `${label}: height`).toBeLessThanOrEqual(1);
 
-                // Centred over the room's anchor, the 5 px pointer reaching down to it.
+                // Centred on the label's own point, where the plain label was drawn.
                 const centreX = pill.box.x + pill.box.width / 2;
-                expect(Math.abs(centreX - anchor.x), `${label}: centred on the anchor`).toBeLessThanOrEqual(1);
-                const tipY = pill.box.y + pill.box.height + 5;
-                expect(Math.abs(tipY - anchor.y), `${label}: pointer tip on the anchor`).toBeLessThanOrEqual(1.5);
+                const centreY = pill.box.y + pill.box.height / 2;
+                expect(Math.abs(centreX - anchor.x), `${label}: centred on the label (x)`).toBeLessThanOrEqual(1);
+                expect(Math.abs(centreY - anchor.y), `${label}: centred on the label (y)`).toBeLessThanOrEqual(1);
 
                 await expect(page.locator(CARD)).toHaveScreenshot(
                     `room-pill-${theme}-zoom-${zoom}-rotation-${rotation}.png`,

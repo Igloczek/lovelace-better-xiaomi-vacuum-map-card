@@ -269,9 +269,9 @@ the platforms that number by default.
 
 #### Selected room label
 
-A selected room's label turns into a pill, as in the Xiaomi Home app: a round badge with the
-room's number in the cleaning order (or a checkmark, see above) next to the room name, with a small
-pointer at the room. A room with an icon shows its icon until it is selected and the pill after; a
+A selected room's label turns into a pill, as in the Xiaomi Home app: a round badge with the room's
+number in the cleaning order (or a checkmark, see above) next to the room name, drawn exactly where
+the room's label is. A room with an icon shows its icon until it is selected and the pill after; a
 room without a name shows the badge alone. The rooms of a started run keep their pills. The pill
 stays upright and the same size at any zoom and rotation, and taps go through it to the room.
 
