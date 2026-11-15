@@ -338,7 +338,7 @@ describe("cache invalidation on a changed device entity set (#864, council round
     });
 });
 
-describe("cache invalidation on a registry update (ROADMAP known limitations)", () => {
+describe("cache invalidation on a registry update", () => {
     it("reads the registry again when an entry's icon changes without a state change", async () => {
         const page = fixtureHass(loadSyntheticFixture());
         const before = await getAllEntitiesFromTheSameDevice(page, VACUUM);

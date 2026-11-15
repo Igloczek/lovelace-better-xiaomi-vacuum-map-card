@@ -16,7 +16,8 @@ import {
 } from "../harness";
 
 /**
- * Registry-only updates (ROADMAP known limitations: renamed entities in tiles and in icons).
+ * Registry-only updates: a rename in the entity, device, area or floor registry, or an icon
+ * changed in the registry, used to reach the card only after a reload.
  *
  * A rename in Home Assistant's registries does not necessarily change a watched entity state, and
  * the icons and tiles the generators build are stored in the preset config, so without a re-render
@@ -121,7 +122,7 @@ function registryCalls(hass: MockHass, type = "config/entity_registry/get_entrie
     return hass.wsCalls.filter(call => call.type === type).length;
 }
 
-describe("registry-only renames (ROADMAP known limitations)", () => {
+describe("registry-only renames", () => {
     it("updates a tile label when the entity is renamed", async () => {
         const hass = baseHass();
         const card = await mountCard(labelledTileConfig(), withRegistries(hass, { devices: DEVICES }));

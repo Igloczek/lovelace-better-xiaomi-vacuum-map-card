@@ -3,8 +3,9 @@ import type { Page } from "@playwright/test";
 import { card, expect, openDashboard, shot, test, waitForCard, wsSend, type CardHandle } from "./helpers";
 
 /**
- * A rename in Home Assistant's registries has to reach the card without a reload (ROADMAP known
- * limitations: renamed entities in tiles and in icons).
+ * A rename in Home Assistant's registries has to reach the card without a reload: a registry
+ * rename writes no entity state, and the generated tiles and icons store the label and the icon
+ * resolved when they were built.
  *
  * Everything here goes through Home Assistant's own websocket API, the way the entity, device and
  * area dialogs do. The card is never reloaded: the element stays the same and the page keeps its
