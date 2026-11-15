@@ -143,8 +143,16 @@ export abstract class MapObject {
      * offset_x/offset_y - is applied after the counter-rotation, so it is measured on screen. A label
      * sitting below its icon stays below it however far the map is turned, instead of swinging around
      * and landing on top of it. At 0deg the result is identical to placing the label outright.
+     *
+     * `style` adds element-specific declarations (a caller that sizes the text itself). The anchor,
+     * the offset and the counter-rotation stay in this one rule, so no caller repeats them.
      */
-    protected renderLabel(config: LabelConfig | undefined, htmlClass: string, anchor?: IconConfig): SVGTemplateResult {
+    protected renderLabel(
+        config: LabelConfig | undefined,
+        htmlClass: string,
+        anchor?: IconConfig,
+        style = "",
+    ): SVGTemplateResult {
         const mapped = config ? this.vacuumToScaledMap(config.x, config.y) : [];
         const anchored = anchor ? this.vacuumToScaledMap(anchor.x, anchor.y) : undefined;
         const origin = anchored ?? mapped;
@@ -155,7 +163,8 @@ export abstract class MapObject {
             () => svg`
                 <text class="label-text ${htmlClass}"
                       style="--label-anchor-x: ${origin[0]}px; --label-anchor-y: ${origin[1]}px;
-                             --label-offset-x: ${offsetX}px; --label-offset-y: ${offsetY}px;"
+                             --label-offset-x: ${offsetX}px; --label-offset-y: ${offsetY}px;
+                             ${style}"
                       x="${origin[0]}px"
                       y="${origin[1]}px">
                     ${config?.text}

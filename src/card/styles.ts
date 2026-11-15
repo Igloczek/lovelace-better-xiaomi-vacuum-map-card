@@ -455,6 +455,19 @@ export const cardStyles = css`
         }
 
         /*
+         * A hui-warning draws its slot on one line (Home Assistant sets white-space: nowrap and
+         * an ellipsis on the alert header), which cut the stale-room message after its first id in
+         * a narrow card. The message is its own block, which wraps: every stale id stays readable
+         * at phone width and in a narrow sections cell.
+         */
+        .room-config-warning .room-config-warning-text {
+            display: block;
+            min-width: 0;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+
+        /*
          * The clamped controls column needs its own tweaks: it wraps its action buttons, and a long
          * mode name must ellipsize instead of widening (and clipping) the column.
          *

@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import type { CSSResult } from "lit";
 
+import { cardStyles } from "../../src/card/styles";
+import { Room } from "../../src/model/map_objects/room";
 import type { RoomConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import { SelectionState } from "../../src/types/types";
 import type { CardHandle, MockHass } from "../harness";
@@ -55,6 +58,30 @@ function roomsConfig(selections: RoomConfig[]): XiaomiVacuumMapCardConfig {
         icons: [],
         persist_map_view: false,
     };
+}
+
+/**
+ * A configured stale room larger than the fixture map (the map is 200 × 150 image px), so a
+ * marker placed above its centre stays far from every outline edge and the clamp cannot move it.
+ */
+function hugeRoom(id: string): RoomConfig {
+    return {
+        id,
+        label: { text: "Old hall", x: 1000, y: 1000, offset_y: 35 },
+        outline: [
+            [-1000, -1000],
+            [3000, -1000],
+            [3000, 3000],
+            [-1000, 3000],
+        ],
+    };
+}
+
+/** A stale marker's label offset on one axis, in map units (the harness runs at a scale of 1). */
+function markerStyleOffset(marker: Element, axis: "x" | "y"): number {
+    const match = marker.getAttribute("style")?.match(new RegExp(`--label-offset-${axis}:\\s*(-?[\\d.]+)px`));
+    expect(match, `the marker has no --label-offset-${axis}`).not.toBeNull();
+    return Number(match![1]);
 }
 
 /** Mounts with the camera metadata a re-map would leave behind (`3,4,5` instead of `0,1,2`). */
@@ -163,6 +190,97 @@ describe("stale ROOM selections (#928)", () => {
         ]);
 
         expect(warnedStaleIds(card)).toEqual(["0", "9"]);
+    });
+
+    /**
+     * Home Assistant's warning lays its slot out on one line (`white-space: nowrap` with
+     * `text-overflow: ellipsis`), so a bare text node is cut after the first id in a narrow card:
+     * "These configured room IDs no longer exist on th…". The message therefore has to be an
+     * element of its own that the card's stylesheet makes wrap. The rendered result is proven at
+     * phone width against the real frontend in `test/e2e/specs/stale-rooms.spec.ts`.
+     */
+    it("wraps its message in an element of its own, so a narrow card can show every id", async () => {
+        const { card } = await mountAfterRemap([
+            configuredRoom("3", "Kitchen"),
+            configuredRoom("0", "Old kitchen"),
+            configuredRoom("9", "Old office"),
+        ]);
+
+        const warning = card.shadowRoot.querySelector(".room-config-warning");
+        const message = warning?.querySelector(".room-config-warning-text");
+        expect(message, "the warning must not leave its text as a bare text node").not.toBeNull();
+        // The sentence lives inside the wrapping element and nowhere else: a duplicated text node
+        // beside it would be the one the alert clips.
+        const directText = [...warning!.childNodes]
+            .filter(node => node.nodeType === Node.TEXT_NODE)
+            .map(node => node.textContent ?? "")
+            .join("")
+            .trim();
+        expect(directText, "the message must not also sit beside the wrapping element").toBe("");
+        expect(message!.textContent).toContain("no longer exist on the camera map");
+        for (const id of ["0", "9"]) expect(message?.textContent).toContain(id);
+        expect(warnedStaleIds(card)).toEqual(["0", "9"]);
+
+        // The stylesheet is what makes the element wrap: Home Assistant's alert header is
+        // `white-space: nowrap` with an ellipsis, so the message has to be a block of its own.
+        const styles = String((cardStyles as CSSResult).cssText);
+        expect(styles).toMatch(/\.room-config-warning \.room-config-warning-text\s*\{[^}]*display:\s*block/);
+        expect(styles).toMatch(/\.room-config-warning \.room-config-warning-text\s*\{[^}]*white-space:\s*normal/);
+    });
+
+    /**
+     * A selected room's pill is centred on the room's label point and is twice the label font size
+     * tall, so the stale marker is lifted above that point by the pill's own half height plus the
+     * marker's glyph and a gap. The marker is positioned in map coordinates (it has to respect the
+     * room's outline and the map edge), so the lift reaches the DOM as the label offset.
+     *
+     * A large outline keeps the room's edge out of the way: the fixture map is 200 × 150 image px,
+     * and this room spans 400 × 400 map px, so the clamp cannot move the marker.
+     */
+    it("lifts the stale marker above the label point by the label font", async () => {
+        const { card } = await mountAfterRemap([hugeRoom("0")]);
+        const marker = roomElement(card, "0")?.querySelector(".room-stale-marker");
+        expect(marker).not.toBeNull();
+
+        // Default 12 px label font: one label font (the pill's half height) + the marker's lower
+        // half (0.55 of its 1.4-font glyph box) + the 6 px gap.
+        expect(markerStyleOffset(marker!, "y")).toBeCloseTo(-(12 + 16.8 * 0.55 + 6), 1);
+
+        // A theme font scales the clearance, and the icon wrapper size does not enter it at all.
+        vi.spyOn(card.element, "_getCssProperty").mockReturnValue("40px");
+        card.element.requestUpdate();
+        await settle(card.element);
+        const larger = roomElement(card, "0")?.querySelector(".room-stale-marker");
+        expect(markerStyleOffset(larger!, "y")).toBeCloseTo(-(40 + 56 * 0.55 + 6), 1);
+        expect(markerStyleOffset(larger!, "x")).toBeCloseTo(0, 5);
+    });
+
+    it("does not repeat the label transform for the stale marker", async () => {
+        const { card } = await mountAfterRemap([configuredRoom("0", "Old kitchen")]);
+        const marker = roomElement(card, "0")?.querySelector(".room-stale-marker");
+        expect(marker).not.toBeNull();
+        // It is a `.label-text`, so it takes the shared counter-rotation and offset rule...
+        expect(marker!.classList.contains("label-text")).toBe(true);
+        // ...and adds no transform of its own, neither inline nor in a second rule.
+        expect(marker!.getAttribute("transform")).toBeNull();
+        expect(marker!.getAttribute("style")).not.toMatch(/transform\s*:/);
+        const blocks = [
+            ...String((Room.styles as CSSResult).cssText).matchAll(/text\.room-stale-marker\s*\{([^}]*)\}/g),
+        ];
+        expect(blocks).toHaveLength(1);
+        expect(blocks[0][1], "the shared .label-text transform must not be copied").not.toMatch(
+            /(^|;|\s)transform\s*:/,
+        );
+    });
+
+    it("paints a stale marker after the live rooms' pills", async () => {
+        // A room too small for the marker to clear the pill keeps the marker inside the room and
+        // relies on SVG paint order; stale rooms are appended last, so their markers are on top.
+        const { card } = await mountAfterRemap([configuredRoom("0", "Old kitchen")]);
+        const wrappers = [...card.shadowRoot.querySelectorAll(".room-wrapper")];
+        const staleIndex = wrappers.indexOf(roomElement(card, "0")!);
+        const liveIndexes = ["3", "4", "5"].map(id => wrappers.indexOf(roomElement(card, id)!));
+        expect(staleIndex).toBeGreaterThan(Math.max(...liveIndexes));
     });
 
     it("does not warn when every configured id is still live", async () => {

@@ -56,6 +56,7 @@ export function createContext(card: XiaomiVacuumMapCard): Context {
             const liveRoomIds = getLiveRoomIds(card);
             return !liveRoomIds || liveRoomIds.has(roomId);
         },
+        () => card.mapRotation,
     );
 }
 

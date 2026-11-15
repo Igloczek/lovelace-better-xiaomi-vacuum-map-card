@@ -8,14 +8,27 @@ import { LabelConfig, RoomConfig } from "../../types/types";
 import { PredefinedMapObject } from "./predefined-map-object";
 import { cssRgb } from "../room-pill-palette";
 
-/**
- * Distance in CSS pixels between a room's label and the cleaning-order badge drawn above it when
- * the room has no icon. It clears the label's own text and stays inside small room outlines.
- */
-const ORDER_BADGE_LABEL_OFFSET = 20;
-
 /** Material Design Icons `check`. */
 const CHECK_PATH = "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
+
+/**
+ * The stale-room marker's size in multiples of its own font, in screen pixels. The marker is a `!`
+ * drawn at 1.4 label fonts (see the stylesheet); its SVG text box is about 1.15 font sizes tall and
+ * 0.33 wide, and the anchor sits about 0.65 font sizes above the middle of it. The box is therefore
+ * measured from the anchor as 0.7 font sizes above, 0.55 below and 0.2 either side, rounded up so the
+ * glyph always lands inside the room and clear of the pill. The pill is two label fonts tall (its
+ * height is `--map-card-internal-room-label-font-size * 2`), which is where the clearance comes from
+ * - a theme may make it taller by raising the font, and the marker follows.
+ */
+const STALE_MARKER_FONT_SCALE = 1.4;
+const STALE_MARKER_BOX_WIDTH = 0.4;
+const STALE_MARKER_BOX_ABOVE = 0.7;
+const STALE_MARKER_BOX_BELOW = 0.55;
+const STALE_MARKER_GAP = 6;
+/** Distance in screen pixels between the room outline and the marker, when the room is big enough. */
+const STALE_MARKER_ROOM_INSET = 1;
+/** `--map-card-room-label-font-size`'s default, for a frontend that cannot resolve the variable. */
+const DEFAULT_LABEL_FONT_SIZE = 12;
 
 export interface RoomRenderOptions {
     readonly imageOutline?: Array<[number, number]>;
@@ -79,9 +92,7 @@ export class Room extends PredefinedMapObject {
     }
 
     public render(): SVGTemplateResult {
-        const poly = this._imageOutline
-            ? this._imageOutline.map(p => this.realScaled2Point(p))
-            : (this._config?.outline ?? []).map(p => this.vacuumToScaledMap(p[0], p[1]));
+        const poly = this._outlinePoints();
         // Read once per render: the live metadata decides it, and the accessor rebuilds its id set.
         const stale = this.stale;
         // Rooms are sent in click order, so a selected room shows its position in that order. Once
@@ -173,49 +184,188 @@ export class Room extends PredefinedMapObject {
      * outline.
      */
     private _pillAnchor(): { origin: [number, number]; offset: [number, number] } | undefined {
+        const anchor = this._labelAnchor();
+        if (!anchor) return undefined;
+        return {
+            origin: anchor.origin,
+            offset: [
+                anchor.point[0] - anchor.origin[0] + this.scaled(anchor.offset[0]),
+                anchor.point[1] - anchor.origin[1] + this.scaled(anchor.offset[1]),
+            ],
+        };
+    }
+
+    /**
+     * The point a room's label is centred on, the point its glyph turns around, and the label's own
+     * offset on screen. A room without a label is centred on its icon, else on the middle of its
+     * outline. The label point is also where a selected room's pill is centred when colour detection
+     * moved the offset to zero, which is why the stale marker works from this point.
+     */
+    private _labelAnchor():
+        | { origin: [number, number]; point: [number, number]; offset: [number, number] }
+        | undefined {
         const label = this._config.label;
         const icon = this._config.icon;
-        if (label) {
-            const mapped = this.vacuumToScaledMap(label.x, label.y);
-            const origin = icon ? this.vacuumToScaledMap(icon.x, icon.y) : mapped;
-            return {
-                origin: [origin[0], origin[1]],
-                offset: [
-                    mapped[0] - origin[0] + this.scaled(label.offset_x ?? 0),
-                    mapped[1] - origin[1] + this.scaled(label.offset_y ?? 0),
-                ],
-            };
-        }
-        if (icon) {
-            const [x, y] = this.vacuumToScaledMap(icon.x, icon.y);
-            return { origin: [x, y], offset: [0, 0] };
-        }
-        const centre = this._outlineCenter();
-        if (!centre) return undefined;
-        const [x, y] = this.vacuumToScaledMap(centre.x, centre.y);
-        return { origin: [x, y], offset: [0, 0] };
+        const labelPoint = label ? this.vacuumToScaledMap(label.x, label.y) : undefined;
+        const iconPoint = icon ? this.vacuumToScaledMap(icon.x, icon.y) : undefined;
+        const centre = !labelPoint && !iconPoint ? this._outlineCenter() : undefined;
+        const centrePoint = centre ? this.vacuumToScaledMap(centre.x, centre.y) : undefined;
+        const point = labelPoint ?? iconPoint ?? centrePoint;
+        if (!point) return undefined;
+        return {
+            origin: labelPoint ? (iconPoint ?? labelPoint) : point,
+            point: [point[0], point[1]],
+            offset: label ? [label.offset_x ?? 0, label.offset_y ?? 0] : [0, 0],
+        };
     }
 
     /**
      * A room whose id is no longer in the camera metadata, configured or selected. The room is
-     * drawn from its last known outline and marked with an exclamation mark above the label; the
-     * card's warning names the ids. It is never clickable or selected (issue #928).
+     * drawn from its last known outline and marked with an exclamation mark above its label point;
+     * the card's warning names the ids. It is never clickable or selected (issue #928).
+     *
+     * The marker is placed in map coordinates, not by a stylesheet lift: the position has to respect
+     * the room's outline and the map's edge, and both change with the zoom while the marker stays a
+     * fixed size on screen. It hangs off the label point (where the pill of the live room with the
+     * same geometry is centred, the label offset excluded), lifted on screen by the pill's own half
+     * height (one label font, its height is two) plus half the marker glyph and a gap. The lift is
+     * therefore independent of `--map-card-room-icon-wrapper-size`.
+     *
+     * A room too small to take the marker clear of the pill still gets it: the glyph shrinks to fit
+     * and is clamped inside the outline, and it is painted after every live room's pill (stale rooms
+     * are appended last in `setCurrentMode`), so it stays visible over the pill's edge. At rotations
+     * other than 0 the "up" of the lift is the screen's up, so the lift is turned back into map
+     * coordinates with the shared map rotation; the marker's own transform stays `renderLabel`'s, so
+     * nothing here repeats it.
      */
     private renderStaleMarker(stale: boolean): SVGTemplateResult {
         if (!stale) return svg``;
-        const anchor = this._config.label ?? this._outlineCenter();
-        if (!anchor) return svg``;
-        return this.renderLabel(
-            { ...anchor, text: "!", offset_y: (anchor.offset_y ?? 0) - ORDER_BADGE_LABEL_OFFSET },
-            "room-stale-marker",
+        // The same point the pill would be centred on: the label, else the icon (a badge-only room),
+        // else the middle of the outline. The label's configured offset is deliberately excluded.
+        const anchor = this._config.label ?? this._config.icon ?? this._outlineCenter();
+        const bounds = this._outlineBounds();
+        if (!anchor || !bounds) return svg``;
+
+        const scale = this._context.scale();
+        const rotation = (this._context.mapRotation() * Math.PI) / 180;
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+        const [labelX, labelY] = this.vacuumToScaledMap(anchor.x, anchor.y);
+        const font = this._cssPixels("--map-card-internal-room-label-font-size", DEFAULT_LABEL_FONT_SIZE);
+        const below = font * STALE_MARKER_FONT_SCALE * STALE_MARKER_BOX_BELOW;
+        const lift = font + below + STALE_MARKER_GAP;
+
+        // A room smaller than the marker shrinks the glyph so the whole marker can stay inside its
+        // outline; the extents are the screen box turned into map axes (a rotated glyph covers more
+        // ground along a map axis than its upright width).
+        const inset = STALE_MARKER_ROOM_INSET / scale;
+        let markerFont = font * STALE_MARKER_FONT_SCALE;
+        let extents = this._staleMarkerExtents(markerFont, cos, sin, scale);
+        const innerWidth = bounds.maxX - bounds.minX - 2 * inset;
+        const innerHeight = bounds.maxY - bounds.minY - 2 * inset;
+        const fit = Math.min(
+            1,
+            extents.width > 0 ? innerWidth / extents.width : 1,
+            extents.height > 0 ? innerHeight / extents.height : 1,
         );
+        if (fit > 0 && fit < 1) {
+            markerFont *= fit;
+            extents = this._staleMarkerExtents(markerFont, cos, sin, scale);
+        }
+
+        // The screen's "up" is a rotated direction in map coordinates: turn (0, -lift) by -rotation.
+        const x = this._clampToOutline(
+            labelX + (-lift * sin) / scale,
+            bounds.minX + inset - extents.minX,
+            bounds.maxX - inset - extents.maxX,
+        );
+        const y = this._clampToOutline(
+            labelY + (-lift * cos) / scale,
+            bounds.minY + inset - extents.minY,
+            bounds.maxY - inset - extents.maxY,
+        );
+
+        // `renderLabel` applies an offset on screen after the counter-rotation; give it the screen
+        // vector from the label point to the clamped map point.
+        const deltaX = x - labelX;
+        const deltaY = y - labelY;
+        return this.renderLabel(
+            {
+                x: anchor.x,
+                y: anchor.y,
+                text: "!",
+                offset_x: (deltaX * cos - deltaY * sin) * scale,
+                offset_y: (deltaX * sin + deltaY * cos) * scale,
+            },
+            "room-stale-marker",
+            undefined,
+            `--map-card-internal-room-stale-marker-font-size: ${markerFont}px;`,
+        );
+    }
+
+    /**
+     * The marker's box relative to its anchor, in map units: its extremes on both axes and its
+     * size. The anchor is not the box's centre (SVG text hangs its middle baseline on the anchor),
+     * so the box is measured as the four screen corners turned into map coordinates.
+     */
+    private _staleMarkerExtents(
+        fontSize: number,
+        cos: number,
+        sin: number,
+        scale: number,
+    ): { minX: number; maxX: number; minY: number; maxY: number; width: number; height: number } {
+        const halfWidth = (fontSize * STALE_MARKER_BOX_WIDTH) / 2;
+        const above = fontSize * STALE_MARKER_BOX_ABOVE;
+        const below = fontSize * STALE_MARKER_BOX_BELOW;
+        const mapped = [
+            [-halfWidth, -above],
+            [halfWidth, -above],
+            [-halfWidth, below],
+            [halfWidth, below],
+        ].map(([x, y]) => [(cos * x + sin * y) / scale, (-sin * x + cos * y) / scale]);
+        const xs = mapped.map(point => point[0]);
+        const ys = mapped.map(point => point[1]);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
+    }
+
+    /** Keeps `value` between `min` and `max`, or centres it when the range is empty. */
+    private _clampToOutline(value: number, min: number, max: number): number {
+        return min <= max ? Math.min(Math.max(value, min), max) : (min + max) / 2;
+    }
+
+    /** The configured or detected outline in scaled map coordinates. */
+    private _outlinePoints(): Array<[number, number]> {
+        return this._imageOutline
+            ? this._imageOutline.map(p => this.realScaled2Point(p) as [number, number])
+            : (this._config?.outline ?? []).map(p => this.vacuumToScaledMap(p[0], p[1]) as [number, number]);
+    }
+
+    /** The bounds of `_outlinePoints()` in scaled map coordinates. */
+    private _outlineBounds(): { minX: number; minY: number; maxX: number; maxY: number } | undefined {
+        const points = this._outlinePoints();
+        if (points.length === 0) return undefined;
+        return {
+            minX: Math.min(...points.map(p => p[0])),
+            minY: Math.min(...points.map(p => p[1])),
+            maxX: Math.max(...points.map(p => p[0])),
+            maxY: Math.max(...points.map(p => p[1])),
+        };
+    }
+
+    /** A CSS length in screen pixels, or `fallback` when the frontend cannot resolve it. */
+    private _cssPixels(property: string, fallback: number): number {
+        const value = parseFloat(this._context.cssEvaluator(property));
+        return Number.isFinite(value) ? value : fallback;
     }
 
     /**
      * An anchor for the badge of a configured room that has neither an icon nor a label: the average
      * of the outline's vertices, which is close to the middle of the convex outlines a configured
-     * room has. It is not a true centroid, and the caller still lifts the badge
-     * ORDER_BADGE_LABEL_OFFSET above this point, exactly as it lifts it above a label.
+     * room has. It is not a true centroid.
      */
     private _outlineCenter(): LabelConfig | undefined {
         const outline = this._config.outline;
@@ -387,11 +537,21 @@ export class Room extends PredefinedMapObject {
                 fill: currentColor;
             }
 
-            /* A configured room whose id is no longer in the camera metadata. The marker reuses
-               .label-text for its counter-rotation and offset, and repeats the centring the room
-               label gets from .room-label. */
+            /* A configured room whose id is no longer in the camera metadata: an exclamation mark
+               placed above the room's label point. renderStaleMarker computes the position in map
+               coordinates - it has to stay inside the room's outline and the map, and both of those
+               change with the zoom - and passes it through the label-text offset. The text is only
+               sized and coloured here; the counter-rotation, the anchor and the offset come from the
+               shared label-text rule, never from a copy. The glyph shrinks in a room too small to
+               hold it, so its size is set per marker as a screen length divided by the zoom. */
             text.room-stale-marker {
-                font-size: calc(var(--map-card-internal-room-label-font-size) * 1.4 / var(--map-scale));
+                font-size: calc(
+                    var(
+                            --map-card-internal-room-stale-marker-font-size,
+                            calc(var(--map-card-internal-room-label-font-size) * 1.4)
+                        )
+                        / var(--map-scale)
+                );
                 font-weight: 700;
                 text-anchor: middle;
                 dominant-baseline: middle;

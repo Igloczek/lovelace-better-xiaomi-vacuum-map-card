@@ -459,7 +459,18 @@ async function main() {
             title: "E2E stale rooms",
             config: {
                 title: "E2E stale rooms",
-                views: [{ title: "Rooms", path: "rooms", cards: [card()] }],
+                views: [
+                    { title: "Rooms", path: "rooms", cards: [card()] },
+                    {
+                        // A sections cell a few columns wide, as a phone-sized dashboard column:
+                        // stale-rooms.spec.ts checks that the warning still names every stale id
+                        // there.
+                        title: "Narrow",
+                        path: "narrow",
+                        type: "sections",
+                        sections: [{ type: "grid", cards: [card({ grid_options: { columns: 4 } })] }],
+                    },
+                ],
             },
         },
         {

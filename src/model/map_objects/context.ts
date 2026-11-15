@@ -49,6 +49,12 @@ export class Context {
          * metadata everything is available: the configured rooms are the documented fallback.
          */
         public readonly roomAvailable: (_: string) => boolean = () => true,
+        /**
+         * The shared map rotation in degrees, the one `#map-zoomer-content` applies. A room needs
+         * it to place an upright overlay in a room-relative position: the screen direction "up"
+         * is a rotated direction in map coordinates.
+         */
+        public readonly mapRotation: () => number = () => 0,
     ) {}
 
     public roundMap([x, y]: PointArrayNotation): PointArrayNotation {

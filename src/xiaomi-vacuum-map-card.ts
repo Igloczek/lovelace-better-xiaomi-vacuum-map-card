@@ -106,6 +106,7 @@ import {
     showInvalidCalibrationWarning,
     showInvalidEntities,
     showOldConfig,
+    showStaleRoomsWarning,
     showToast,
     showUnsendableRoomsWarning,
 } from "./card/render";
@@ -660,18 +661,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         `;
         const warningSection = html`
             ${conditional(!validCalibration, () => showInvalidCalibrationWarning(this))}
-            ${conditional(
-                staleRoomIds.length > 0,
-                () => html`
-                    <hui-warning class="room-config-warning">
-                        ${this._localize(["validation.stale_rooms", "{0}", staleRoomIds.join(", ")] as [
-                            string,
-                            string,
-                            string,
-                        ])}
-                    </hui-warning>
-                `,
-            )}
+            ${conditional(staleRoomIds.length > 0, () => showStaleRoomsWarning(this, staleRoomIds))}
             ${conditional(unsendableRoomIds.length > 0, () => showUnsendableRoomsWarning(this, unsendableRoomIds))}
         `;
         const hasControls =
@@ -921,7 +911,11 @@ export class XiaomiVacuumMapCard extends LitElement {
     readonly _resetMapView = (): void => resetMapView(this);
 
     _getCssProperty(property: string): string {
-        return getComputedStyle(this._getMapImage()).getPropertyValue(property);
+        const mapImage = this._getMapImage();
+        // The rooms are built in `connectedCallback`, before the first render has produced the map
+        // canvas. There is nothing to resolve against yet, so answer empty and let the caller use
+        // its fallback; a later render (the image load triggers one) reads the real value.
+        return mapImage ? getComputedStyle(mapImage).getPropertyValue(property) : "";
     }
 
     readonly _zoomIn = (): void => zoomIn(this);
