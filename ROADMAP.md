@@ -17,8 +17,6 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 
 ## Now
 
-- **Stale-room warning readability.** In a narrow card the warning truncates after the first stale
-  id and an order badge can cover a stale marker; let the warning wrap and keep the marker visible.
 - **Editor coverage on current frontends.** The editor already adapts to `ha-input` and to the
   removal of `ha-formfield`; keep watching Home Assistant frontend releases for the next element
   that disappears. Checked on 2026-11-15 against frontend `dev` (2026.12): only `ha-list*` goes,

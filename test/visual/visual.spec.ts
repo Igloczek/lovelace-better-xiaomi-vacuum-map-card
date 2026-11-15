@@ -520,6 +520,83 @@ test("a stale room's fill does not block a live room when colour detection is un
     await expect(page.locator(`${CARD} .room-1-wrapper.selected`)).toHaveCount(1);
 });
 
+/** The boxes the stale marker, its room, the selected room's pill and its name occupy, in CSS px. */
+async function markerAndPillBoxes(
+    page: Page,
+): Promise<{ marker: Box; room: Box; pill: Box; badge: Box; name: Box; paintedAbove: boolean }> {
+    return page.locator(CARD).evaluate(element => {
+        const shadow = (element as HTMLElement).shadowRoot!;
+        const box = (selector: string): Box => {
+            const node = shadow.querySelector(selector);
+            if (!node) throw new Error(`expected ${selector} to be rendered`);
+            const rect = node.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        };
+        const stale = shadow.querySelector(".room-9-wrapper");
+        const live = shadow.querySelector(".room-1-wrapper");
+        return {
+            marker: box(".room-9-wrapper .room-stale-marker"),
+            room: box(".room-9-wrapper .room-outline"),
+            pill: box(".room-1-wrapper .room-pill"),
+            badge: box(".room-1-wrapper .room-pill-badge"),
+            name: box(".room-1-wrapper .room-pill-name"),
+            paintedAbove: !!(stale && live && live.compareDocumentPosition(stale) & Node.DOCUMENT_POSITION_FOLLOWING),
+        };
+    });
+}
+
+/**
+ * The stale marker and the selected pill share a point: the stale room's outline is exactly the live
+ * room's, and the pill is centred on the label. The marker used to hang off the label's configured
+ * offset and be lifted by the icon and glyph sizes, which put it inside the pill (at the default
+ * 12 px font it clipped the pill's edge, and a 20–40 px font buried it under the pill, its badge and
+ * its name). Its clearance from the pill is now a stylesheet expression of the pill's own variables,
+ * so it follows a live theme font without a render, and where the room cannot hold the whole pill it
+ * keeps clear of the name and stays inside the room, painted after the live rooms.
+ */
+test("a selected room's pill never covers a stale marker", async ({ page }) => {
+    await mount(page, staleRoomConfig());
+    await clickRoomPoint(page, "1", 0.5, 0.5);
+    await expect.poll(() => selectedIds(page)).toEqual(["1"]);
+    await expect(page.locator(`${CARD} .room-1-wrapper .room-pill`)).toHaveCount(1);
+    await expect(page.locator(`${CARD} .room-9-wrapper text.room-stale-marker`)).toHaveText("!");
+
+    for (const font of ["12px", "20px", "32px", "40px"]) {
+        // A theme font, and no render: the marker is the stylesheet's to place.
+        await page.locator(CARD).evaluate(async (element, value) => {
+            (element as HTMLElement).style.setProperty("--map-card-room-label-font-size", value);
+            for (let frame = 0; frame < 2; frame++) {
+                await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
+            }
+        }, font);
+        for (const scale of [1, 2.5]) {
+            await page.evaluate(value => (window as unknown as VisualWindow).visualHarness.setZoom(value), scale);
+            const boxes = await markerAndPillBoxes(page);
+            const where = `label font ${font}, zoom ${scale}`;
+            expect(boxes.marker.height, `the marker must be drawn (${where})`).toBeGreaterThan(5);
+            expect(boxes.pill.height, `the pill must be drawn (${where})`).toBeGreaterThan(10);
+            // The pill's name is what has to stay readable, at every font.
+            const coversName =
+                boxes.marker.x + boxes.marker.width > boxes.name.x &&
+                boxes.name.x + boxes.name.width > boxes.marker.x &&
+                boxes.marker.y + boxes.marker.height > boxes.name.y &&
+                boxes.name.y + boxes.name.height > boxes.marker.y;
+            expect(coversName, `the marker must not cover the pill's name (${where})`).toBe(false);
+            // Clear of the whole pill wherever it fits, else painted above the pill it overlaps. The
+            // dedicated `stale-marker.spec.ts` covers the room's outline; a room shorter than the
+            // pill cannot hold the marker at a large font, and the name is what must survive that.
+            const clear = boxes.marker.y + boxes.marker.height <= boxes.pill.y - 2;
+            if (!clear) {
+                expect(
+                    boxes.marker.y + boxes.marker.height,
+                    `the marker stays over the pill (${where})`,
+                ).toBeGreaterThan(boxes.pill.y);
+                expect(boxes.paintedAbove, `an overlapping marker must paint above the pill (${where})`).toBe(true);
+            }
+        }
+    }
+});
+
 test("default vertical layout", async ({ page }) => {
     const second: XiaomiVacuumMapCardConfig = {
         ...cardConfig(),
