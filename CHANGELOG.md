@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.10.0
+
+### Fixed
+
+- Room names on the map are no longer cut by the border of the room next door. A name that reaches
+  across a wall now sits on top of every room's outline.
+- After a run was refused (for example "No selection provided"), a run that goes through now takes
+  that message back, instead of showing it next to the green check.
+
+### Changed
+
+- A drawn zone is easy to see on any floor: a solid outline and a light tint in your theme's primary
+  colour, edged in the card's background colour, instead of a white dashed line on a white fill. Its
+  label is the same pill as the room names, with the zone's number and its size. The old
+  `--map-card-manual-rectangle-description-*` theme variables no longer apply.
+
 ## 1.9.0
 
 ### Changed
