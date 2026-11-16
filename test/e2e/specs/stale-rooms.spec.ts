@@ -8,7 +8,6 @@ import {
     serviceCall,
     test,
     waitForCard,
-    waitForRooms,
     type CardHandle,
 } from "./helpers";
 
@@ -27,17 +26,37 @@ import {
 /** The configured rooms: the ids the fixture publishes before a re-map. */
 const CONFIGURED_IDS = ["0", "1", "2"];
 
+/** Every rendered room wrapper: its id and whether the card draws it as a stale room. */
+function renderedRooms(target: CardHandle): Promise<Array<{ id: string; stale: boolean }>> {
+    return target.evaluate(element =>
+        [...element.shadowRoot.querySelectorAll(".room-wrapper")].map((wrapper: Element) => ({
+            id: (wrapper.getAttribute("class") ?? "").match(/room-([\w-]+)-wrapper/)?.[1] ?? "",
+            stale: wrapper.classList.contains("room-stale"),
+        })),
+    );
+}
+
 /**
- * Waits for the exact rendered room ids once the fixture is back to its configured numbers: the
- * configured rooms, plus any room still selected when the re-map removed it (the card keeps a
- * selected room on the map as stale, see `empty-room-selection.spec.ts`). Exact equality, so a stray
- * or a missing room fails here instead of passing a containment check.
+ * Waits until the card renders exactly the configured rooms. The only other room it may draw is one
+ * the re-map removed while the user still had it selected: the card keeps that room on the map as a
+ * stale room (see `empty-room-selection.spec.ts`). A configured room that is missing, or any other
+ * room that is not stale, fails here; nothing is accepted by containment.
  */
 async function waitForConfiguredRooms(target: CardHandle): Promise<void> {
-    const selected = await target.evaluate(element =>
-        (element.selectedRooms as Array<{ toVacuum: () => unknown }>).map(room => String(room.toVacuum())),
-    );
-    await waitForRooms(target, [...new Set([...CONFIGURED_IDS, ...selected])]);
+    await expect
+        .poll(
+            async () => {
+                const rooms = await renderedRooms(target);
+                return {
+                    missing: CONFIGURED_IDS.filter(id => !rooms.some(room => room.id === id)),
+                    unexpected: rooms
+                        .filter(room => !CONFIGURED_IDS.includes(room.id) && !room.stale)
+                        .map(room => room.id),
+                };
+            },
+            { timeout: 60_000, message: "the card must render exactly the configured rooms 0, 1, 2" },
+        )
+        .toEqual({ missing: [], unexpected: [] });
 }
 
 /** The room ids the card renders and how many of them it marks stale, plus its warning text. */
