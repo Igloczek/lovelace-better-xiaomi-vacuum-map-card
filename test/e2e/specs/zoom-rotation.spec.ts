@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import { expect, openDashboard, card, shot, test, waitForCard } from "./helpers";
+import { expect, nextFrames, openDashboard, card, shot, test, waitForCard, waitForMapImage } from "./helpers";
 
 /** Room colours painted by the synthetic fixture generator. */
 const ROOM_COLOURS: Record<string, [number, number, number]> = {
@@ -29,8 +29,11 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
     });
     await expect.poll(async () => await target.evaluate(element => element.mapRotation)).toBe(90);
     await expect.poll(async () => await target.evaluate(element => element.mapScale)).toBeCloseTo(2.5, 1);
-    await page.waitForTimeout(500);
-    expect(await target.evaluate(element => !!element.roomColorDetection)).toBe(true);
+    // The room colours are traced from the loaded snapshot; wait for the load, not half a second.
+    await waitForMapImage(target);
+    await expect
+        .poll(async () => await target.evaluate(element => !!element.roomColorDetection), { timeout: 30_000 })
+        .toBe(true);
 
     /**
      * Inside and outside sample points for every edge of a room, in page coordinates.
@@ -140,7 +143,7 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
                 },
                 { dx: box.cx - point.x, dy: box.cy - point.y },
             );
-            await page.waitForTimeout(250);
+            await nextFrames(page);
         }
         throw new Error(`could not bring room ${roomId} into view`);
     };
@@ -157,7 +160,7 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
             },
             { x: shiftX || 0, y: shiftY || 0 },
         );
-        await page.waitForTimeout(300);
+        await nextFrames(page);
     }
 
     // Alignment: the painted room and its outline must occupy the same screen box. The painted box
@@ -218,12 +221,14 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
 
     // The hit test agrees with what is drawn: clicking each outline selects that room.
     for (const roomId of ["0", "1", "2"]) {
-        while ((await selectedIds()).length > 0) {
+        // Clear any selection from the previous room, bounded so a missed click fails here.
+        for (let attempt = 0; attempt < 5 && (await selectedIds()).length > 0; attempt++) {
             const first = (await selectedIds())[0];
             const point = await bringIntoView(first);
             await page.mouse.click(point.x, point.y);
-            await page.waitForTimeout(150);
+            await nextFrames(page);
         }
+        expect(await selectedIds()).toEqual([]);
         const point = await bringIntoView(roomId);
         await page.mouse.click(point.x, point.y);
         await expect.poll(selectedIds).toEqual([roomId]);

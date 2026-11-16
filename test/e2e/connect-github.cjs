@@ -16,8 +16,49 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
+const { compose, describeInstance, waitForApi } = require("./support/harness.cjs");
+
 const CONFIG = path.join(__dirname, "ha", "config");
 const ENTRIES = path.join(CONFIG, ".storage", "core.config_entries");
+
+/**
+ * Home Assistant writes its config-entry store shortly after startup, not when the websocket is
+ * ready. A fresh instance that has just been onboarded can still be flushing it, so wait for the
+ * file instead of failing the whole sequence on a first-start race.
+ */
+async function waitForEntries({ timeoutMs = 60_000, intervalMs = 500 } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (fs.existsSync(ENTRIES)) return;
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    throw new Error(
+        `${ENTRIES} did not appear within ${timeoutMs / 1000}s; start Home Assistant and run ` +
+            `test/e2e/setup.cjs first`,
+    );
+}
+
+async function waitForMarketplaceEntry({ timeoutMs = 60_000, intervalMs = 500 } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    let last = "the file has no marketplace entry";
+    while (Date.now() < deadline) {
+        try {
+            const data = JSON.parse(fs.readFileSync(ENTRIES, "utf8"));
+            const entries = data.data?.entries;
+            const marketplace = Array.isArray(entries)
+                ? entries.find(entry => entry.domain === "marketplace")
+                : undefined;
+            if (marketplace) return { data, marketplace };
+            last = "the file has no marketplace entry";
+        } catch (error) {
+            last = error.message;
+        }
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    throw new Error(
+        `no marketplace config entry in ${ENTRIES} (${last}); Home Assistant 2026.11 creates one on first start`,
+    );
+}
 
 function tokenFromEnvironment() {
     if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN.trim();
@@ -28,27 +69,19 @@ function tokenFromEnvironment() {
     }
 }
 
-function main() {
-    if (!fs.existsSync(ENTRIES)) {
-        throw new Error(`${ENTRIES} does not exist; start Home Assistant and run test/e2e/setup.cjs first`);
-    }
+async function main() {
+    await waitForEntries();
     const token = tokenFromEnvironment();
+    console.log(describeInstance());
 
     const wantsRestart = process.argv.includes("--restart");
-    const composeArgs = ["compose", "-f", path.join(__dirname, "compose.yaml")];
-    const project = process.env.COMPOSE_PROJECT_NAME;
-    if (project) composeArgs.push("-p", project);
     // Stop first: Home Assistant rewrites the config-entry store while it runs, so a token written
     // under a live instance can be overwritten on shutdown. Read the store only after it stopped,
-    // otherwise the shutdown write is lost.
-    if (wantsRestart) execFileSync("docker", [...composeArgs, "stop"], { stdio: "inherit" });
+    // otherwise the shutdown write is lost. The compose project is the one this instance belongs to,
+    // so a renamed container is not left running with an old token while another project restarts.
+    if (wantsRestart) compose(["stop", "homeassistant"], { stdio: "inherit" });
 
-    const data = JSON.parse(fs.readFileSync(ENTRIES, "utf8"));
-    const entries = data.data.entries;
-    const marketplace = entries.find(entry => entry.domain === "marketplace");
-    if (!marketplace) {
-        throw new Error("no marketplace config entry; Home Assistant 2026.11 creates one on first start");
-    }
+    const { data, marketplace } = await waitForMarketplaceEntry();
     marketplace.data = { ...(marketplace.data ?? {}), token };
 
     fs.writeFileSync(ENTRIES, JSON.stringify(data, null, 2));
@@ -56,9 +89,13 @@ function main() {
     console.log(`marketplace GitHub token written to the ignored state file for entry ${marketplace.entry_id}`);
 
     if (wantsRestart) {
-        execFileSync("docker", [...composeArgs, "start"], { stdio: "inherit" });
-        console.log("Home Assistant restarted; wait for /api/ before running the install");
+        compose(["start", "homeassistant"], { stdio: "inherit" });
+        const status = await waitForApi({ timeoutMs: 180_000 });
+        console.log(`Home Assistant back at ${status === 401 ? "/api/ (unauthenticated, ready)" : "/api/"}`);
     }
 }
 
-main();
+main().catch(error => {
+    console.error(error);
+    process.exit(1);
+});

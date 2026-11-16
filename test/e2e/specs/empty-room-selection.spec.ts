@@ -1,5 +1,18 @@
 import type { Page } from "@playwright/test";
-import { card, expect, openDashboard, serviceCall, shot, test, waitForCard, type CardHandle } from "./helpers";
+import {
+    card,
+    clickRoom,
+    expect,
+    openDashboard,
+    serviceCall,
+    shot,
+    test,
+    waitForCard,
+    waitForMapImage,
+    waitForRoomId,
+    waitForRooms,
+    type CardHandle,
+} from "./helpers";
 
 /**
  * A ROOM selection that would send no room ids, on a real instance.
@@ -19,31 +32,7 @@ function selected(target: CardHandle): Promise<string[]> {
     return target.evaluate(element => element.selectedRooms.map((room: any) => String(room.toVacuum())));
 }
 
-/** A point inside a room, off-centre towards a vertex so the label is not the target. */
-function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: number } | null> {
-    return target.evaluate((element, roomId: string) => {
-        const outline = element.shadowRoot.querySelector(
-            `.room-${roomId}-wrapper .room-outline`,
-        ) as SVGPolygonElement | null;
-        const matrix = outline?.getScreenCTM();
-        if (!outline || !matrix || outline.points.numberOfItems === 0) return null;
-        const svg = outline.ownerSVGElement!;
-        const screen: Array<{ x: number; y: number }> = [];
-        for (let index = 0; index < outline.points.numberOfItems; index++) {
-            const point = svg.createSVGPoint();
-            point.x = outline.points.getItem(index).x;
-            point.y = outline.points.getItem(index).y;
-            screen.push(point.matrixTransform(matrix));
-        }
-        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), {
-            x: 0,
-            y: 0,
-        });
-        const vertex = screen[0];
-        return { x: centre.x + (vertex.x - centre.x) * 0.6, y: centre.y + (vertex.y - centre.y) * 0.6 };
-    }, id);
-}
-
+/** The rooms the card currently draws, their stale ids and the selected ones. */
 function shownRooms(target: CardHandle): Promise<{ ids: string[]; stale: string[]; selected: string[] }> {
     return target.evaluate(element => {
         const wrappers = [...element.shadowRoot.querySelectorAll(".room-wrapper")];
@@ -78,8 +67,9 @@ async function pressStart(page: Page, target: CardHandle): Promise<void> {
     const box = await target.locator.locator(".map-actions-item.main").boundingBox();
     if (!box) throw new Error("the card has no run button");
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    // The run control waits 250 ms for a possible double tap.
-    await page.waitForTimeout(600);
+    // The run control waits 250 ms for a possible double tap. Wait for the refusal it produces
+    // instead of sleeping for that timer: on a loaded instance the toast can arrive later.
+    await expect.poll(() => toast(target), { timeout: 20_000 }).toContain("no longer on the camera map");
 }
 
 test("a selection that has no room ids left is reported and never sent", async ({ loggedIn: page }) => {
@@ -88,21 +78,20 @@ test("a selection that has no room ids left is reported and never sent", async (
     await openDashboard(page, DASHBOARD);
     await waitForCard(page);
     const target = await card(page);
-    await expect
-        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length))
-        .toBe(3);
+    // A fresh instance loads the bundle, the camera snapshot and the room colours for the first
+    // time: wait for the image and the rooms instead of the five-second default poll window.
+    await waitForMapImage(target);
+    await waitForRooms(target, ["0", "1", "2"]);
 
     try {
-        const point = await roomPoint(target, "0");
-        expect(point, "room 0 must be on the map").not.toBeNull();
-        await page.mouse.click(point!.x, point!.y);
-        await expect.poll(() => selected(target)).toEqual(["0"]);
+        await clickRoom(page, target, "0");
+        await expect.poll(() => selected(target), { timeout: 15_000 }).toEqual(["0"]);
         expect(await warning(target)).toBe("");
 
         // The re-map keeps the geometry and renumbers the segments: the selected id is gone.
         await serviceCall("map_fixture", "set_rooms", { mode: "shift" });
 
-        await expect.poll(async () => (await shownRooms(target)).stale, { timeout: 15_000 }).toContain("0");
+        await expect.poll(async () => (await shownRooms(target)).stale, { timeout: 30_000 }).toContain("0");
         const afterRemap = await shownRooms(target);
         // The vanished selection stays on the map as a warning, and never as a selected room.
         expect(afterRemap.ids).toContain("0");
@@ -122,10 +111,9 @@ test("a selection that has no room ids left is reported and never sent", async (
 
         // A live room of the new metadata is selectable again, the warning goes away, and the kept
         // room's stale marker goes with it instead of staying red for the life of the card.
-        const livePoint = await roomPoint(target, "7");
-        expect(livePoint, "the re-mapped room 7 must be live").not.toBeNull();
-        await page.mouse.click(livePoint!.x, livePoint!.y);
-        await expect.poll(() => selected(target)).toEqual(["7"]);
+        await waitForRoomId(target, "7", { timeout: 30_000 });
+        await clickRoom(page, target, "7");
+        await expect.poll(() => selected(target), { timeout: 15_000 }).toEqual(["7"]);
         expect(await warning(target)).toBe("");
         await expect.poll(async () => (await shownRooms(target)).stale).toEqual([]);
         const afterSelection = await shownRooms(target);
@@ -136,6 +124,6 @@ test("a selection that has no room ids left is reported and never sent", async (
         // The room selected above is stale again after the reset, by design; the original ids are
         // what proves the fixture is back.
         await serviceCall("map_fixture", "set_rooms", { mode: "reset" });
-        await expect.poll(async () => (await shownRooms(target)).ids, { timeout: 15_000 }).toContain("0");
+        await waitForRoomId(target, "0", { timeout: 30_000 });
     }
 });

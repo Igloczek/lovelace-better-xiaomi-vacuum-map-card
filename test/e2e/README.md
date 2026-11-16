@@ -38,9 +38,57 @@ suite passes against the release candidate; screenshots are written to the gitig
 - Real phone scrolling and a real drag-resize: the resize uses the grid options the handle writes,
   and the hidden-tab check overrides `document.hidden` rather than moving the page to a background
   window. Both are documented limitations of a headless run.
-- Two worktrees side by side by default: the container name and port can be overridden with
-  `E2E_CONTAINER` and `E2E_HA_PORT`, but `connect-github.cjs --restart` still targets the default
-  compose project unless `COMPOSE_PROJECT_NAME` is set.
+
+## Isolation between worktrees
+
+Every script and spec resolves the instance through `support/harness.cjs` (the TypeScript specs load
+the same module), so they agree on one instance. `E2E_HA_URL` wins for the URL; otherwise the URL is
+`http://localhost:$E2E_HA_PORT` (default `8123`). The container and the compose project come from
+these rules, in order:
+
+| Environment set | Container | Compose project |
+|---|---|---|
+| `COMPOSE_PROJECT_NAME` | as below | `COMPOSE_PROJECT_NAME` |
+| `E2E_CONTAINER=C` | `C` | `C` |
+| only a custom port (`E2E_HA_PORT`, or the port of `E2E_HA_URL`) | `xvmc-e2e-ha-<port>` | `xvmc-e2e-<port>` |
+| nothing, or the default port `8123` | `xvmc-e2e-ha` | compose's default (`e2e`) |
+
+The rule: **a checkout that runs on its own port derives its own container and project from it**,
+so `test:e2e:fresh`'s `compose down` and `connect-github.cjs --restart` can never stop or restart the
+default instance another worktree is using. Two checkouts must not share a port, a container or a
+project; set `E2E_HA_PORT` (and, for an explicit name, `E2E_CONTAINER` and `COMPOSE_PROJECT_NAME`).
+A manual `docker compose -f test/e2e/compose.yaml` reads the same variables and uses the default
+names unless they are exported too, so prefer the scripts.
+
+## Stale state and sessions
+
+`test/e2e/ha/config/.storage` and `test/e2e/.auth/token.json` are gitignored and survive a branch
+switch or a recreated container. A saved session that no longer matches the instance used to leave
+every spec on the login page until its own timeout.
+
+`ensureSession` (used by `setup.cjs` and by global setup) resolves the session in this order:
+
+1. the saved **refresh token** is exchanged at the instance, as the frontend does, and the new access
+   token is written back to `token.json`;
+2. if that is refused, the saved **access token** is checked against `GET /api/`;
+3. if both are refused, the file is dropped and the session is re-created with the e2e credentials:
+   an instance that is not yet onboarded gets its owner created, an onboarded one signs in. Credentials
+   the instance refuses fail with the command that rebuilds it.
+
+The websocket helpers the specs use (`freshAccessToken`) run steps 1 and 2 only: they never create or
+replace a session, so a rejected session fails the test run with the reset command.
+
+Global setup also fails the run, with the rebuild command, when:
+
+- the instance has no e2e dashboards or no card resource (a recreated instance);
+- the bundle Home Assistant serves at the card's resource URL is not byte-identical to `dist/`
+  (SHA-256 compared over HTTP), which is what a run without `install-local-build.cjs` looks like: the
+  Marketplace release would otherwise be tested in place of this checkout.
+
+`npm run test:e2e:fresh` does the whole documented sequence from a clean state: reset the ignored
+runtime files, recreate the container, wait for `/api/`, onboard, connect Marketplace, install from
+the repository, build and install the branch bundle, then run Playwright. It tears nothing down
+unless `--down` is passed, so a failing run can still be inspected.
 
 ## Install path
 
@@ -48,14 +96,44 @@ Home Assistant 2026.11 ships the core **marketplace** integration and blocks the
 integration (`loader.py`: built into Home Assistant as the Marketplace); upgrading migrates an
 existing HACS install. `marketplace-install.cjs` therefore installs from the repository URL through
 Marketplace, and `install-local-build.cjs` then overlays the branch build so the behaviour specs test
-the pull request rather than the last release (it also removes the installer's stale `.gz`/`.br`
-siblings, which Home Assistant would otherwise serve instead).
+the pull request rather than the last release. It copies `dist/xiaomi-vacuum-map-card.js` over the
+installed file, removes the installer's stale `.gz`/`.br` siblings (Home Assistant would serve them
+instead), checks the copy's SHA-256 and gives the resource a branch cache-buster. Global setup then
+verifies the bytes Home Assistant actually serves, so the overlay cannot be skipped silently.
 
 ## Running it
 
 ```sh
+# from a clean tree, or after switching branches: the whole sequence, one command
+E2E_CONTAINER=xvmc-e2e-harness E2E_HA_PORT=8162 COMPOSE_PROJECT_NAME=xvmc-harness \
+  npm run test:e2e:fresh
+
+# after a run, tear the instance down
+E2E_CONTAINER=xvmc-e2e-harness E2E_HA_PORT=8162 COMPOSE_PROJECT_NAME=xvmc-harness \
+  npm run test:e2e:fresh -- --down
+```
+
+`test:e2e:fresh` also accepts `--no-build` (reuse `dist/`) and Playwright arguments after `--`. It
+runs:
+
+```sh
+docker compose -f test/e2e/compose.yaml down --remove-orphans
+git clean -fdX test/e2e/ha/config test/e2e/.auth test/e2e/artifacts
+docker compose -f test/e2e/compose.yaml up -d                 # wait for /api/ to answer 401
+node test/e2e/setup.cjs                                       # onboarding + storage dashboards
+node test/e2e/connect-github.cjs --restart                    # Marketplace GitHub token
+node test/e2e/marketplace-install.cjs                         # install from the repository URL
+npm run build && node test/e2e/install-local-build.cjs        # put this checkout's build in front
+node test/e2e/fetch-upstream.cjs                              # pinned upstream for the side-by-side spec
+npm run test:e2e
+```
+
+The manual steps below do the same thing and remain useful for a single step; they honour the same
+`E2E_CONTAINER`, `E2E_HA_PORT`, `E2E_HA_URL` and `COMPOSE_PROJECT_NAME`:
+
+```sh
 npm run build
-docker compose -f test/e2e/compose.yaml up -d      # Home Assistant 2026.11.0 on :8123
+docker compose -f test/e2e/compose.yaml up -d      # Home Assistant 2026.11.0 on $E2E_HA_PORT
 node test/e2e/setup.cjs                            # onboarding + storage dashboards
 node test/e2e/connect-github.cjs --restart         # Marketplace GitHub token (GITHUB_TOKEN or gh auth)
 node test/e2e/marketplace-install.cjs              # install from the repository URL (proves the path)

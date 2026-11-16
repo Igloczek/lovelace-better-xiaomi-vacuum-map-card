@@ -1,5 +1,5 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { freshAccessToken as harnessFreshAccessToken } from "./harness.cjs";
+import { haUrl } from "./instance";
 
 /**
  * A minimal Home Assistant websocket client for specs that run card modules in Node against the
@@ -23,30 +23,16 @@ export interface RealHass {
     close: () => void;
 }
 
-const AUTH_FILE = path.join(__dirname, "..", ".auth", "token.json");
-
 /**
- * An access token for the setup script's session. Access tokens expire after 30 minutes, so the
- * refresh token is exchanged first, as the frontend does; the stored access token is the fallback.
+ * The saved session's access token for `base`, refreshed first, as the harness does. The harness
+ * (`support/harness.cjs`) owns the session logic; a rejected session throws with the reset command.
  */
-export async function freshAccessToken(base = process.env.E2E_HA_URL || "http://localhost:8123"): Promise<string> {
-    const saved = JSON.parse(fs.readFileSync(AUTH_FILE, "utf8")) as { access_token: string; refresh_token?: string };
-    if (!saved.refresh_token) return saved.access_token;
-    const response = await fetch(`${base}/auth/token`, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-            grant_type: "refresh_token",
-            refresh_token: saved.refresh_token,
-            client_id: `${base}/`,
-        }),
-    });
-    if (!response.ok) return saved.access_token;
-    return ((await response.json()) as { access_token: string }).access_token;
+export function freshAccessToken(base: string = haUrl()): Promise<string> {
+    return harnessFreshAccessToken({ base });
 }
 
 export async function connectRealHass(): Promise<RealHass> {
-    const base = process.env.E2E_HA_URL || "http://localhost:8123";
+    const base = haUrl();
     const token = await freshAccessToken(base);
     const socket = new WebSocket(`${base.replace(/^http/, "ws")}/api/websocket`);
     let nextId = 1;

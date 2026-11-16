@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { card, expect, openDashboard, shot, test, waitForCard, type CardHandle } from "./helpers";
+import { card, clickRoom, expect, openDashboard, shot, test, waitForCard, type CardHandle } from "./helpers";
 
 /**
  * The selected-room pill inside the real Home Assistant frontend, in its default light theme and
@@ -8,31 +8,6 @@ import { card, expect, openDashboard, shot, test, waitForCard, type CardHandle }
  * carry numbers. The text must reach WCAG AA against the pill and the badge with the colours Home
  * Assistant's theme actually supplies.
  */
-
-/** A screen point inside a room, off-centre towards a vertex so the label is not the target. */
-function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: number } | null> {
-    return target.evaluate((element, roomId: string) => {
-        const outline = element.shadowRoot.querySelector(
-            `.room-${roomId}-wrapper .room-outline`,
-        ) as SVGPolygonElement | null;
-        const matrix = outline?.getScreenCTM();
-        if (!outline || !matrix || outline.points.numberOfItems === 0) return null;
-        const svg = outline.ownerSVGElement!;
-        const screen: Array<{ x: number; y: number }> = [];
-        for (let index = 0; index < outline.points.numberOfItems; index++) {
-            const point = svg.createSVGPoint();
-            point.x = outline.points.getItem(index).x;
-            point.y = outline.points.getItem(index).y;
-            screen.push(point.matrixTransform(matrix));
-        }
-        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), {
-            x: 0,
-            y: 0,
-        });
-        const vertex = screen[0];
-        return { x: centre.x + (vertex.x - centre.x) * 0.6, y: centre.y + (vertex.y - centre.y) * 0.6 };
-    }, id);
-}
 
 interface PillReading {
     badge: string;
@@ -82,7 +57,9 @@ async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<voi
     await waitForCard(page);
     const target = await card(page);
     await expect
-        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length))
+        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length), {
+            timeout: 45_000,
+        })
         .toBeGreaterThanOrEqual(3);
     const darkMode = await page.evaluate(
         () => (document.querySelector("home-assistant") as any)?.hass?.themes?.darkMode,
@@ -90,10 +67,7 @@ async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<voi
     expect(darkMode, "Home Assistant applied the colour scheme").toBe(scheme === "dark");
 
     for (const id of ["2", "0"]) {
-        const point = await roomPoint(target, id);
-        if (!point) throw new Error(`room ${id} is not on screen`);
-        await page.mouse.click(point.x, point.y);
-        await page.waitForTimeout(200);
+        await clickRoom(page, target, id);
     }
 
     await expect.poll(() => readPill(target, "2")).toMatchObject({ badge: "1", name: "Bedroom" });

@@ -1,5 +1,18 @@
 import type { Page } from "@playwright/test";
-import { card, type CardHandle, expect, login, openDashboard, serviceCall, shot, test, waitForCard } from "./helpers";
+import {
+    card,
+    type CardHandle,
+    clickRoom,
+    expect,
+    login,
+    nextFrames,
+    openDashboard,
+    serviceCall,
+    shot,
+    test,
+    waitForCard,
+    waitForMapImage,
+} from "./helpers";
 
 /**
  * What happens after Start, against a real Home Assistant and a vacuum that misbehaves the way real
@@ -26,8 +39,12 @@ async function openRunCard(page: Page, dashboard = DASHBOARD): Promise<CardHandl
     await waitForCard(page);
     const target = await card(page);
     await expect
-        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length))
+        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length), {
+            timeout: 60_000,
+            message: "the run card must render its rooms",
+        })
         .toBeGreaterThanOrEqual(3);
+    await waitForMapImage(target);
     return target;
 }
 
@@ -46,36 +63,11 @@ function attribute(page: Page, name: string): Promise<unknown> {
     );
 }
 
-/** A point inside room `id`, off its centre (the centre carries the label). */
-async function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: number }> {
-    const point = await target.evaluate((element, roomId: string) => {
-        const outline = element.shadowRoot.querySelector(
-            `.room-${roomId}-wrapper .room-outline`,
-        ) as SVGPolygonElement | null;
-        const matrix = outline?.getScreenCTM();
-        if (!outline || !matrix || outline.points.numberOfItems === 0) return null;
-        const svg = outline.ownerSVGElement!;
-        const screen: Array<{ x: number; y: number }> = [];
-        for (let index = 0; index < outline.points.numberOfItems; index++) {
-            const p = svg.createSVGPoint();
-            p.x = outline.points.getItem(index).x;
-            p.y = outline.points.getItem(index).y;
-            screen.push(p.matrixTransform(matrix));
-        }
-        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), {
-            x: 0,
-            y: 0,
-        });
-        return { x: centre.x + (screen[0].x - centre.x) * 0.6, y: centre.y + (screen[0].y - centre.y) * 0.6 };
-    }, id);
-    if (!point) throw new Error(`room ${id} has no outline on screen`);
-    return point;
-}
-
+/** Taps a room on its settled screen point, then waits for the card to paint the change. */
 async function tapRoom(page: Page, target: CardHandle, id: string): Promise<void> {
-    const point = await roomPoint(target, id);
-    await page.mouse.click(point.x, point.y);
-    await page.waitForTimeout(200);
+    await clickRoom(page, target, id);
+    await target.evaluate(async (element: any) => element.updateComplete);
+    await nextFrames(page);
 }
 
 function selected(target: CardHandle): Promise<string[]> {
@@ -96,9 +88,13 @@ async function switchPreset(page: Page, target: CardHandle, direction: "previous
     const arrows = target.locator.locator("better-xvmc-preset-selector .preset-selector-icon-wrapper");
     await arrows.nth(direction === "next" ? 1 : 0).click();
     await expect
-        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length))
+        .poll(() => target.evaluate(element => element.shadowRoot.querySelectorAll(".room-wrapper").length), {
+            timeout: 60_000,
+            message: "the switched preset must render its rooms",
+        })
         .toBeGreaterThanOrEqual(3);
-    await page.waitForTimeout(500);
+    await waitForMapImage(target);
+    await nextFrames(page);
 }
 
 function presetName(target: CardHandle): Promise<string | undefined> {

@@ -1,4 +1,4 @@
-import { expect, openDashboard, card, shot, test, waitForCard, waitForHaReady, viewState } from "./helpers";
+import { expect, nextFrames, openDashboard, card, shot, test, waitForCard, waitForHaReady, viewState } from "./helpers";
 
 /**
  * A reset that arrives while the map is not shown.
@@ -43,12 +43,11 @@ test("a reset fired while the card is hidden applies and stores the default view
     for (let attempt = 0; attempt < 4 && (await viewState(target)).scale <= defaultView.scale + 0.1; attempt++) {
         await page.mouse.move(mapBox.x, mapBox.y);
         await page.mouse.wheel(0, -600);
-        await page.waitForTimeout(300);
+        await nextFrames(page);
     }
     await expect.poll(async () => (await viewState(target)).scale).toBeGreaterThan(defaultView.scale + 0.1);
-    await page.waitForTimeout(600);
+    await expect.poll(async () => (await storedMapViews(page)).length).toBe(1);
     const away = await viewState(target);
-    expect(await storedMapViews(page)).toHaveLength(1);
 
     // The card is still attached but its container has no layout box, as in a hidden view.
     await target.evaluate(element => {
@@ -69,8 +68,9 @@ test("a reset fired while the card is hidden applies and stores the default view
             }),
         );
     });
-    // Longer than the view-save debounce: a view computed from the zero-size layout would be
-    // applied and stored by now.
+    // The view-save debounce is deliberately left to elapse: this asserts that nothing happened, so
+    // there is no condition to wait for. A view computed from the zero-size layout would be applied
+    // and stored by now.
     await page.waitForTimeout(800);
 
     const whileHidden = await viewState(target);
@@ -96,7 +96,12 @@ test("a reset fired while the card is hidden applies and stores the default view
     await shot(page, "05-hidden-reset-shown");
 
     // The reset was stored as the centred default at the card's real width, not as a zero-size one.
-    await page.waitForTimeout(700);
+    await expect
+        .poll(async () => {
+            const entry = (await storedMapViews(page))[0];
+            return entry ? Math.abs(entry.x - defaultView.x) + Math.abs(entry.y - defaultView.y) : Number.NaN;
+        })
+        .toBeLessThan(3);
     const stored = (await storedMapViews(page))[0];
     expect(stored.scale).toBeCloseTo(defaultView.scale, 1);
     expect(Math.abs(stored.x - defaultView.x), "stored offsets match the visible default").toBeLessThan(3);
@@ -143,7 +148,7 @@ test("map_view opens, resets and persists on a real dashboard", async ({ loggedI
     for (let attempt = 0; attempt < 4 && (await viewState(target)).scale <= defaultView.scale + 0.1; attempt++) {
         await page.mouse.move(mapBox.x, mapBox.y);
         await page.mouse.wheel(0, -600);
-        await page.waitForTimeout(300);
+        await nextFrames(page);
     }
     // Compare with the configured view, not a constant: the card opens at 2.5, so a fixed 2.05
     // threshold would skip the gesture entirely and the rest of the test would assert nothing.
@@ -168,7 +173,7 @@ test("map_view opens, resets and persists on a real dashboard", async ({ loggedI
     // The map_view.reset action (fire-dom-event) must do the same from a changed view.
     await page.mouse.move(mapBox.x, mapBox.y);
     await page.mouse.wheel(0, -600);
-    await page.waitForTimeout(300);
+    await expect.poll(async () => (await viewState(target)).scale).toBeGreaterThan(defaultView.scale + 0.1);
     await page.evaluate(() => {
         document.dispatchEvent(
             new CustomEvent("ll-custom", {
@@ -203,14 +208,15 @@ test("map_view opens, resets and persists on a real dashboard", async ({ loggedI
     for (let attempt = 0; attempt < 3 && (await viewState(reloaded)).scale <= defaultView.scale + 0.1; attempt++) {
         await page.mouse.move(mapBox2.x, mapBox2.y);
         await page.mouse.wheel(0, -600);
-        await page.waitForTimeout(300);
+        await nextFrames(page);
     }
     await expect.poll(async () => (await viewState(reloaded)).scale).toBeGreaterThan(defaultView.scale + 0.1);
     const gestures = await viewState(reloaded);
     // The gesture must really have moved away from the reset view, or the reload below proves
     // nothing about persistence.
     expect(Math.abs(gestures.x - defaultView.x) + Math.abs(gestures.y - defaultView.y)).toBeGreaterThan(1);
-    await page.waitForTimeout(700);
+    // Wait for the debounced view save to carry the gesture, not for a guessed number of ms.
+    await expect.poll(async () => (await storedMapViews(page))[0]?.scale ?? 0).toBeCloseTo(gestures.scale, 1);
     await page.reload();
     await waitForCard(page);
     await waitForHaReady(page);

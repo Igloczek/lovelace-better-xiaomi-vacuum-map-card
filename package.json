@@ -59,6 +59,7 @@
         "add-version": "node scripts/add-version.mjs",
         "lint": "oxlint src",
         "test:e2e": "playwright test -c test/e2e/playwright.config.ts",
+        "test:e2e:fresh": "node test/e2e/fresh.cjs",
         "e2e:install": "node test/e2e/marketplace-install.cjs",
         "bundle": "rolldown -c rolldown.config.mjs",
         "format": "oxfmt",

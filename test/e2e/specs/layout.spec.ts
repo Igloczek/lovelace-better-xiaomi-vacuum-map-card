@@ -216,9 +216,10 @@ test("horizontal layout in a real sections view, with resize and a long mode nam
 
     // The page itself must never scroll sideways, whatever the viewport is.
     await page.setViewportSize({ width: 720, height: 900 });
-    await page.waitForTimeout(300);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow).toBeLessThanOrEqual(1);
+    // A viewport change is a layout pass, not a fixed delay: poll the actual page overflow.
+    await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), { timeout: 15_000 })
+        .toBeLessThanOrEqual(1);
     await shot(page, "08-layout-page-720");
 });
 
