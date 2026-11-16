@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import type { MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
+import { inkGaps } from "../support/ink-centre";
 
 /**
  * Every HTML overlay on the map (label pills, room and point icons) is painted where its layout box
@@ -165,4 +166,24 @@ test("a predefined point's icon and label are painted in place", async ({ page }
     await mount(page, config(POINT_MODE, 0));
     await expectPaintedInPlace(page, ".predefined-point-icon-wrapper", "point icon");
     await expectPaintedInPlace(page, ".room-pill.predefined-point-label", "point label");
+});
+
+test("a pill's name and badge number are centred on their letters", async ({ page }) => {
+    // Bedroom has no descender and no icon, so its capitals and its baseline are the letters to
+    // centre, unselected and selected. The check reads pixels: the font decides where its glyphs
+    // sit inside the layout box.
+    await mount(page, config(ROOM_MODE, 0));
+    const card = page.locator(CARD);
+    const unselected = await inkGaps(page, card, ".room-2-wrapper .room-pill", ".room-2-wrapper .room-pill-name");
+    expect(Math.abs(unselected.above - unselected.below), `name ${JSON.stringify(unselected)}`).toBeLessThanOrEqual(1);
+    await tapRoom(page, "2");
+    const name = await inkGaps(page, card, ".room-2-wrapper .room-pill", ".room-2-wrapper .room-pill-name");
+    expect(Math.abs(name.above - name.below), `name ${JSON.stringify(name)}`).toBeLessThanOrEqual(1);
+    const number = await inkGaps(
+        page,
+        card,
+        ".room-2-wrapper .room-pill-badge",
+        ".room-2-wrapper .room-pill-badge .room-pill-text",
+    );
+    expect(Math.abs(number.above - number.below), `badge ${JSON.stringify(number)}`).toBeLessThanOrEqual(1);
 });

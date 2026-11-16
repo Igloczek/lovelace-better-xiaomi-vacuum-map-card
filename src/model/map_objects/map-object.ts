@@ -236,7 +236,7 @@ export abstract class MapObject {
                   ? html`<span class="room-pill-badge room-check" aria-label="selected"
                         ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CHECK_PATH}"></path></svg
                     ></span>`
-                  : html`<span class="room-pill-badge room-order">${badge}</span>`;
+                  : html`<span class="room-pill-badge room-order"><span class="room-pill-text">${badge}</span></span>`;
         const classes = [
             "room-pill",
             htmlClass,
@@ -250,7 +250,7 @@ export abstract class MapObject {
             <g class="room-pill-anchor" style="${placement}">
                 <foreignObject class="room-pill-box" x="${-PILL_BOX_WIDTH / 2}" y="${-PILL_BOX_HEIGHT / 2}"
                                width="${PILL_BOX_WIDTH}" height="${PILL_BOX_HEIGHT}">
-                    ${html`<div xmlns="http://www.w3.org/1999/xhtml" class="room-pill-canvas"><div class="${classes}" style="${style}">${badgeElement}${name ? html`<span class="room-pill-name">${name}</span>` : ""}</div></div>`}
+                    ${html`<div xmlns="http://www.w3.org/1999/xhtml" class="room-pill-canvas"><div class="${classes}" style="${style}">${badgeElement}${name ? html`<span class="room-pill-name room-pill-text">${name}</span>` : ""}</div></div>`}
                 </foreignObject>
             </g>
         `;
@@ -420,6 +420,15 @@ export abstract class MapObject {
                 font-size: calc(var(--room-pill-font-size) - 1px);
                 font-weight: 700;
                 font-variant-numeric: tabular-nums;
+            }
+
+            /* The name and the badge number are centred on their letters, not on the font's line
+               box: the box is trimmed to the capital height above and the baseline below, so flex
+               centring puts the letters in the middle of the pill whatever the font's ascent and
+               descent. A browser without text-box keeps the line box, as before. */
+            .room-pill-text {
+                display: block;
+                text-box: trim-both cap alphabetic;
             }
 
             /* The checkmark sits in a true circle, the same size as a one-digit number. */
