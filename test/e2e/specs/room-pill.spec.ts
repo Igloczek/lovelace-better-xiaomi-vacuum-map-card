@@ -51,6 +51,37 @@ function contrast(a: string, b: string): number {
     return (l1 + 0.05) / (l2 + 0.05);
 }
 
+/**
+ * Hiding the overlay must change the pixels inside its own layout box; it only does when the
+ * overlay is painted there. Engine-independent, and no baseline is involved.
+ */
+async function expectPaintedInPlace(page: Page, target: CardHandle, selector: string, label: string): Promise<void> {
+    const box = await target.evaluate((element, sel: string) => {
+        const rect = element.shadowRoot.querySelector(sel)?.getBoundingClientRect();
+        return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+    }, selector);
+    expect(box, `${label}: ${selector} is rendered`).not.toBeNull();
+    const clip = {
+        x: Math.max(0, Math.floor(box!.x)),
+        y: Math.max(0, Math.floor(box!.y)),
+        width: Math.ceil(box!.width),
+        height: Math.ceil(box!.height),
+    };
+    expect(clip.width * clip.height, `${label}: ${selector} has a size`).toBeGreaterThan(0);
+    const setVisibility = (value: string): Promise<void> =>
+        target.evaluate(
+            (element, input: { sel: string; value: string }) => {
+                (element.shadowRoot.querySelector(input.sel) as HTMLElement).style.visibility = input.value;
+            },
+            { sel: selector, value },
+        );
+    const shown = await page.screenshot({ clip, animations: "disabled" });
+    await setVisibility("hidden");
+    const hidden = await page.screenshot({ clip, animations: "disabled" });
+    await setVisibility("");
+    expect(shown.equals(hidden), `${label}: ${selector} is painted where its layout box is`).toBe(false);
+}
+
 async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<void> {
     await page.emulateMedia({ colorScheme: scheme });
     await openDashboard(page, "/e2e-selection/rooms");
@@ -88,6 +119,10 @@ async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<voi
         else expect(luminance(pill.background), `${scheme} ${label}: dark pill`).toBeLessThan(0.2);
     }
     expect(await readPill(target, "1"), "an unselected room's pill has no badge").toBeNull();
+    // Painted where they are laid out, selected and unselected: WebKit (this spec's second project)
+    // painted 1.5.0's pills away from their boxes, which no layout reading notices.
+    for (const selector of [".room-2-wrapper .room-pill", ".room-0-wrapper .room-pill", ".room-1-wrapper .room-pill"])
+        await expectPaintedInPlace(page, target, selector, scheme);
     await shot(page, `17-room-pill-${scheme}`);
 }
 
