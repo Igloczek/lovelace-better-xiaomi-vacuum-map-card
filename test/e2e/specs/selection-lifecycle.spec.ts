@@ -1,12 +1,15 @@
 import {
     bumpCamera,
     card,
+    clickRoom,
     expect,
+    nextFrames,
     openDashboard,
     serviceCall,
     shot,
     test,
     waitForCard,
+    waitForMapImage,
     type CardHandle,
 } from "./helpers";
 
@@ -35,29 +38,11 @@ function badges(target: CardHandle): Promise<Record<string, string>> {
     });
 }
 
-/** A screen point inside a room, off-centre towards a vertex so the label is not the target. */
-function roomPoint(target: CardHandle, id: string): Promise<{ x: number; y: number } | null> {
-    return target.evaluate((element, roomId: string) => {
-        const outline = element.shadowRoot.querySelector(
-            `.room-${roomId}-wrapper .room-outline`,
-        ) as SVGPolygonElement | null;
-        const matrix = outline?.getScreenCTM();
-        if (!outline || !matrix || outline.points.numberOfItems === 0) return null;
-        const svg = outline.ownerSVGElement!;
-        const screen: Array<{ x: number; y: number }> = [];
-        for (let index = 0; index < outline.points.numberOfItems; index++) {
-            const point = svg.createSVGPoint();
-            point.x = outline.points.getItem(index).x;
-            point.y = outline.points.getItem(index).y;
-            screen.push(point.matrixTransform(matrix));
-        }
-        const centre = screen.reduce((acc, p) => ({ x: acc.x + p.x / screen.length, y: acc.y + p.y / screen.length }), {
-            x: 0,
-            y: 0,
-        });
-        const vertex = screen[0];
-        return { x: centre.x + (vertex.x - centre.x) * 0.6, y: centre.y + (vertex.y - centre.y) * 0.6 };
-    }, id);
+/** The snapshot URL the card currently has on screen. */
+function mapSrc(target: CardHandle): Promise<string> {
+    return target.evaluate(
+        element => (element.shadowRoot.getElementById("map-image-source") as HTMLImageElement | null)?.src ?? "",
+    );
 }
 
 test("a selection survives entity and camera rebuilds in click order", async ({ loggedIn: page }) => {
@@ -65,13 +50,11 @@ test("a selection survives entity and camera rebuilds in click order", async ({ 
     await openDashboard(page, "/e2e-selection/rooms");
     await waitForCard(page);
     const target = await card(page);
-    await expect.poll(async () => (await roomPoint(target, "2")) !== null).toBe(true);
+    await waitForMapImage(target);
 
     try {
         for (const id of ["2", "0"]) {
-            const point = await roomPoint(target, id);
-            await page.mouse.click(point!.x, point!.y);
-            await page.waitForTimeout(150);
+            await clickRoom(page, target, id);
         }
         await expect.poll(() => selected(target)).toEqual(["2", "0"]);
 
@@ -80,9 +63,15 @@ test("a selection survives entity and camera rebuilds in click order", async ({ 
         await expect.poll(() => selected(target)).toEqual(["2", "0", "1"]);
         expect(await badges(target)).toEqual({ "2": "1", "0": "2", "1": "3" });
 
-        // A new camera image rebuilds the rooms from the detected colours; nothing moves.
+        // A new camera image rebuilds the rooms from the detected colours; nothing moves. Wait for
+        // the card to load the new snapshot (a new URL) instead of assuming six seconds is enough.
+        const beforeBump = await mapSrc(target);
         await bumpCamera(page);
-        await page.waitForTimeout(6_000);
+        await expect
+            .poll(() => mapSrc(target), { timeout: 30_000, message: "the card must load the bumped snapshot" })
+            .not.toBe(beforeBump);
+        await waitForMapImage(target);
+        await nextFrames(page);
         expect(await selected(target)).toEqual(["2", "0", "1"]);
         await shot(page, "16-selection-after-rebuilds");
 

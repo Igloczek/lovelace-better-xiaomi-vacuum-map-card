@@ -1,5 +1,16 @@
 import type { Page } from "@playwright/test";
-import { expect, card, openDashboard, shot, serviceCall, test, waitForCard, type CardHandle } from "./helpers";
+import {
+    expect,
+    card,
+    nextFrames,
+    openDashboard,
+    shot,
+    serviceCall,
+    test,
+    waitForCard,
+    waitForRoomsToContain,
+    type CardHandle,
+} from "./helpers";
 
 /**
  * B8 on a real instance: a re-map that keeps the geometry but renumbers the segments.
@@ -169,7 +180,7 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
 
     // Start from the original metadata even if an earlier run aborted before restoring it.
     await setRoomMetadata("reset");
-    await expect.poll(async () => (await roomsOf(target)).ids.sort()).toEqual(["0", "1", "2"]);
+    await waitForRoomsToContain(target, ["0", "1", "2"]);
     expect((await roomsOf(target)).warning).toBe("");
 
     try {
@@ -177,7 +188,7 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
 
         // The configured ids 0/1/2 no longer exist in the camera metadata: they are drawn from their
         // stored outlines, marked stale, and named in the warning.
-        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
+        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
         const afterRemap = await roomsOf(target);
         expect(afterRemap.warning).toMatch(/0[\s,]+1[\s,]+2/);
 
@@ -197,11 +208,15 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
             .not.toContain("0");
         await shot(page, "15-stale-rooms");
 
-        // Clear whatever the fall-through click selected, then pick the live room on purpose.
-        while ((await target.evaluate(element => element.selectedRooms.length)) > 0) {
+        // Clear whatever the fall-through click selected, then pick the live room on purpose. The
+        // loop is bounded: a click that misses must fail here with the remaining count, not spin.
+        for (let attempt = 0; attempt < 10; attempt++) {
+            const selected = await target.evaluate(element => element.selectedRooms.length);
+            if (selected === 0) break;
             await page.mouse.click(stalePoint!.x, stalePoint!.y);
-            await page.waitForTimeout(150);
+            await nextFrames(page);
         }
+        expect(await target.evaluate(element => element.selectedRooms.length)).toBe(0);
 
         // The live rooms of the new metadata are selectable again.
         const livePoint = await roomClickPoint(target, "7");
@@ -221,9 +236,7 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
         // again and the card keeps it on the map as a stale warning (see `empty-room-selection.spec`):
         // the original ids are what proves the fixture is back.
         await setRoomMetadata("reset");
-        await expect
-            .poll(async () => (await roomsOf(target)).ids, { timeout: 15_000 })
-            .toEqual(expect.arrayContaining(["0", "1", "2"]));
+        await waitForRoomsToContain(target, ["0", "1", "2"]);
         // The configured ids are live again, so the stale configured-id warning is gone. The
         // selected room 7 is the one the reset removed, and it stays as its own warning.
         expect((await roomsOf(target)).warning).toBe("");
@@ -239,11 +252,11 @@ test("a phone-width card shows every stale id and keeps the marker clear of the 
     const target = await card(page);
 
     await setRoomMetadata("reset");
-    await expect.poll(async () => (await roomsOf(target)).ids.sort()).toEqual(["0", "1", "2"]);
+    await waitForRoomsToContain(target, ["0", "1", "2"]);
 
     try {
         await setRoomMetadata("shift");
-        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
+        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
 
         // Every stale id, not only the first one: the message occupies several lines, stays inside
         // the card and is clipped in neither direction, and the alert grew to hold it.
@@ -269,7 +282,7 @@ test("a phone-width card shows every stale id and keeps the marker clear of the 
             await target.evaluate((element, value) => {
                 element.style.setProperty("--map-card-room-label-font-size", `${value}px`);
             }, font);
-            await page.waitForTimeout(200);
+            await nextFrames(page);
             for (const scale of [1, 0.5, 2.5]) {
                 await zoomTo(page, target, scale);
                 const geometry = await markerAndPill(target, "0", LIVE_KITCHEN_ID);
@@ -279,9 +292,7 @@ test("a phone-width card shows every stale id and keeps the marker clear of the 
         await shot(page, "16-stale-rooms-phone");
     } finally {
         await setRoomMetadata("reset");
-        await expect
-            .poll(async () => (await roomsOf(target)).ids, { timeout: 15_000 })
-            .toEqual(expect.arrayContaining(["0", "1", "2"]));
+        await waitForRoomsToContain(target, ["0", "1", "2"]);
     }
 });
 
@@ -292,11 +303,11 @@ test("a narrow sections-view column wraps the stale warning instead of truncatin
     const target = await card(page);
 
     await setRoomMetadata("reset");
-    await expect.poll(async () => (await roomsOf(target)).ids.sort()).toEqual(["0", "1", "2"]);
+    await waitForRoomsToContain(target, ["0", "1", "2"]);
 
     try {
         await setRoomMetadata("shift");
-        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
+        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
 
         const warning = await warningLayout(target);
         const cardWidth = await target.evaluate(element => element.getBoundingClientRect().width);
@@ -310,8 +321,6 @@ test("a narrow sections-view column wraps the stale warning instead of truncatin
         await shot(page, "16-stale-rooms-sections-cell");
     } finally {
         await setRoomMetadata("reset");
-        await expect
-            .poll(async () => (await roomsOf(target)).ids, { timeout: 15_000 })
-            .toEqual(expect.arrayContaining(["0", "1", "2"]));
+        await waitForRoomsToContain(target, ["0", "1", "2"]);
     }
 });

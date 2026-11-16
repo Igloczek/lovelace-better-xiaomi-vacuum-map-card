@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { expect, openDashboard, card, serviceCall, shot, test, waitForCard, CardHandle } from "./helpers";
+import { expect, openDashboard, card, nextFrames, serviceCall, shot, test, waitForCard, CardHandle } from "./helpers";
 
 /**
  * Two same-coloured L-shaped rooms whose bounding boxes interlock, on a real instance.
@@ -91,16 +91,18 @@ async function bringIntoView(page: Page, target: CardHandle, x: number, y: numbe
             },
             { dx: box.cx - screen!.x, dy: box.cy - screen!.y },
         );
-        await page.waitForTimeout(250);
+        await nextFrames(page);
     }
     throw new Error(`could not bring ${x},${y} into view`);
 }
 
 async function clearSelection(page: Page, target: CardHandle): Promise<void> {
-    while ((await selectedIds(target)).length > 0) {
+    // The card's own click handler deselects synchronously; bound the loop so a miss cannot hang.
+    for (let attempt = 0; attempt < 10 && (await selectedIds(target)).length > 0; attempt++) {
         await target.evaluate(element => element.selectedRooms.forEach((room: any) => room.click()));
-        await page.waitForTimeout(150);
+        await nextFrames(page);
     }
+    expect(await selectedIds(target)).toEqual([]);
 }
 
 test("interlocking same-coloured rooms keep their own floor at every zoom and rotation", async ({ loggedIn: page }) => {
@@ -135,7 +137,7 @@ test("interlocking same-coloured rooms keep their own floor at every zoom and ro
             await element.updateComplete;
         }, view);
         await expect.poll(async () => target.evaluate(element => element.mapRotation)).toBe(view.rotation);
-        await page.waitForTimeout(400);
+        await nextFrames(page);
 
         for (const [roomId, points] of Object.entries(POINTS)) {
             for (const [x, y] of points) {
@@ -162,13 +164,14 @@ test("interlocking same-coloured rooms keep their own floor at every zoom and ro
         element._resetMapView();
         await element.updateComplete;
     });
-    await page.waitForTimeout(800);
+    await nextFrames(page);
     await target.evaluate(async element => {
         const zoomer = element.shadowRoot.getElementById("map-zoomer");
         zoomer.setTransform({ scale: 1, x: 0, y: 0, allowChangeEvent: true });
         await element.updateComplete;
     });
-    await page.waitForTimeout(500);
+    await expect.poll(() => target.evaluate(element => element.mapScale)).toBeCloseTo(1, 1);
+    await nextFrames(page);
     await shot(page, "18-interlock-rooms");
 });
 

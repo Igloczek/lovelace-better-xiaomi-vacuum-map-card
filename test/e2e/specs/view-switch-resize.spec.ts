@@ -1,4 +1,14 @@
-import { expect, openDashboard, card, shot, test, waitForCard, viewState, type CardHandle } from "./helpers";
+import {
+    expect,
+    openDashboard,
+    card,
+    shot,
+    test,
+    waitForCard,
+    waitForMapImage,
+    viewState,
+    type CardHandle,
+} from "./helpers";
 
 /**
  * What only a real dashboard does to a zoomed map: Home Assistant detaches the card when the user
@@ -72,13 +82,22 @@ test("a zoomed map keeps its view through a view switch and a window resize", as
     const zoomed = await viewCentre(target);
     expect(distance(zoomed, { x: 0.3, y: 0.6 })).toBeLessThan(0.01);
 
-    // Away to another view and back: the cached card element is detached and attached again.
+    // Away to another view and back: the cached card element is detached and attached again. Wait
+    // for the detach itself; navigating back too early could reuse the element without a re-attach.
+    await target.evaluate(element => {
+        (window as any).__e2eSectionsCard = element;
+    });
     await navigateInApp(page, "/e2e-layout/vertical");
-    await page.waitForTimeout(1500);
+    await expect
+        .poll(() => page.evaluate(() => !(window as any).__e2eSectionsCard?.isConnected), {
+            timeout: 30_000,
+            message: "the sections card must be detached when its view is left",
+        })
+        .toBe(true);
     await navigateInApp(page, "/e2e-layout/sections");
     await waitForCard(page);
     const back = await card(page);
-    await page.waitForTimeout(500);
+    await waitForMapImage(back);
     expect(await mapSrc(back), "the camera snapshot, not the placeholder").toContain("/api/");
     expect(await mapSrc(back)).not.toBe("");
     expect((await viewState(back)).scale).toBeCloseTo(2.5, 2);

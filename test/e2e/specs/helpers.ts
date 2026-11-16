@@ -2,6 +2,7 @@ import { expect, test as base, type Page } from "@playwright/test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import { haUrl } from "../support/instance";
 import { freshAccessToken } from "../support/ha-websocket";
 
 /**
@@ -14,9 +15,42 @@ export const USERNAME = process.env.E2E_HA_USER || "e2e";
 export const PASSWORD = process.env.E2E_HA_PASSWORD || "e2e-password";
 const ARTIFACTS = path.join(__dirname, "..", "artifacts");
 const AUTH_DIR = path.join(__dirname, "..", ".auth");
+const SESSION_HINT = "run `npm run test:e2e:fresh` (or `node test/e2e/setup.cjs`) to re-authenticate";
 
 /** Home Assistant's card element inside the ha-card shadow root. */
 export const CARD_SELECTOR = "better-xiaomi-vacuum-map-card";
+
+/**
+ * Proves the saved session is accepted before a spec seeds it into the browser.
+ *
+ * A token from another instance leaves the frontend on the login page, where the waits in `login`
+ * can never succeed and every spec times out separately. This turns that into one clear failure per
+ * worker; later specs in the same worker reuse the result.
+ */
+let sessionCheck: Promise<void> | undefined;
+export function assertSession(): Promise<void> {
+    sessionCheck ??= (async () => {
+        const base = haUrl();
+        const token = await freshAccessToken(base);
+        let status = 0;
+        try {
+            const response = await fetch(`${base}/api/`, {
+                headers: { authorization: `Bearer ${token}` },
+                signal: AbortSignal.timeout(15_000),
+            });
+            status = response.status;
+        } catch {
+            status = 0;
+        }
+        if (status !== 200) {
+            throw new Error(
+                `the saved Home Assistant session in test/e2e/.auth/token.json is not accepted by ${base} ` +
+                    `(GET /api/ returned ${status === 0 ? "no response" : `HTTP ${status}`}). ${SESSION_HINT}.`,
+            );
+        }
+    })();
+    return sessionCheck;
+}
 
 /** The refresh token the setup script obtained, shaped the way the frontend stores it. */
 function hassTokens(): Record<string, unknown> {
@@ -24,7 +58,7 @@ function hassTokens(): Record<string, unknown> {
         access_token: string;
         refresh_token: string;
     };
-    const hassUrl = process.env.E2E_HA_URL || "http://localhost:8123";
+    const hassUrl = haUrl();
     return {
         access_token: raw.access_token,
         refresh_token: raw.refresh_token,
@@ -43,6 +77,7 @@ function hassTokens(): Record<string, unknown> {
  * while still exercising the real session, router and component bootstrap.
  */
 export async function login(page: Page): Promise<void> {
+    await assertSession();
     const tokens = hassTokens();
     await page.addInitScript(value => {
         window.localStorage.setItem("hassTokens", JSON.stringify(value));
@@ -63,12 +98,17 @@ export async function login(page: Page): Promise<void> {
     );
 }
 
-/** Waits until Home Assistant's launch screen is gone and the dashboard is usable. */
+/** Waits until Home Assistant's launch screen is gone and the layout has settled. */
 export async function waitForHaReady(page: Page): Promise<void> {
     // Home Assistant shows a launch screen over the dashboard while it hydrates; measuring or
     // screenshotting through it would produce misleading evidence.
     await page.locator("#ha-launch-screen").waitFor({ state: "detached", timeout: 120_000 });
-    await page.waitForTimeout(300);
+    // The launch screen leaves before the web font swap and the first dashboard layout: wait for
+    // both so a room measured right after this cannot move between measuring and clicking.
+    await page.evaluate(async () => {
+        await document.fonts?.ready;
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
 }
 
 export async function openDashboard(page: Page, pathname: string): Promise<void> {
@@ -77,7 +117,7 @@ export async function openDashboard(page: Page, pathname: string): Promise<void>
     await waitForHaReady(page);
 }
 
-/** Waits for the card element to be defined and rendered inside the dashboard view. */
+/** Waits for the card element to be defined, connected and rendered inside the dashboard view. */
 export async function waitForCard(page: Page, selector = CARD_SELECTOR): Promise<void> {
     // Playwright's locators pierce shadow roots, `document.querySelector` does not: dashboard cards
     // live inside `hui-card`'s shadow tree.
@@ -87,9 +127,11 @@ export async function waitForCard(page: Page, selector = CARD_SELECTOR): Promise
         if (!element.shadowRoot) {
             await customElements.whenDefined(element.localName);
         }
-    });
-    await locator.evaluate(async (element: any) => {
         while (!element.shadowRoot) await new Promise(resolve => setTimeout(resolve, 50));
+        // `hass` arrives after the element is attached; a card without it has not rendered its map
+        // or rooms yet, and specs that read them straight away would race the first update.
+        while (!element.hass) await new Promise(resolve => setTimeout(resolve, 50));
+        await element.updateComplete;
     });
 }
 
@@ -108,7 +150,137 @@ export async function card(page: Page, selector = CARD_SELECTOR): Promise<CardHa
     };
 }
 
-/** The map view state the card applies, as the visual harness reads it. */
+export interface ScreenPoint {
+    x: number;
+    y: number;
+}
+
+/** The id of every rendered room wrapper, in document order. */
+export function roomIds(target: CardHandle): Promise<string[]> {
+    return target.evaluate(element =>
+        [...element.shadowRoot.querySelectorAll(".room-wrapper")].map(
+            (wrapper: Element) => (wrapper.getAttribute("class") ?? "").match(/room-([\w-]+)-wrapper/)?.[1] ?? "",
+        ),
+    );
+}
+
+/** Waits for the card to render these rooms, whatever the instance's first-load latency is. */
+export async function waitForRooms(
+    target: CardHandle,
+    ids: string[],
+    { timeout = 60_000, message }: { timeout?: number; message?: string } = {},
+): Promise<void> {
+    await expect
+        .poll(async () => (await roomIds(target)).sort(), {
+            timeout,
+            message: message ?? `the card must render rooms ${ids.join(", ")}`,
+        })
+        .toEqual([...ids].sort());
+}
+
+/** Waits for the rendered room ids to contain `id`, leaving other rooms (stale ones) alone. */
+export async function waitForRoomId(
+    target: CardHandle,
+    id: string,
+    { timeout = 60_000 }: { timeout?: number } = {},
+): Promise<void> {
+    await expect
+        .poll(async () => (await roomIds(target)).includes(id), { timeout, message: `room ${id} must be rendered` })
+        .toBe(true);
+}
+
+/** Waits until the rendered room ids contain every id, leaving kept stale rooms alone. */
+export async function waitForRoomsToContain(
+    target: CardHandle,
+    ids: string[],
+    { timeout = 60_000 }: { timeout?: number } = {},
+): Promise<void> {
+    await expect
+        .poll(async () => await roomIds(target), { timeout, message: `rooms ${ids.join(", ")} must be rendered` })
+        .toEqual(expect.arrayContaining(ids));
+}
+
+/** Waits until the camera snapshot is decoded; room colour detection runs on its load event. */
+export async function waitForMapImage(target: CardHandle, { timeout = 60_000 } = {}): Promise<void> {
+    await expect
+        .poll(
+            () =>
+                target.evaluate(element => {
+                    const image = element.shadowRoot.getElementById("map-image-source") as HTMLImageElement | null;
+                    return !!image && image.complete && image.naturalWidth > 0;
+                }),
+            { timeout, message: "the camera snapshot must load" },
+        )
+        .toBe(true);
+}
+
+/** The screen point inside a room's outline, off-centre so the label cannot take the click. */
+export function roomClickPoint(target: CardHandle, id: string): Promise<ScreenPoint | null> {
+    return target.evaluate((element, roomId: string) => {
+        const outline = element.shadowRoot.querySelector(
+            `.room-${roomId}-wrapper .room-outline`,
+        ) as SVGPolygonElement | null;
+        const matrix = outline?.getScreenCTM();
+        if (!outline || !matrix || outline.points.numberOfItems === 0) return null;
+        const svg = outline.ownerSVGElement!;
+        const screen: ScreenPoint[] = [];
+        for (let index = 0; index < outline.points.numberOfItems; index++) {
+            const point = svg.createSVGPoint();
+            point.x = outline.points.getItem(index).x;
+            point.y = outline.points.getItem(index).y;
+            screen.push(point.matrixTransform(matrix));
+        }
+        const centre = screen.reduce(
+            (acc, point) => ({ x: acc.x + point.x / screen.length, y: acc.y + point.y / screen.length }),
+            { x: 0, y: 0 },
+        );
+        const vertex = screen[0];
+        return { x: centre.x + (vertex.x - centre.x) * 0.6, y: centre.y + (vertex.y - centre.y) * 0.6 };
+    }, id);
+}
+
+/**
+ * Waits for a room's outline and for the screen point to hold still, then clicks it.
+ *
+ * A fresh instance loads the card bundle and its fonts during the first spec, so the dashboard can
+ * still move after the room is drawn. Measuring once and clicking immediately sent the click to the
+ * old position; this waits for the geometry to settle instead of sleeping for a guessed time.
+ */
+export async function clickRoom(
+    page: Page,
+    target: CardHandle,
+    id: string,
+    { timeout = 60_000 }: { timeout?: number } = {},
+): Promise<void> {
+    await expect
+        .poll(async () => (await roomClickPoint(target, id)) !== null, {
+            timeout,
+            message: `room ${id} must be on the map`,
+        })
+        .toBe(true);
+    let previous = await roomClickPoint(target, id);
+    for (let attempt = 0; attempt < 60; attempt++) {
+        const current = await roomClickPoint(target, id);
+        if (current && previous && Math.hypot(current.x - previous.x, current.y - previous.y) <= 1) {
+            await page.mouse.click(current.x, current.y);
+            return;
+        }
+        previous = current;
+        await page.evaluate(
+            () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+        );
+        await page.waitForTimeout(50);
+    }
+    throw new Error(`room ${id} did not hold still on screen for a click`);
+}
+
+/** Waits for two animation frames, so a synchronous style or layout change has been painted. */
+export async function nextFrames(page: Page): Promise<void> {
+    await page.evaluate(
+        () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
+}
+
 export interface ViewState {
     scale: number;
     x: number;
@@ -170,24 +342,41 @@ export async function shot(page: Page, name: string): Promise<string> {
 
 /** Sends one Home Assistant websocket command with the setup token. */
 export async function wsSend<T = unknown>(type: string, payload: Record<string, unknown> = {}): Promise<T> {
-    const base = process.env.E2E_HA_URL || "http://localhost:8123";
+    const base = haUrl();
     const token = await freshAccessToken(base);
     return new Promise<T>((resolve, reject) => {
         const socket = new WebSocket(`${base.replace("http", "ws")}/api/websocket`);
         let id = 0;
+        const timer = setTimeout(() => {
+            socket.close();
+            reject(
+                new Error(
+                    `Home Assistant at ${base} did not answer the websocket command ${type} within 60s; ${SESSION_HINT}`,
+                ),
+            );
+        }, 60_000);
         socket.onmessage = event => {
             const message = JSON.parse(event.data as string);
             if (message.type === "auth_required") {
                 socket.send(JSON.stringify({ type: "auth", access_token: token }));
             } else if (message.type === "auth_ok") {
+                clearTimeout(timer);
                 socket.send(JSON.stringify({ id: ++id, type, ...payload }));
+            } else if (message.type === "auth_invalid") {
+                clearTimeout(timer);
+                socket.close();
+                reject(new Error(`Home Assistant rejected the e2e session; ${SESSION_HINT}`));
             } else if (message.type === "result") {
+                clearTimeout(timer);
                 socket.close();
                 if (message.success) resolve(message.result as T);
                 else reject(new Error(`${type}: ${JSON.stringify(message.error)}`));
             }
         };
-        socket.onerror = () => reject(new Error("websocket error"));
+        socket.onerror = () => {
+            clearTimeout(timer);
+            reject(new Error(`websocket error connecting to ${base}`));
+        };
     });
 }
 
