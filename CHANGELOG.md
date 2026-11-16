@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.7.0
+
+### Added
+
+- Turnable zones on Viomi robots. The new `vacuum_clean_zone_rotatable` mode draws zones with a
+  rotate handle, so a zone can follow a wall at 45° or any other angle; it snaps to 45° steps on the
+  way. The robot cleans the turned rectangle. It is available for `tykarol/ViomiVacuumV8`
+  (`viomi_vacuum_v8.clean_area`), `KrzysztofHajdamowicz/miio2`, `marotoweb/viomi SE` and, for Viomi
+  models, `al-one/Xiaomi MIoT`, which so far had no zone mode that works without your own
+  `service_call_schema`. Other vacuums only clean boxes, so they keep the plain zone
+  ([which vacuums](docs/platforms.md#rotated-zones-per-platform)).
+- `selection_type: MANUAL_ROTATABLE_RECTANGLE` sends each zone as its four corners, for your own
+  map modes.
+- `service_call_schema` can be a list of calls. They are sent in order, and a call Home Assistant
+  refuses stops the rest.
+
 ## 1.6.0
 
 ### Added
