@@ -159,7 +159,16 @@ function markerAndPill(target: CardHandle, staleId: string, liveId: string) {
                 markerRoom: box(`.room-${ids.staleId}-wrapper .room-outline`),
                 pill: box(`.room-${ids.liveId}-wrapper .room-pill`),
                 badge: box(`.room-${ids.liveId}-wrapper .room-pill-badge`),
-                name: box(`.room-${ids.liveId}-wrapper .room-pill-name`),
+                // The name's line, one font tall around its letters: the element itself is trimmed
+                // to the capital height (text-box), but ascenders and accents (Ł, Ś) reach the line.
+                name: ((): ReturnType<typeof box> => {
+                    const name = element.shadowRoot.querySelector(`.room-${ids.liveId}-wrapper .room-pill-name`);
+                    const letters = box(`.room-${ids.liveId}-wrapper .room-pill-name`);
+                    if (!name || !letters) return letters;
+                    const half = parseFloat(getComputedStyle(name).fontSize) / 2;
+                    const middle = (letters.top + letters.bottom) / 2;
+                    return { ...letters, top: middle - half, bottom: middle + half };
+                })(),
                 // Stale rooms are appended after the live ones, so their marker paints above a pill.
                 staleAfterLive: !!(
                     stale &&

@@ -288,7 +288,16 @@ function measure(page: Page): Promise<MarkerGeometry> {
 
             return {
                 marker: markerBox,
-                name: box(`.room-${ids.liveId}-wrapper .room-pill-name`),
+                // The name's line, one font tall around its letters: the element itself is trimmed
+                // to the capital height (text-box), but ascenders and accents (Ł, Ś) reach the line.
+                name: ((): Box | null => {
+                    const name = node(`.room-${ids.liveId}-wrapper .room-pill-name`);
+                    const letters = box(name);
+                    if (!name || !letters) return letters;
+                    const font = parseFloat(getComputedStyle(name).fontSize);
+                    const middle = letters.y + letters.height / 2;
+                    return { x: letters.x, y: middle - font / 2, width: letters.width, height: font };
+                })(),
                 pill: box(pill),
                 badge: box(`.room-${ids.liveId}-wrapper .room-pill-badge`),
                 zoomer: box("#map-zoomer")!,

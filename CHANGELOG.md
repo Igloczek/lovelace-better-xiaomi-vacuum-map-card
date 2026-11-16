@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.2
+
+### Fixed
+
+- Label names and badge numbers are centred on their letters instead of the font's line box, so
+  they sit in the middle of the pill whatever the font's ascent and descent.
+
 ## 1.5.1
 
 ### Fixed
