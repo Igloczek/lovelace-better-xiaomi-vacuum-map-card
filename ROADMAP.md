@@ -17,12 +17,6 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 
 ## Now
 
-- **Editor coverage on current frontends.** The editor already adapts to `ha-input` and to the
-  removal of `ha-formfield`; keep watching Home Assistant frontend releases for the next element
-  that disappears. Checked on 2026-11-15 against frontend `dev` (2026.12): only `ha-list*` goes,
-  which the card does not use. The weak spot is `ha-select`: the editor's three pickers have no
-  fallback and `editor.spec.ts` does not assert them, so a removal would leave empty boxes. Add a
-  plain `<select>` fallback and an e2e assertion.
 - **Default Marketplace listing.** The README button adds the repository as a custom repository.
   The pull request adding it to `plugin` in `hacs/default` is open:
   [hacs/default#14136](https://github.com/hacs/default/pull/14136). Since 1.4.0 the card has its own
