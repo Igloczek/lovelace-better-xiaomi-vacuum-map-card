@@ -557,15 +557,7 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
     }
 
     private _showToast(text: string, icon: string, successful: boolean, additionalText = ""): void {
-        ToastRenderer.showToast(
-            this.shadowRoot,
-            v => this._localize(v),
-            "editor",
-            text,
-            icon,
-            successful,
-            additionalText,
-        );
+        ToastRenderer.showToast(this, v => this._localize(v), "editor", text, icon, successful, additionalText);
     }
 
     private _platformChanged(ev): void {

@@ -235,7 +235,7 @@ describe("a ROOM selection that would send no room ids", () => {
         expect(calls).toHaveLength(1);
         expect(calls[0].slice(0, 2)).toEqual(["xiaomi_miio", "vacuum_clean_segment"]);
         expect((calls[0][2] as unknown as { segments: unknown[] }).segments).toEqual([1]);
-        expect(toast).toHaveBeenCalledWith("popups.success", "mdi:check", true);
+        expect((card.element as unknown as { runFeedback?: string }).runFeedback).toBe("success");
     });
 
     it("keeps the configured-room fallback when the camera reports no rooms at all", async () => {

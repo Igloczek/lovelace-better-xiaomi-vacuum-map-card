@@ -1,6 +1,23 @@
 import { css, CSSResultGroup, html, TemplateResult } from "lit";
 import { delay } from "../utils";
 
+/** How long Home Assistant shows a message, in ms. A failure carries a reason worth reading. */
+const SUCCESS_DURATION = 3000;
+const FAILURE_DURATION = 8000;
+
+/**
+ * Whether the element is rendered by the Home Assistant frontend: its `<home-assistant>` root is
+ * among the element's ancestors, across shadow roots. That element shows `hass-notification`.
+ */
+export function isInsideHomeAssistant(element: Element): boolean {
+    let node: Node | null = element;
+    while (node) {
+        if (node instanceof Element && node.localName === "home-assistant") return true;
+        node = node.parentNode ?? (node instanceof ShadowRoot ? node.host : null);
+    }
+    return false;
+}
+
 export class ToastRenderer {
     public static render(idPrefix: string): TemplateResult {
         return html`
@@ -13,8 +30,18 @@ export class ToastRenderer {
         `;
     }
 
+    /**
+     * Shows a short message about something the user just did.
+     *
+     * Inside Home Assistant it goes to Home Assistant's own notification (`hass-notification`, the
+     * snackbar the frontend's own cards and dialogs use): it is placed on the screen, not at the
+     * bottom of the card, so it is seen however tall the card is or wherever it was scrolled, and
+     * it is announced to screen readers. A failure stays longer and can be dismissed. Outside Home
+     * Assistant (a page that only hosts the element) nothing listens for that event, so the card's
+     * own toast is shown instead.
+     */
     public static showToast(
-        shadowRoot: ShadowRoot | null,
+        host: HTMLElement,
         localize: (TranslatableString) => string,
         idPrefix: string,
         text: string,
@@ -23,6 +50,22 @@ export class ToastRenderer {
         additionalText = "",
         timeout = 2000,
     ): void {
+        const message = localize(text) + (additionalText ? `: ${additionalText}` : "");
+        if (isInsideHomeAssistant(host)) {
+            host.dispatchEvent(
+                new CustomEvent("hass-notification", {
+                    detail: {
+                        message,
+                        duration: successful ? SUCCESS_DURATION : FAILURE_DURATION,
+                        dismissable: !successful,
+                    },
+                    bubbles: true,
+                    composed: true,
+                }),
+            );
+            return;
+        }
+        const shadowRoot = host.shadowRoot;
         const toast = shadowRoot?.getElementById(`${idPrefix}-toast`);
         const toastText = shadowRoot?.getElementById(`${idPrefix}-toast-text`);
         const toastIcon = shadowRoot?.getElementById(`${idPrefix}-toast-icon`);

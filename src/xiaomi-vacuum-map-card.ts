@@ -118,7 +118,7 @@ import {
     refreshRoomsAfterColorDetection,
 } from "./card/rooms";
 import { entityNamesChanged, refreshGeneratedIconsAndTiles, rememberRegistrySnapshot } from "./card/registry";
-import { handleServiceCallGet } from "./card/run";
+import { handleServiceCallGet, RunFeedback } from "./card/run";
 import {
     createContext,
     drawSelection,
@@ -209,6 +209,9 @@ export class XiaomiVacuumMapCard extends LitElement {
      * icons re-render: they treat the vacuum as starting meanwhile (see `getIconHass`).
      */
     @state() serviceCallInFlight = false;
+    /** What the run button shows about the last run: in flight, accepted or refused (see `setRunFeedback`). */
+    @state() runFeedback?: RunFeedback;
+    runFeedbackTimer?: number;
     /** Re-checks `activeRoomRun` when it would change without a further state update. */
     activeRoomRunTimer?: number;
     /** Colours of the selected-room pill, resolved from the theme on every render. */

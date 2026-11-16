@@ -3,6 +3,7 @@ import {
     card,
     clickRoom,
     expect,
+    haNotification,
     openDashboard,
     serviceCall,
     shot,
@@ -52,10 +53,6 @@ function warning(target: CardHandle): Promise<string> {
     );
 }
 
-function toast(target: CardHandle): Promise<string> {
-    return target.evaluate(element => element.shadowRoot.getElementById("map-card-toast-text")?.innerText ?? "");
-}
-
 function attribute(page: Page, name: string): Promise<unknown> {
     return page.evaluate(
         ([entity, key]) => (document.querySelector("home-assistant") as any)?.hass?.states[entity]?.attributes[key],
@@ -68,8 +65,18 @@ async function pressStart(page: Page, target: CardHandle): Promise<void> {
     if (!box) throw new Error("the card has no run button");
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     // The run control waits 250 ms for a possible double tap. Wait for the refusal it produces
-    // instead of sleeping for that timer: on a loaded instance the toast can arrive later.
-    await expect.poll(() => toast(target), { timeout: 20_000 }).toContain("no longer on the camera map");
+    // instead of sleeping for that timer: the run button turns into a cross, and Home Assistant's
+    // notification says why.
+    await expect
+        .poll(
+            () =>
+                target.evaluate(element =>
+                    element.shadowRoot.querySelector(".map-actions-item.main .run-icon")?.getAttribute("icon"),
+                ),
+            { timeout: 20_000 },
+        )
+        .toBe("mdi:close");
+    await expect.poll(() => haNotification(page)).toContain("no longer on the camera map");
 }
 
 test("a selection that has no room ids left is reported and never sent", async ({ loggedIn: page }) => {
@@ -107,7 +114,7 @@ test("a selection that has no room ids left is reported and never sent", async (
         expect(await attribute(page, "commands")).toEqual([]);
         expect(await attribute(page, "job_rooms")).toEqual([]);
         expect(await attribute(page, "cleaned_rooms")).toEqual([]);
-        expect(await toast(target)).toContain("no longer on the camera map");
+        await expect.poll(() => haNotification(page)).toContain("no longer on the camera map");
 
         // A live room of the new metadata is selectable again, the warning goes away, and the kept
         // room's stale marker goes with it instead of staying red for the life of the card.

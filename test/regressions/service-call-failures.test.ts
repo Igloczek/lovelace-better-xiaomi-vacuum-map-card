@@ -118,7 +118,7 @@ describe("the run button", () => {
 
         expect(hass.callService).toHaveBeenCalledTimes(1);
         expect(toast).toHaveBeenCalledWith("popups.failed", "mdi:close", false, HA_REJECTION.message);
-        expect(toast).not.toHaveBeenCalledWith("popups.success", expect.anything(), true);
+        expect((card.element as unknown as { runFeedback?: string }).runFeedback).toBe("failure");
         expect(selectedIds(card)).toEqual(["1"]);
     });
 
@@ -141,7 +141,7 @@ describe("the run button", () => {
 
         await runSelection(card);
 
-        expect(toast).toHaveBeenCalledWith("popups.success", "mdi:check", true);
+        expect((card.element as unknown as { runFeedback?: string }).runFeedback).toBe("success");
         expect(selectedIds(card)).toEqual([]);
         expect(vi.mocked(hass.callService).mock.calls[0].slice(0, 3)).toEqual([
             "vacuum",
@@ -170,7 +170,7 @@ describe("the run button with an unavailable vacuum", () => {
 
         expect(m.card.hass.callService).not.toHaveBeenCalled();
         expect(m.toast).toHaveBeenCalledWith("popups.vacuum_unavailable", "mdi:robot-vacuum-alert", false);
-        expect(m.toast).not.toHaveBeenCalledWith("popups.success", expect.anything(), true);
+        expect((m.card.element as unknown as { runFeedback?: string }).runFeedback).toBe("failure");
         expect(selectedIds(m.card)).toEqual(["1"]);
         expect((m.card.element as unknown as XiaomiVacuumMapCard).activeRoomRun).toBeUndefined();
     });
@@ -199,7 +199,7 @@ describe("the run button with an unavailable vacuum", () => {
         await runSelection(m.card);
 
         expect(m.card.hass.callService).toHaveBeenCalledTimes(1);
-        expect(m.toast).toHaveBeenCalledWith("popups.success", "mdi:check", true);
+        expect((m.card.element as unknown as { runFeedback?: string }).runFeedback).toBe("success");
     });
 
     it("sends again once the vacuum is back", async () => {

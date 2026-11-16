@@ -331,6 +331,11 @@ export const cardStyles = css`
                 rgb(255, 0, 0)
             );
             --map-card-internal-transitions-duration: var(--map-card-transitions-duration, 200ms);
+            --map-card-internal-run-success-color: var(
+                --map-card-run-success-color,
+                var(--success-color, rgb(67, 160, 71))
+            );
+            --map-card-internal-run-failure-color: var(--map-card-run-failure-color, var(--error-color, rgb(219, 68, 55)));
         }
 
         /*
@@ -685,6 +690,39 @@ export const cardStyles = css`
             border-radius: var(--map-card-internal-big-radius);
             background-color: var(--map-card-internal-primary-color);
             color: var(--map-card-internal-primary-text-color);
+        }
+
+        /* The run button answers on itself, where the user tapped: a spinner while the call is
+           out, then a check or a cross on the theme's success or error colour for a moment. The
+           reason for a refusal or failure is in Home Assistant's notification. */
+        .map-actions-item.main.run-success,
+        .map-actions-item.main.run-failure {
+            color: var(--text-primary-color, #fff);
+            transition: background-color var(--map-card-internal-transitions-duration);
+        }
+
+        .map-actions-item.main.run-success {
+            background-color: var(--map-card-internal-run-success-color);
+        }
+
+        .map-actions-item.main.run-failure {
+            background-color: var(--map-card-internal-run-failure-color);
+        }
+
+        .map-actions-item.main.run-busy .run-icon {
+            animation: run-spin 1s linear infinite;
+        }
+
+        @keyframes run-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .map-actions-item.main.run-busy .run-icon {
+                animation: none;
+            }
         }
 
         .map-actions-item {

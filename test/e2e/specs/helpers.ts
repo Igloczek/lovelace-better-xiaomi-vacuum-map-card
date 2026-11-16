@@ -396,3 +396,22 @@ export const test = base.extend<{ loggedIn: Page }>({
 });
 
 export { expect };
+
+/**
+ * The text of Home Assistant's own notification (the snackbar `hass-notification` opens), or "" when
+ * none is shown. The card sends its run messages there instead of its own toast, so this reads what
+ * the user sees on the screen, from the frontend's notification manager.
+ */
+export function haNotification(page: Page): Promise<string> {
+    return page.evaluate(() => {
+        const manager = document.querySelector("home-assistant")?.shadowRoot?.querySelector("notification-manager") as
+            | (Element & { shadowRoot: ShadowRoot | null })
+            | null;
+        const toast = manager?.shadowRoot?.querySelector("ha-toast") as
+            | (HTMLElement & { labelText?: string; open?: boolean })
+            | null
+            | undefined;
+        if (!toast || toast.open === false) return "";
+        return (toast.labelText ?? toast.textContent ?? "").trim();
+    });
+}

@@ -4,6 +4,7 @@ import {
     type CardHandle,
     clickRoom,
     expect,
+    haNotification,
     login,
     nextFrames,
     openDashboard,
@@ -207,9 +208,13 @@ test.describe("the run after Start, with a misbehaving vacuum", () => {
 
         await pressStart(page, target);
 
+        // The reason is in Home Assistant's notification, and the run button shows the refusal.
+        await expect.poll(() => haNotification(page)).toContain("vacuum is unavailable");
         expect(
-            await target.evaluate(element => element.shadowRoot.getElementById("map-card-toast-text")?.innerText ?? ""),
-        ).toContain("vacuum is unavailable");
+            await target.evaluate(element =>
+                element.shadowRoot.querySelector(".map-actions-item.main .run-icon")?.getAttribute("icon"),
+            ),
+        ).toBe("mdi:close");
         expect(await selected(target)).toEqual(["1"]);
         expect(await running(target)).toEqual([]);
         expect(
@@ -222,6 +227,14 @@ test.describe("the run after Start, with a misbehaving vacuum", () => {
         expect(await attribute(page, "commands")).toEqual([]);
         await pressStart(page, target);
         await expect.poll(() => attribute(page, "commands")).toEqual([["1"]]);
+        // Accepted: the run button shows the check where the user tapped.
+        await expect
+            .poll(() =>
+                target.evaluate(element =>
+                    element.shadowRoot.querySelector(".map-actions-item.main .run-icon")?.getAttribute("icon"),
+                ),
+            )
+            .toBe("mdi:check");
     });
 
     test("a room command the vacuum ignores while heading home does not lock the rooms", async ({ loggedIn: page }) => {

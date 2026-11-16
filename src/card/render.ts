@@ -61,18 +61,32 @@ export function createMapControls(card: XiaomiVacuumMapCard): TemplateResult[] {
         `);
     }
     if (!currentMode.runImmediately) {
+        const feedback = card.runFeedback;
+        const runIcon =
+            feedback === "busy"
+                ? "mdi:loading"
+                : feedback === "success"
+                  ? "mdi:check"
+                  : feedback === "failure"
+                    ? "mdi:close"
+                    : "mdi:play";
         controls.push(html`
             <paper-button
-                class="map-actions-item main clickable ripple"
+                class="map-actions-item main clickable ripple ${feedback ? `run-${feedback}` : ""}"
+                aria-busy="${feedback === "busy" ? "true" : "false"}"
                 @action="${handleRunAction(card)}"
                 .actionHandler="${actionHandler({
                     hasHold: true,
                     hasDoubleClick: true,
                 })}">
-                <ha-icon icon="mdi:play"></ha-icon>
-                <ha-icon
-                    icon="${currentMode.icon}"
-                    style="position: absolute; transform: scale(0.5) translate(15px, -20px)"></ha-icon>
+                <ha-icon class="run-icon" icon="${runIcon}"></ha-icon>
+                ${
+                    feedback
+                        ? ""
+                        : html`<ha-icon
+                          icon="${currentMode.icon}"
+                          style="position: absolute; transform: scale(0.5) translate(15px, -20px)"></ha-icon>`
+                }
             </paper-button>
         `);
     }
@@ -177,13 +191,5 @@ export function showToast(
     successful: boolean,
     additionalText = "",
 ): void {
-    ToastRenderer.showToast(
-        card.shadowRoot,
-        v => card._localize(v),
-        "map-card",
-        text,
-        icon,
-        successful,
-        additionalText,
-    );
+    ToastRenderer.showToast(card, v => card._localize(v), "map-card", text, icon, successful, additionalText);
 }
