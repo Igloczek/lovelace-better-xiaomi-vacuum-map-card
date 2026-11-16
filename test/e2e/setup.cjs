@@ -162,6 +162,40 @@ function interlockCard() {
 }
 
 /**
+ * A realistic floor plan (test/fixtures/apartment/): rooms sharing walls, irregular shapes, long and
+ * Polish names, a room the camera does not name. Rooms come from the camera metadata and the map
+ * colours, as on a real Viomi/xiaomi_miot map (apartment-rooms.spec.ts).
+ */
+function apartmentCard() {
+    return {
+        type: "custom:better-xiaomi-vacuum-map-card",
+        entity: "vacuum.fake_vacuum",
+        vacuum_platform: "Xiaomi Miio",
+        map_source: { camera: "camera.apartment_map" },
+        calibration_source: {
+            calibration_points: [
+                { map: { x: 0, y: 216 }, vacuum: { x: 0, y: 0 } },
+                { map: { x: 200, y: 216 }, vacuum: { x: 10, y: 0 } },
+                { map: { x: 0, y: 16 }, vacuum: { x: 0, y: 10 } },
+            ],
+        },
+        map_modes: [
+            {
+                name: "Rooms",
+                icon: "mdi:floor-plan",
+                selection_type: "ROOM",
+                max_selections: 10,
+                cleaning_order: true,
+                service_call_schema: {
+                    service: "vacuum.send_command",
+                    service_data: { entity_id: "[[entity_id]]", command: "app_segment_clean", params: "[[selection]]" },
+                },
+            },
+        ],
+    };
+}
+
+/**
  * The run card with a second preset for the same vacuum on another map, as a card with one preset
  * per floor has. The second map is the fixture image by URL, with the same room ids: multi-floor
  * Xiaomi, Roborock and Dreame vacuums number every map's segments the same way.
@@ -345,6 +379,15 @@ async function main() {
                         sections: [{ type: "grid", cards: [card({ grid_options: { columns: 4 } })] }],
                     },
                 ],
+            },
+        },
+        {
+            // apartment-rooms.spec.ts: a realistic floor plan with rooms sharing walls.
+            url_path: "e2e-apartment",
+            title: "E2E apartment",
+            config: {
+                title: "E2E apartment",
+                views: [{ title: "Rooms", path: "rooms", cards: [apartmentCard()] }],
             },
         },
         {

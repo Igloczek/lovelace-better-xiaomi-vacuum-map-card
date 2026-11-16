@@ -16,6 +16,7 @@ This component exists only for `test/e2e`; it is never part of the released card
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 
@@ -88,12 +89,27 @@ SHIFTED_ROOMS: dict[str, dict[str, Any]] = {
     "9": {"x0": 200, "y0": 900, "x1": 800, "y1": 1300, "name": "Bedroom"},
 }
 
+# A realistic floor plan (test/fixtures/apartment/): rooms sharing walls, irregular shapes, long and
+# Polish names. Generated with its metadata, which the generator writes next to the image.
+APARTMENT_ROOMS_FILE = "/config/map_apartment_rooms.json"
+
+
+def _apartment_rooms() -> dict[str, dict[str, Any]]:
+    try:
+        with open(APARTMENT_ROOMS_FILE, encoding="utf-8") as handle:
+            return json.load(handle)
+    except OSError:
+        return {}
+
+
 FIXTURE_IMAGES: dict[str, str] = {
     "default": DEFAULT_IMAGE,
     "interlock": "/config/map_interlock.png",
+    "apartment": "/config/map_apartment.png",
 }
 FIXTURE_MAP_ROOMS: dict[str, dict[str, dict[str, Any]]] = {
     "interlock": INTERLOCK_ROOMS,
+    "apartment": _apartment_rooms(),
 }
 
 # The replacement image the interlock camera serves, for the path-cut piece spec.

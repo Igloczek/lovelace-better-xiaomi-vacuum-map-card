@@ -29,7 +29,7 @@ function selected(target: CardHandle): Promise<string[]> {
 function badges(target: CardHandle): Promise<Record<string, string>> {
     return target.evaluate(element => {
         const result: Record<string, string> = {};
-        element.shadowRoot.querySelectorAll(".room-wrapper").forEach((wrapper: Element) => {
+        element.shadowRoot.querySelectorAll(".room-label-layer").forEach((wrapper: Element) => {
             const id = (wrapper.getAttribute("class") ?? "").match(/room-([\w-]+)-wrapper/)?.[1];
             const badge = wrapper.querySelector(".room-order")?.textContent?.trim();
             if (id && badge) result[id] = badge;

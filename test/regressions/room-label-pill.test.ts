@@ -4,6 +4,8 @@ import { ACTIVE_ROOM_RUN_STORE_KEY } from "../../src/const";
 import type { MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle } from "../harness";
 import {
+    roomQuery,
+    roomQueryAll,
     fixtureConfig,
     fixtureHass,
     loadSyntheticFixture,
@@ -48,7 +50,7 @@ function wrapper(card: CardHandle, id: string): Element {
 }
 
 async function clickRoom(card: CardHandle, id: string): Promise<void> {
-    const polygon = wrapper(card, id).querySelector(".room-outline");
+    const polygon = roomQuery(card.shadowRoot, id, ".room-outline");
     if (!polygon) throw new Error(`room ${id} has no clickable outline`);
     polygon.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
     await settle(card.element);
@@ -63,7 +65,7 @@ interface PillView {
 function pills(card: CardHandle): Record<string, PillView> {
     const out: Record<string, PillView> = {};
     for (const id of ["0", "1", "2"]) {
-        const pill = wrapper(card, id).querySelector(".room-pill:not(.no-badge)");
+        const pill = roomQuery(card.shadowRoot, id, ".room-pill:not(.no-badge)");
         if (!pill) continue;
         const check = pill.querySelector(".room-pill-badge.room-check");
         const number = pill.querySelector(".room-pill-badge.room-order")?.textContent?.trim();
@@ -77,7 +79,7 @@ function pills(card: CardHandle): Record<string, PillView> {
 
 /** The name on an unselected room's badge-less pill. */
 function plainLabel(card: CardHandle, id: string): string | undefined {
-    return wrapper(card, id).querySelector(".room-pill.no-badge .room-pill-name")?.textContent?.trim();
+    return roomQuery(card.shadowRoot, id, ".room-pill.no-badge .room-pill-name")?.textContent?.trim();
 }
 
 describe("room label pill", () => {
@@ -170,7 +172,7 @@ describe("room label pill", () => {
                 },
             ],
         } as Partial<MapModeConfig>);
-        const icon = (id: string): Element | null => wrapper(card, id).querySelector(".room-icon-wrapper ha-icon");
+        const icon = (id: string): Element | null => roomQuery(card.shadowRoot, id, ".room-icon-wrapper ha-icon");
         expect(icon("1")).not.toBeNull();
         expect(pills(card)).toEqual({});
         expect(plainLabel(card, "1")).toBe("Living room");
@@ -211,7 +213,7 @@ describe("room label pill", () => {
             ],
         } as Partial<MapModeConfig>);
         const labelPlacement = (id: string): string[] => {
-            const pill = wrapper(card, id).querySelector(".room-pill-anchor") as SVGGElement;
+            const pill = roomQuery(card.shadowRoot, id, ".room-pill-anchor") as SVGGElement;
             return [
                 pill.style.getPropertyValue("--room-pill-x"),
                 pill.style.getPropertyValue("--room-pill-y"),
@@ -226,7 +228,7 @@ describe("room label pill", () => {
         await clickRoom(card, "0");
         await clickRoom(card, "1");
         for (const id of ["0", "1"] as const) {
-            const pill = wrapper(card, id).querySelector(".room-pill-anchor") as SVGGElement;
+            const pill = roomQuery(card.shadowRoot, id, ".room-pill-anchor") as SVGGElement;
             expect(
                 [
                     pill.style.getPropertyValue("--room-pill-x"),
@@ -258,7 +260,7 @@ describe("room label pill", () => {
         // in it by flex layout, never by positioning the HTML.
         const card = await mount({});
         await clickRoom(card, "1");
-        const box = wrapper(card, "1").querySelector(".room-pill-anchor > foreignObject.room-pill-box")!;
+        const box = roomQuery(card.shadowRoot, "1", ".room-pill-anchor > foreignObject.room-pill-box")!;
         expect([
             box.getAttribute("x"),
             box.getAttribute("y"),
@@ -268,7 +270,7 @@ describe("room label pill", () => {
         expect(box.querySelector(".room-pill-canvas > .room-pill")).not.toBeNull();
         // Deselected, the room keeps its pill, without the badge, in the same box.
         await clickRoom(card, "1");
-        const after = wrapper(card, "1").querySelectorAll("foreignObject.room-pill-box");
+        const after = roomQueryAll(card.shadowRoot, "1", "foreignObject.room-pill-box");
         expect(after).toHaveLength(1);
         expect(after[0].getAttribute("width")).toBe("640");
         expect(after[0].querySelector(".room-pill-badge")).toBeNull();
@@ -301,7 +303,7 @@ describe("room label pill", () => {
         );
         await card.fireMapLoad();
         await clickRoom(card, "1");
-        const pill = wrapper(card, "1").querySelector(".room-pill");
+        const pill = roomQuery(card.shadowRoot, "1", ".room-pill");
         expect(pill?.querySelector(".room-order")?.textContent?.trim()).toBe("1");
         expect(pill?.querySelector(".room-pill-name")).toBeNull();
     });
@@ -335,7 +337,9 @@ describe("room label pill", () => {
             withState(fixtureHass(loadSyntheticFixture()), VACUUM, { state: "cleaning" }).hass,
         );
         await card.fireMapLoad();
-        const stale = card.shadowRoot.querySelector(".room-5-wrapper");
+        expect(card.shadowRoot.querySelector(".room-5-wrapper")?.classList.contains("room-stale")).toBe(true);
+        // The pill and the marker live in the room's label group, above every outline.
+        const stale = card.shadowRoot.querySelector(".room-label-layer.room-5-wrapper");
         expect(stale?.classList.contains("room-stale")).toBe(true);
         expect(stale?.querySelector(".room-pill-badge")).toBeNull();
         expect(stale?.querySelector(".room-pill.no-badge .room-pill-name")?.textContent?.trim()).toBe("Old room");
@@ -349,7 +353,7 @@ describe("room label pill", () => {
     it("colours the pill from the resolved palette", async () => {
         const card = await mount({ cleaning_order: true });
         await clickRoom(card, "2");
-        const pill = wrapper(card, "2").querySelector(".room-pill") as HTMLElement | null;
+        const pill = roomQuery(card.shadowRoot, "2", ".room-pill") as HTMLElement | null;
         // The palette is applied as inline custom properties the stylesheet reads, so a theme change
         // re-resolves contrast instead of trusting the theme.
         for (const property of [
@@ -359,6 +363,26 @@ describe("room label pill", () => {
             "--room-pill-badge-text",
         ]) {
             expect(pill?.style.getPropertyValue(property), property).toMatch(/^rgb\(/);
+        }
+    });
+});
+
+describe("room labels above every outline", () => {
+    it("draws every room's outline before any room's icon, label or stale marker", async () => {
+        const card = await mount({ cleaning_order: true });
+        await clickRoom(card, "1");
+        const svg = card.shadowRoot.getElementById("svg-wrapper")!;
+        const outlines = Array.from(svg.querySelectorAll(".room-wrapper"));
+        const labels = Array.from(svg.querySelectorAll(".room-label-layer"));
+        expect(outlines.length).toBeGreaterThan(1);
+        expect(labels).toHaveLength(outlines.length);
+        const lastOutline = outlines[outlines.length - 1];
+        for (const label of labels) {
+            expect(lastOutline.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        }
+        // An outline group holds only the outline; the pills and icons are in the label layer.
+        for (const outline of outlines) {
+            expect(outline.querySelector(".room-pill, .map-icon-wrapper, .room-stale-marker")).toBeNull();
         }
     });
 });

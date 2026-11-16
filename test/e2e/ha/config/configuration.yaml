@@ -36,3 +36,6 @@ map_fixture:
     - name: Vacuum Map
     - name: Interlocking Map
       map_key: interlock
+    # A realistic floor plan: rooms sharing walls, irregular shapes, long names (apartment-rooms.spec.ts).
+    - name: Apartment Map
+      map_key: apartment

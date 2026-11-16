@@ -333,9 +333,9 @@ test("room hit-testing selects the clicked room at zoom 1", async ({ page }) => 
     await expect
         .poll(() => page.evaluate(() => (window as unknown as VisualWindow).visualHarness.selectedRoomIds()))
         .toEqual(["1"]);
-    await expect(page.locator(`${CARD} .room-1-wrapper.selected`)).toHaveCount(1);
-    await expect(page.locator(`${CARD} .room-0-wrapper.selected`)).toHaveCount(0);
-    await expect(page.locator(`${CARD} .room-2-wrapper.selected`)).toHaveCount(0);
+    await expect(page.locator(`${CARD} .room-wrapper.room-1-wrapper.selected`)).toHaveCount(1);
+    await expect(page.locator(`${CARD} .room-wrapper.room-0-wrapper.selected`)).toHaveCount(0);
+    await expect(page.locator(`${CARD} .room-wrapper.room-2-wrapper.selected`)).toHaveCount(0);
 
     // The selected room's label becomes its pill (room-pill.spec.ts covers its geometry, contrast
     // and both themes). This mode numbers rooms (`cleaning_order: true`), so the badge carries the
@@ -471,21 +471,23 @@ test("a stale room's icon does not block the live room it overlaps", async ({ pa
 
     // The stale room is drawn from its stored outline and marked; the live room underneath it is
     // still rendered.
-    await expect(page.locator(`${CARD} .room-9-wrapper.room-stale`)).toHaveCount(1);
+    await expect(page.locator(`${CARD} .room-wrapper.room-9-wrapper.room-stale`)).toHaveCount(1);
     await expect(page.locator(`${CARD} .room-9-wrapper text.room-stale-marker`)).toHaveText("!");
-    await expect(page.locator(`${CARD} .room-1-wrapper`)).toHaveCount(1);
-    await expect(page.locator(`${CARD} .room-9-wrapper.selected`)).toHaveCount(0);
+    await expect(page.locator(`${CARD} .room-wrapper.room-1-wrapper`)).toHaveCount(1);
+    await expect(page.locator(`${CARD} .room-wrapper.room-9-wrapper.selected`)).toHaveCount(0);
 
     // The centre of the live room is where the stale room's configured icon sits. Colour detection
     // is running in this browser, so a click here also has to reach the image-colour hit test.
     await clickRoomPoint(page, "1", 0.5, 0.5);
     await expect.poll(() => selectedIds(page)).toEqual(["1"]);
-    await expect(page.locator(`${CARD} .room-1-wrapper.selected`)).toHaveCount(1);
+    await expect(page.locator(`${CARD} .room-wrapper.room-1-wrapper.selected`)).toHaveCount(1);
 
     // The stale outline and the icon are pointer-transparent, and the icon is not a `.clickable`
     // element: either one alone was enough to swallow the click in the first review round.
     expect(
-        await page.locator(`${CARD} .room-9-wrapper`).evaluate(element => getComputedStyle(element).pointerEvents),
+        await page
+            .locator(`${CARD} .room-wrapper.room-9-wrapper`)
+            .evaluate(element => getComputedStyle(element).pointerEvents),
     ).toBe("none");
     expect(
         await page
@@ -511,13 +513,13 @@ test("a stale room's fill does not block a live room when colour detection is un
     });
     await mount(page, staleRoomConfig());
 
-    await expect(page.locator(`${CARD} .room-9-wrapper.room-stale`)).toHaveCount(1);
+    await expect(page.locator(`${CARD} .room-wrapper.room-9-wrapper.room-stale`)).toHaveCount(1);
     await expect(page.locator(`${CARD} .room-1-wrapper .room-outline.clickable`)).toHaveCount(1);
 
     // Off-centre, away from the label and the stale icon: the stale polygon covers this point.
     await clickRoomPoint(page, "1", 0.25, 0.5);
     await expect.poll(() => selectedIds(page)).toEqual(["1"]);
-    await expect(page.locator(`${CARD} .room-1-wrapper.selected`)).toHaveCount(1);
+    await expect(page.locator(`${CARD} .room-wrapper.room-1-wrapper.selected`)).toHaveCount(1);
 });
 
 /** The boxes the stale marker, its room, the selected room's pill and its name occupy, in CSS px. */
@@ -1057,7 +1059,7 @@ test("horizontal layout keeps room, mode and tile interactions", async ({ page }
     await expect
         .poll(() => page.evaluate(() => (window as unknown as VisualWindow).visualHarness.selectedRoomIds()))
         .toEqual(["1"]);
-    await expect(page.locator(`${CARD} .room-1-wrapper.selected`)).toHaveCount(1);
+    await expect(page.locator(`${CARD} .room-wrapper.room-1-wrapper.selected`)).toHaveCount(1);
 
     // Clicking a tile still runs its action path without an error (the page-error check in
     // afterEach is the gate).

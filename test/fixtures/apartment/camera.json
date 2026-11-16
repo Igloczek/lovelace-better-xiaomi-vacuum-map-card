@@ -1,0 +1,122 @@
+{
+    "entity_id": "camera.apartment_map",
+    "state": "idle",
+    "attributes": {
+        "friendly_name": "Apartment map",
+        "entity_picture": "/api/camera_proxy/camera.apartment_map?token=REDACTED_TOKEN",
+        "access_token": "REDACTED_TOKEN",
+        "last_update_timestamp": 1761981600,
+        "calibration_points": [
+            {
+                "map": {
+                    "x": 0,
+                    "y": 216
+                },
+                "vacuum": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            {
+                "map": {
+                    "x": 200,
+                    "y": 216
+                },
+                "vacuum": {
+                    "x": 10,
+                    "y": 0
+                }
+            },
+            {
+                "map": {
+                    "x": 0,
+                    "y": 16
+                },
+                "vacuum": {
+                    "x": 0,
+                    "y": 10
+                }
+            }
+        ],
+        "rooms": {
+            "10": {
+                "x0": 0.5,
+                "y0": 8,
+                "x1": 5.9,
+                "y1": 10.3,
+                "number": 10,
+                "name": "Kuchnia"
+            },
+            "11": {
+                "x0": 0.5,
+                "y0": 0.55,
+                "x1": 5.9,
+                "y1": 7.85,
+                "number": 11,
+                "name": "Salon"
+            },
+            "12": {
+                "x0": 6.05,
+                "y0": 8,
+                "x1": 9.9,
+                "y1": 10.3,
+                "number": 12,
+                "name": "Garderoba i pralnia"
+            },
+            "13": {
+                "x0": 6.05,
+                "y0": 3.8,
+                "x1": 9.9,
+                "y1": 7.85,
+                "number": 13,
+                "name": "Korytarz"
+            },
+            "14": {
+                "x0": 8.15,
+                "y0": 4.9,
+                "x1": 9.9,
+                "y1": 5.9,
+                "number": 14,
+                "name": "Schowek"
+            },
+            "15": {
+                "x0": 8.15,
+                "y0": 3.8,
+                "x1": 9.9,
+                "y1": 4.75,
+                "number": 15,
+                "name": "WC"
+            },
+            "16": {
+                "x0": 6.05,
+                "y0": 0.55,
+                "x1": 9.9,
+                "y1": 3.65,
+                "number": 16,
+                "name": "Łazienka"
+            },
+            "17": {
+                "x0": 10.05,
+                "y0": 4.9,
+                "x1": 14.6,
+                "y1": 10.3,
+                "number": 17,
+                "name": "Sypialnia"
+            },
+            "18": {
+                "x0": 10.05,
+                "y0": 0.55,
+                "x1": 14.6,
+                "y1": 5.65,
+                "number": 18
+            }
+        }
+    },
+    "last_changed": "2026-11-01T10:00:00.000Z",
+    "last_updated": "2026-11-01T10:00:00.000Z",
+    "context": {
+        "id": "fixture-apartment-camera",
+        "parent_id": null,
+        "user_id": null
+    }
+}

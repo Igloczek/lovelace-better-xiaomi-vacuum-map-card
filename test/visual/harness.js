@@ -146,7 +146,23 @@ async function loadFixtures() {
             return response.json();
         }),
     );
-    return { states: { ...states, [camera.entity_id]: camera }, camera, registry };
+    // The realistic floor plan (test/fixtures/apartment/) as a second camera of the same vacuum:
+    // rooms that share walls, irregular shapes and long names. A spec opts in with
+    // `map_source: { camera: "camera.apartment_map" }`.
+    const apartmentResponse = await fetch("/fixtures/apartment/camera.json");
+    if (!apartmentResponse.ok) throw new Error(`visual harness: could not load the apartment camera`);
+    const apartment = await apartmentResponse.json();
+    const apartmentEntry = {
+        ...registry.find(entry => entry.entity_id === camera.entity_id),
+        entity_id: apartment.entity_id,
+        unique_id: "apartment_map",
+        original_name: "Apartment map",
+    };
+    return {
+        states: { ...states, [camera.entity_id]: camera, [apartment.entity_id]: apartment },
+        camera,
+        registry: [...registry, apartmentEntry],
+    };
 }
 
 function nextFrame() {
