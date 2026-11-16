@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.2
+
+### Fixed
+
+- Start on a vacuum that is unavailable (offline, or a dead battery after a failed dock) no longer
+  reports success and shows a run that never started. Nothing is sent, the card says the vacuum is
+  unavailable, and the selection stays for when it is back.
+
 ## 1.4.1
 
 ### Fixed
