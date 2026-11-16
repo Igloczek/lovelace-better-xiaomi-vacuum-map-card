@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0
+
+### Changed
+
+- A zone mode opens with a zone already on the map, ready to drag, resize and run. Before, the map
+  stayed empty until you found the `+` button. `+` still adds more zones, up to the mode's
+  `max_selections`. A zone you delete stays deleted until you open the mode again, clear the
+  selection or start a run.
+
 ## 1.7.0
 
 ### Added
