@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.3
+
+### Fixed
+
+- Switching to another preset no longer brings back a room selection that was on hold while the
+  previous preset's camera had no room list. Floors often reuse room ids, so the card could show a
+  room on the new floor as selected, and Start would have cleaned it, before the new preset finished
+  loading.
+- The editor's vacuum, platform and camera pickers fall back to plain dropdowns when Home
+  Assistant's `ha-select` element is missing, instead of showing empty boxes, and switch to
+  `ha-select` as soon as it loads.
+- Two layout examples in the configuration docs now use `custom:better-xiaomi-vacuum-map-card`.
+
 ## 1.4.2
 
 ### Fixed
