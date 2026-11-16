@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { PNG } from "pngjs";
 
 import { card, expect, nextFrames, openDashboard, test, waitForCard, type CardHandle } from "./helpers";
 
@@ -69,25 +70,14 @@ async function roomAt(page: Page, target: CardHandle, point: [number, number]): 
     return ids;
 }
 
-async function setHidden(target: CardHandle, selector: string, hidden: boolean): Promise<void> {
-    await target.evaluate(
-        (element, input: { selector: string; hidden: boolean }) => {
-            element.shadowRoot.querySelectorAll(input.selector).forEach((node: Element) => {
-                (node as SVGElement).style.visibility = input.hidden ? "hidden" : "";
-            });
-        },
-        { selector, hidden },
-    );
-}
-
 /** The solid middle of every pill inside the map viewport, by room. */
 function pillBands(target: CardHandle) {
     return target.evaluate(element => {
         const zoomer = (element.shadowRoot.getElementById("map-zoomer") as HTMLElement).getBoundingClientRect();
         const bands: Array<{ id: string; clip: { x: number; y: number; width: number; height: number } }> = [];
-        element.shadowRoot.querySelectorAll(".room-label-layer").forEach((layer: Element) => {
-            const pill = layer.querySelector(".room-pill");
-            if (!pill) return;
+        // By the pill and the room class around it, not by how the card groups its overlays.
+        element.shadowRoot.querySelectorAll(".room-pill").forEach((pill: Element) => {
+            const layer = pill.closest("[class*='-wrapper']") ?? pill;
             const r = pill.getBoundingClientRect();
             const clip = {
                 x: Math.ceil(r.x + r.height / 2),
@@ -108,15 +98,48 @@ function pillBands(target: CardHandle) {
     });
 }
 
+/** Every room outline solid magenta, a colour nothing else on the map or in a label uses. */
+async function setOutlinesMarked(target: CardHandle, marked: boolean): Promise<void> {
+    await target.evaluate((element, value: boolean) => {
+        const root = element.shadowRoot as ShadowRoot;
+        root.getElementById("outline-marked")?.remove();
+        if (!value) return;
+        const style = document.createElement("style");
+        style.id = "outline-marked";
+        style.textContent = `.room-outline { stroke: rgb(255, 0, 255) !important; stroke-dasharray: none !important;
+            stroke-width: calc(3px / var(--map-scale)) !important; transition: none !important; }`;
+        root.appendChild(style);
+    }, marked);
+}
+
+function magentaPixels(png: Buffer): number {
+    const image = PNG.sync.read(png);
+    let count = 0;
+    for (let i = 0; i < image.data.length; i += 4) {
+        if (image.data[i] > 180 && image.data[i + 2] > 180 && image.data[i + 1] < 110) count++;
+    }
+    return count;
+}
+
+/**
+ * No room border is painted over any label. The outlines are drawn solid magenta for the check, so
+ * a border crossing a label shows as magenta inside the label's box; nothing is toggled between two
+ * screenshots, which text and edge antialiasing made flaky. The map must show magenta, or the check
+ * would prove nothing.
+ */
 async function expectLabelsOnTop(page: Page, target: CardHandle, label: string): Promise<void> {
     const bands = await pillBands(target);
     expect(bands.length, `${label}: labels on screen`).toBe(ROOMS.length);
-    for (const { id, clip } of bands) {
-        const shown = await page.screenshot({ clip, animations: "disabled" });
-        await setHidden(target, ".room-wrapper", true);
-        const bare = await page.screenshot({ clip, animations: "disabled" });
-        await setHidden(target, ".room-wrapper", false);
-        expect(shown.equals(bare), `${label}: no room border is painted over room ${id}'s label`).toBe(true);
+    await setOutlinesMarked(target, true);
+    try {
+        const zoomer = (await target.locator.locator("#map-zoomer").boundingBox())!;
+        expect(magentaPixels(await page.screenshot({ clip: zoomer })), `${label}: outlines drawn`).toBeGreaterThan(100);
+        for (const { id, clip } of bands) {
+            const pixels = magentaPixels(await page.screenshot({ clip, animations: "disabled" }));
+            expect(pixels, `${label}: no room border is painted over room ${id}'s label`).toBe(0);
+        }
+    } finally {
+        await setOutlinesMarked(target, false);
     }
 }
 

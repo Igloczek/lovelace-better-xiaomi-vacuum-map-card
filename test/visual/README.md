@@ -46,9 +46,11 @@ camera that `harness.js` adds next to the synthetic one (`test/fixtures/apartmen
 chamfered corner, two rooms smaller than their names, Polish names, a room the camera does not name,
 same-coloured neighbours, furniture and a robot path. At rotation 0 and 90 every room is found and a
 tap inside it, and on each side of a shared wall, selects that room; at the whole-plan zoom and at
-2.5, unselected and with every room selected, hiding every room outline leaves each label's pixels
-unchanged (no border is painted over a label) and hiding the label changes them (it is painted where
-it is laid out). It takes no baselines.
+2.5, unselected and with every room selected, no room border is painted over any label: the
+outlines are drawn solid magenta for the check and no label's box may contain a magenta pixel (a
+before/after comparison was flaky, because text and edge antialiasing can land a subpixel apart
+between two paints). Hiding a label must still change its pixels (it is painted where it is laid
+out). It takes no baselines.
 
 `default-zone.spec.ts` also runs in Chromium and WebKit, with no baselines. For `MANUAL_RECTANGLE` and
 `MANUAL_ROTATABLE_RECTANGLE`, at rotation 0 and 90, the zone mode opens with one zone inside the map
