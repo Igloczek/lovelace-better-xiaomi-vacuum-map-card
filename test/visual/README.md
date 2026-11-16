@@ -32,6 +32,14 @@ is involved: `index.html` plus `harness.js` mount the card element with a mock `
 | `a sections-view grid cell makes the card fill its height: scroll when short, controls use a taller one` | the reflected `layout="grid"` hook makes the card fill a fixed cell and scroll inside it when shorter than the content, and a taller cell's extra height is used by the controls column instead of sitting below the map as dead space |
 | `horizontal layout keeps room, mode and tile interactions` | room hit-testing, opening the mode dropdown and selecting a mode (the mode changes), a tile click and the map-before-controls DOM/focus order in the horizontal arrangement |
 
+`paint.spec.ts` runs in Chromium **and WebKit** (the `webkit` project in `playwright.config.ts`).
+WebKit, the engine of Safari and the Home Assistant iOS and macOS apps, can paint HTML in a
+`foreignObject` away from its layout box, so a layout reading proves nothing there. For each label
+pill (unselected, selected, its badge), room icon and predefined point icon and label, at zoom 1 and
+2.5 and rotation 0 and 90, it screenshots the overlay's box, hides the overlay and screenshots the
+box again; the two must differ. It takes no baselines, so the WebKit project needs none. On the
+1.5.0 pill it fails in WebKit and passes in Chromium.
+
 `map-view-robustness.spec.ts` asserts geometry only — no screenshots — so it also runs on a
 developer machine. It reads the map point in the middle of the viewport from the rendered
 transform, and the living room's outline against the room's place in the rendered image:

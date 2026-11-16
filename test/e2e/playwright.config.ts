@@ -37,5 +37,13 @@ export default defineConfig({
             // Keep the viewport from `use`; re-spreading the device here would reset it to 1280x720.
             use: { browserName: "chromium" },
         },
+        {
+            // WebKit is the engine of Safari and of the Home Assistant iOS and macOS apps. It lays
+            // out HTML overlays like Chromium but can paint them elsewhere (1.5.0's labels), so the
+            // label spec runs here too and checks the pixels, not only the layout.
+            name: "webkit",
+            use: { browserName: "webkit" },
+            testMatch: ["room-pill.spec.ts"],
+        },
     ],
 });

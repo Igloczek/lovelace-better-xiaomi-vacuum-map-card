@@ -18,6 +18,14 @@ import { cssRgb } from "../room-pill-palette";
 /** Material Design Icons `check`. */
 const CHECK_PATH = "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
 
+/**
+ * The pill's foreignObject, in screen pixels, centred on the label point. It is far larger than any
+ * pill, so the pill always lies inside its own box and removing it repaints all of it, and the pill
+ * is centred in it by flex layout alone (see the `.room-pill-anchor` rule).
+ */
+const PILL_BOX_WIDTH = 640;
+const PILL_BOX_HEIGHT = 160;
+
 /** What a pill's badge shows: a position in the cleaning order, a checkmark, or no badge at all. */
 export type PillBadge = number | "check" | undefined;
 
@@ -187,13 +195,15 @@ export abstract class MapObject {
      * predefined points and predefined rectangles. A selected object's pill also carries a badge (a
      * position in the cleaning order or a checkmark); an unselected one is the same pill without it.
      *
-     * The pill is HTML in a foreignObject so it sizes to its text. The foreignObject covers the map
-     * and half of it again on every side, so its own box always contains the pill: a browser that
-     * repaints only what changed (Chromium, WebKit) repaints that box when the pill goes, where a
-     * small box with the pill overflowing it left the rest of the pill painted over the map after
-     * deselection. It is turned back against the map rotation around `origin` and stepped away by
-     * `offset` on screen, exactly as `renderLabel` places a label, and divided by the zoom, so it stays
-     * upright and the same size on screen; it ignores pointer events, so a tap reaches the object
+     * The pill is HTML in a foreignObject so it sizes to its text. Every transform is on the SVG
+     * group around the foreignObject, never on the HTML: WebKit (Safari and the Home Assistant apps)
+     * paints HTML inside a foreignObject in the wrong place when that HTML is positioned, transformed
+     * or filtered, while reporting the right layout box, so a pill placed that way vanished from the
+     * map there (1.5.0). The group is turned back against the map rotation around `origin` and
+     * stepped away by `offset` on screen, exactly as `renderLabel` places a label, and divided by the
+     * zoom, so the pill stays upright and the same size on screen; inside, the pill is centred by
+     * flex layout in a box much larger than itself, so a browser that repaints only that box when
+     * the pill goes repaints all of it. It ignores pointer events, so a tap reaches the object
      * underneath. Its colours come from the resolved palette (`roomPillPalette`), which keeps every
      * text pair at 4.5:1 or better.
      */
@@ -212,6 +222,8 @@ export abstract class MapObject {
             `--room-pill-ring: ${cssRgb(palette.ring)}`,
             `--room-pill-badge: ${cssRgb(palette.badge)}`,
             `--room-pill-badge-text: ${cssRgb(palette.badgeText)}`,
+        ].join("; ");
+        const placement = [
             `--room-pill-x: ${origin[0]}px`,
             `--room-pill-y: ${origin[1]}px`,
             `--room-pill-offset-x: ${offset[0]}px`,
@@ -235,11 +247,12 @@ export abstract class MapObject {
             .filter(Boolean)
             .join(" ");
         return svg`
-            <foreignObject class="room-pill-anchor" x="-50%" y="-50%" width="200%" height="200%">
-                <body xmlns="http://www.w3.org/1999/xhtml" class="room-pill-canvas">
-                    ${html`<div class="${classes}" style="${style}">${badgeElement}${name ? html`<span class="room-pill-name">${name}</span>` : ""}</div>`}
-                </body>
-            </foreignObject>
+            <g class="room-pill-anchor" style="${placement}">
+                <foreignObject class="room-pill-box" x="${-PILL_BOX_WIDTH / 2}" y="${-PILL_BOX_HEIGHT / 2}"
+                               width="${PILL_BOX_WIDTH}" height="${PILL_BOX_HEIGHT}">
+                    ${html`<div xmlns="http://www.w3.org/1999/xhtml" class="room-pill-canvas"><div class="${classes}" style="${style}">${badgeElement}${name ? html`<span class="room-pill-name">${name}</span>` : ""}</div></div>`}
+                </foreignObject>
+            </g>
         `;
     }
 
@@ -313,33 +326,42 @@ export abstract class MapObject {
                 pointer-events: auto;
             }
 
-/* The label pill, the card's one label style (see renderPill). The foreignObject spans the map plus half of
-               it on every side, so its box contains the pill and removing the pill repaints all of
-               it; the pill is placed at the label's origin inside it (the body is twice the map, so
-               25% of it is the map's own top-left corner). Transforms apply right to left: centre the
-               pill on its own middle, divide by the zoom, step the label's offset, then turn back
-               against the map rotation around the origin - the same placement as .label-text, so
-               the pill sits exactly where the plain label was, upright and the same size on screen
-               at any zoom and rotation. */
+            /* The label pill, the card's one label style (see renderPill). All placement is a CSS
+               transform on the SVG group, never on the HTML inside the foreignObject: WebKit paints
+               positioned, transformed or filtered HTML in a foreignObject away from its layout box.
+               Transforms apply right to left: divide by the zoom, step the label's offset on screen,
+               turn back against the map rotation, then move to the origin - the same placement as
+               .label-text, upright and the same size on screen at any zoom and rotation. */
             .room-pill-anchor {
+                transform-box: view-box;
+                transform-origin: 0 0;
+                transform: translate(var(--room-pill-x, 0px), var(--room-pill-y, 0px))
+                    rotate(calc(-1 * var(--map-rotation, 0deg)))
+                    translate(var(--room-pill-offset-x, 0px), var(--room-pill-offset-y, 0px))
+                    scale(calc(1 / var(--map-scale)));
+                pointer-events: none;
+            }
+
+            .room-pill-box {
                 overflow: visible;
                 pointer-events: none;
             }
 
+            /* The pill is centred in its box by layout alone: no position, transform or filter. */
             .room-pill-canvas {
-                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 width: 100%;
                 height: 100%;
                 margin: 0;
+                background: transparent;
                 pointer-events: none;
             }
 
             .room-pill {
                 --room-pill-font-size: var(--map-card-internal-room-label-font-size);
                 --room-pill-height: calc(var(--room-pill-font-size) * 2);
-                position: absolute;
-                left: calc(25% + var(--room-pill-x, 0px));
-                top: calc(25% + var(--room-pill-y, 0px));
                 box-sizing: border-box;
                 display: flex;
                 align-items: center;
@@ -351,20 +373,19 @@ export abstract class MapObject {
                 background: var(--room-pill-background);
                 color: var(--room-pill-text);
                 /* Set apart from the map by depth, not a hard outline: a hairline from the text
-                   colour, and a soft two-layer shadow. */
-                box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-pill-ring) 18%, transparent);
-                filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.2)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.14));
+                   colour, and a soft two-layer shadow. A box-shadow, not a filter: WebKit moves a
+                   filtered element inside a foreignObject away from where it is laid out. */
+                box-shadow:
+                    0 0 0 1px color-mix(in srgb, var(--room-pill-ring) 18%, transparent),
+                    0 1px 1.5px rgba(0, 0, 0, 0.2),
+                    0 3px 6px rgba(0, 0, 0, 0.14);
                 font-size: var(--room-pill-font-size);
                 font-weight: 600;
                 letter-spacing: 0.01em;
                 line-height: 1;
                 white-space: nowrap;
+                flex: none;
                 pointer-events: none;
-                transform-origin: 0 0;
-                transform: rotate(calc(-1 * var(--map-rotation, 0deg)))
-                    translate(var(--room-pill-offset-x, 0px), var(--room-pill-offset-y, 0px))
-                    scale(calc(1 / var(--map-scale)))
-                    translate(-50%, -50%);
             }
 
             .room-pill.badge-only {

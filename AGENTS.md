@@ -23,7 +23,8 @@
 - `realScale` converts source-image pixels to the canvas's untransformed layout size. `mapScale` is the pinch-zoom scale. The canvas and SVG overlays share the `#map-zoomer-content` transform.
 - Use `calculateRealScale()` for the base image scale. `getBoundingClientRect()` includes CSS zoom and rotation and can apply a transform twice to overlays when an image reloads.
 - `RoomColorDetector` returns image-pixel room outlines. Camera `rooms` metadata supplies room IDs and names; preserve configured room selections as a fallback when detection is unavailable.
-- When changing map rendering, verify overlays and room hit-testing at multiple zoom levels and rotations. Keep rotation behavior in the shared map transform; add a manual rotation control only when the requested feature calls for one.
+- When changing map rendering, verify overlays and room hit-testing at multiple zoom levels and rotations.
+- Verify every map overlay in **WebKit** as well as Chromium. WebKit is the engine of Safari and the Home Assistant iOS and macOS apps, and it paints HTML inside an SVG `foreignObject` away from its layout box when that HTML is positioned, transformed or filtered, while `getBoundingClientRect` still reports the right place. 1.5.0 shipped labels that every Chromium check passed and the Home Assistant app never showed. Put placement on the SVG element around the `foreignObject`, never on the HTML inside it, and prove an overlay by its pixels (`test/visual/paint.spec.ts`, the WebKit project of `npm run test:e2e`), not by its box. Keep rotation behavior in the shared map transform; add a manual rotation control only when the requested feature calls for one.
 
 ## Fixes are for every user
 

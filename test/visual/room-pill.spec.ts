@@ -152,8 +152,12 @@ function expectReadable(pill: PillMeasure, label: string): void {
     expect(contrast(pill.colour, pill.background), `${label}: name on pill`).toBeGreaterThanOrEqual(4.5);
     expect(contrast(pill.badgeColour, pill.badgeBackground), `${label}: glyph on badge`).toBeGreaterThanOrEqual(4.5);
     // A hairline and a soft shadow keep the pill apart from the map behind it.
+    // Both are box-shadows: a filter on HTML in a foreignObject is painted away from its box in
+    // WebKit (Safari, the Home Assistant apps), so the pill must carry none.
     expect(pill.ring, `${label}: hairline`).not.toBe("none");
-    expect(pill.shadow, `${label}: shadow`).toContain("drop-shadow");
+    expect(pill.ring, `${label}: soft shadow`).toContain("rgba(0, 0, 0, 0.2)");
+    expect(pill.ring, `${label}: soft shadow`).toContain("rgba(0, 0, 0, 0.14)");
+    expect(pill.shadow, `${label}: no filter`).toBe("none");
     expect(pill.pointerEvents, `${label}: pointer-events`).toBe("none");
     expect(pill.hitIsPill, `${label}: a tap on the pill reaches the room`).toBe(false);
 }

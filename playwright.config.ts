@@ -57,7 +57,13 @@ export default defineConfig({
             caret: "hide",
         },
     },
-    projects: [{ name: "chromium" }],
+    projects: [
+        { name: "chromium" },
+        // WebKit (Safari, the Home Assistant iOS and macOS apps) paints HTML in an SVG foreignObject
+        // differently from Chromium; the paint spec proves every overlay is drawn where it is laid
+        // out. It takes no baseline screenshots, so it needs no WebKit baselines.
+        { name: "webkit", use: { browserName: "webkit" }, testMatch: "paint.spec.ts" },
+    ],
     webServer: {
         command: "node test/visual/server.cjs",
         url: `http://127.0.0.1:${VISUAL_PORT}/`,
