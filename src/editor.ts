@@ -361,21 +361,30 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
     }
 
     /**
-     * Re-renders the pickers if `ha-select` is defined after the first render. The wait is bounded
-     * so an editor in a frontend that never defines it does not keep a pending watcher, and the
+     * Re-renders the pickers if `ha-select` is defined after the first render. The wait is bounded,
+     * and the pending `whenDefined` holds the editor only weakly, so on a frontend that never
+     * defines it a closed editor is not retained; the
      * check is repeated after `whenDefined` because only an element the registry still resolves may
      * replace the fallback.
      */
     private _watchSelectElement(): void {
         if (this._selectDefinitionWatched) return;
         this._selectDefinitionWatched = true;
-        if (this._hasHaSelect()) return;
+        if (this._hasHaSelect()) {
+            // Defined while this editor was detached: the fallback rendered before must be replaced.
+            this.requestUpdate();
+            return;
+        }
         const token = ++this._selectDefinitionToken;
+        // The promise never settles on a frontend without `ha-select` and cannot be cancelled, so it
+        // holds the editor only weakly: a closed editor stays collectable.
+        const editor = new WeakRef(this);
         customElements.whenDefined("ha-select").then(() => {
-            if (token !== this._selectDefinitionToken) return;
-            window.clearTimeout(this._selectDefinitionTimer);
-            this._selectDefinitionTimer = undefined;
-            if (this._hasHaSelect()) this.requestUpdate();
+            const self = editor.deref();
+            if (!self || token !== self._selectDefinitionToken) return;
+            window.clearTimeout(self._selectDefinitionTimer);
+            self._selectDefinitionTimer = undefined;
+            if (self._hasHaSelect()) self.requestUpdate();
         });
         this._selectDefinitionTimer = window.setTimeout(() => {
             if (token !== this._selectDefinitionToken) return;

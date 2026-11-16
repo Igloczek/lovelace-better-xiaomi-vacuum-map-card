@@ -162,6 +162,28 @@ describe("editor picker element fallback", () => {
             late.restore();
         }
     });
+
+    it("switches to ha-select when the element arrived while the editor was detached", async () => {
+        useHarnessClock();
+        const late = deferHaSelect();
+        try {
+            const fixture = loadSyntheticFixture();
+            const editor = await mountEditor(fixtureConfig(fixture), hassWithChoices(fixture));
+            expect(editor.shadowRoot.querySelectorAll("select")).toHaveLength(3);
+
+            const parent = editor.element.parentNode!;
+            editor.element.remove();
+            late.define();
+            await Promise.resolve();
+            parent.appendChild(editor.element);
+            await settle(editor.element);
+
+            expect(editor.shadowRoot.querySelectorAll("ha-select").length).toBeGreaterThanOrEqual(3);
+            expect(editor.shadowRoot.querySelectorAll("select")).toHaveLength(0);
+        } finally {
+            late.restore();
+        }
+    });
 });
 
 /**

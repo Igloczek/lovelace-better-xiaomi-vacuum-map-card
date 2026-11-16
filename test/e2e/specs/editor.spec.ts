@@ -77,6 +77,10 @@ test("card editor renders, edits the title and generates rooms", async ({ logged
                 const isNative = candidate.tagName.toLowerCase() === "select";
                 return {
                     tag: candidate.tagName.toLowerCase(),
+                    // An unknown element still takes Lit's .value and .options as plain properties,
+                    // so only a defined element with a rendered box proves the picker is visible.
+                    defined: isNative || customElements.get(candidate.tagName.toLowerCase()) !== undefined,
+                    height: candidate.getBoundingClientRect().height,
                     value: String(candidate.value ?? ""),
                     values: (candidate.options ? [...candidate.options] : []).map((option: any) =>
                         typeof option === "string" ? option : option.value,
@@ -97,6 +101,8 @@ test("card editor renders, edits the title and generates rooms", async ({ logged
     expect(initialPickers.camera?.value).toBe(initialConfig.map_source?.camera);
     for (const [name, picker] of Object.entries(initialPickers)) {
         expect(picker, `the ${name} picker is rendered`).toBeTruthy();
+        expect(picker!.defined, `the ${name} picker is a defined element`).toBe(true);
+        expect(picker!.height, `the ${name} picker has a visible box`).toBeGreaterThan(0);
         expect(picker!.value, `the ${name} picker shows the current value`).not.toBe("");
         expect(picker!.values, `the ${name} picker has options`).toContain(picker!.value);
         if (picker!.tag === "select") {
