@@ -37,26 +37,37 @@ function renderedRooms(target: CardHandle): Promise<Array<{ id: string; stale: b
 }
 
 /**
- * Waits until the card renders exactly the configured rooms. The only other room it may draw is one
- * the re-map removed while the user still had it selected: the card keeps that room on the map as a
- * stale room (see `empty-room-selection.spec.ts`). A configured room that is missing, or any other
- * room that is not stale, fails here; nothing is accepted by containment.
+ * Waits until the card renders exactly the configured rooms, each of them live. The only other room it
+ * may draw is one the re-map removed while the user still had it selected: the card keeps that room on
+ * the map as a stale room (see `empty-room-selection.spec.ts`). A configured room that is missing or
+ * stale, a second extra room, or an extra room that is live fails here.
  */
 async function waitForConfiguredRooms(target: CardHandle): Promise<void> {
     await expect
         .poll(
             async () => {
                 const rooms = await renderedRooms(target);
+                const extra = rooms.filter(room => !CONFIGURED_IDS.includes(room.id));
                 return {
                     missing: CONFIGURED_IDS.filter(id => !rooms.some(room => room.id === id)),
-                    unexpected: rooms
-                        .filter(room => !CONFIGURED_IDS.includes(room.id) && !room.stale)
+                    staleConfigured: rooms
+                        .filter(room => CONFIGURED_IDS.includes(room.id) && room.stale)
                         .map(room => room.id),
+                    liveExtra: extra.filter(room => !room.stale).map(room => room.id),
+                    moreThanOneKeptRoom: extra.length > 1,
                 };
             },
-            { timeout: 60_000, message: "the card must render exactly the configured rooms 0, 1, 2" },
+            { timeout: 60_000, message: "the card must render exactly the configured rooms 0, 1, 2, all live" },
         )
-        .toEqual({ missing: [], unexpected: [] });
+        .toEqual({ missing: [], staleConfigured: [], liveExtra: [], moreThanOneKeptRoom: false });
+}
+
+/** The ids of the rooms the card draws as stale, sorted. */
+async function staleIds(target: CardHandle): Promise<string[]> {
+    return (await renderedRooms(target))
+        .filter(room => room.stale)
+        .map(room => room.id)
+        .sort();
 }
 
 /** The room ids the card renders and how many of them it marks stale, plus its warning text. */
@@ -223,7 +234,7 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
 
         // The configured ids 0/1/2 no longer exist in the camera metadata: they are drawn from their
         // stored outlines, marked stale, and named in the warning.
-        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
+        await expect.poll(() => staleIds(target), { timeout: 30_000 }).toEqual(CONFIGURED_IDS);
         const afterRemap = await roomsOf(target);
         expect(afterRemap.warning).toMatch(/0[\s,]+1[\s,]+2/);
 
@@ -291,7 +302,7 @@ test("a phone-width card shows every stale id and keeps the marker clear of the 
 
     try {
         await setRoomMetadata("shift");
-        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
+        await expect.poll(() => staleIds(target), { timeout: 30_000 }).toEqual(CONFIGURED_IDS);
 
         // Every stale id, not only the first one: the message occupies several lines, stays inside
         // the card and is clipped in neither direction, and the alert grew to hold it.
@@ -342,7 +353,7 @@ test("a narrow sections-view column wraps the stale warning instead of truncatin
 
     try {
         await setRoomMetadata("shift");
-        await expect.poll(async () => (await roomsOf(target)).stale, { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
+        await expect.poll(() => staleIds(target), { timeout: 30_000 }).toEqual(CONFIGURED_IDS);
 
         const warning = await warningLayout(target);
         const cardWidth = await target.evaluate(element => element.getBoundingClientRect().width);

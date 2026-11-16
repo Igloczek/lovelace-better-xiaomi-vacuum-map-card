@@ -13,9 +13,11 @@
  *   (the Marketplace copy was not replaced by `install-local-build.cjs`, or `dist/` is stale).
  */
 const fs = require("node:fs");
+const path = require("node:path");
 
 const {
     BUNDLE,
+    CONFIG_DIR,
     describeInstance,
     ensureSession,
     tokenStatus,
@@ -81,6 +83,18 @@ module.exports = async () => {
 
         // What Home Assistant serves at the resource URL, the same file a browser executes.
         const url = String(resource.url).split("?")[0];
+        // Home Assistant serves a precompressed sibling to a browser that accepts it, so a stale .gz
+        // or .br next to the file would run in Chromium while the plain file below matches dist/.
+        if (url.startsWith("/local/")) {
+            const file = path.join(CONFIG_DIR, "www", ...url.slice("/local/".length).split("/"));
+            const stale = [".gz", ".br"].map(suffix => `${file}${suffix}`).filter(sibling => fs.existsSync(sibling));
+            if (stale.length > 0) {
+                throw new Error(
+                    `Precompressed copies of the card are installed next to it (${stale.join(", ")}); ` +
+                        `the browser would run those instead of this checkout's build. Run ${REBUILD}.`,
+                );
+            }
+        }
         let response;
         try {
             response = await fetch(`${new URL(url, haUrl())}?probe=${Date.now()}`, {

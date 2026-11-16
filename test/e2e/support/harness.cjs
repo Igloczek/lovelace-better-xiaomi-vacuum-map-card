@@ -30,18 +30,37 @@ const FRESH_COMMAND = "npm run test:e2e:fresh";
 const DEFAULT_CONTAINER = "xvmc-e2e-ha";
 const DEFAULT_PORT = "8123";
 
-function haPort() {
-    if (process.env.E2E_HA_PORT) return String(process.env.E2E_HA_PORT);
-    if (process.env.E2E_HA_URL) {
-        try {
-            const url = new URL(process.env.E2E_HA_URL);
-            if (url.port) return url.port;
-            return url.protocol === "https:" ? "443" : "80";
-        } catch {
-            // fall through to the documented default port
-        }
+/** `E2E_HA_URL`, parsed strictly: a value that is not an http(s) URL with a host is an error. */
+function parsedHaUrl() {
+    const raw = process.env.E2E_HA_URL;
+    if (!raw) return undefined;
+    let url;
+    try {
+        url = new URL(raw);
+    } catch {
+        throw new Error(`E2E_HA_URL=${raw} is not a URL; write it as http://localhost:<port>`);
     }
-    return DEFAULT_PORT;
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname) {
+        throw new Error(`E2E_HA_URL=${raw} is not an http(s) URL; write it as http://localhost:<port>`);
+    }
+    return url;
+}
+
+/**
+ * The instance's port. `E2E_HA_PORT` and the port of `E2E_HA_URL` must agree when both are set: the
+ * port picks the container and compose project, the URL picks where every request goes, so a
+ * mismatch would reset one instance and set up another.
+ */
+function haPort() {
+    const url = parsedHaUrl();
+    const urlPort = url ? url.port || (url.protocol === "https:" ? "443" : "80") : undefined;
+    const envPort = process.env.E2E_HA_PORT ? String(process.env.E2E_HA_PORT) : undefined;
+    if (envPort && urlPort && envPort !== urlPort) {
+        throw new Error(
+            `E2E_HA_PORT=${envPort} and E2E_HA_URL=${process.env.E2E_HA_URL} name different instances; set them to the same port`,
+        );
+    }
+    return envPort ?? urlPort ?? DEFAULT_PORT;
 }
 
 /** A port other than the default: the instance then belongs to this checkout's own identity. */
@@ -62,7 +81,8 @@ function containerName() {
 }
 
 function haUrl() {
-    return (process.env.E2E_HA_URL || `http://localhost:${haPort()}`).replace(/\/+$/, "");
+    const port = haPort();
+    return (process.env.E2E_HA_URL || `http://localhost:${port}`).replace(/\/+$/, "");
 }
 
 function sanitizeProjectName(name) {
