@@ -212,3 +212,68 @@ describe("messages go to Home Assistant's notification", () => {
         expect(inCardToast(card).length).toBeGreaterThan(0);
     });
 });
+
+describe("a run that goes through takes back the refusal before it", () => {
+    interface Detail {
+        id?: string;
+        message: string;
+        duration?: number;
+    }
+    const details = (n: unknown[]): Detail[] => n as Detail[];
+
+    it("closes the card's own failure message by its id", async () => {
+        const { card, notifications } = await mount();
+        await tapRun(card);
+        const [failure] = details(notifications);
+        expect(failure.id).toMatch(/^better-xiaomi-vacuum-map-card-\d+$/);
+        expect(failure.duration).toBeGreaterThan(0);
+
+        await clickRoom(card, "1");
+        await tapRun(card);
+        await settle(card.element);
+        expect(runIcon(card)).toBe("mdi:check");
+        const close = details(notifications)[1];
+        expect(close).toEqual({ id: failure.id, message: "", duration: 0 });
+        expect(notifications).toHaveLength(2);
+    });
+
+    it("sends nothing when the failure message has already gone", async () => {
+        const { card, notifications } = await mount();
+        await tapRun(card);
+        expect(notifications).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(9000);
+        await clickRoom(card, "1");
+        await tapRun(card);
+        await settle(card.element);
+        expect(runIcon(card)).toBe("mdi:check");
+        // A frontend without ids would close whatever message is on screen: never send blind.
+        expect(notifications).toHaveLength(1);
+    });
+
+    it("sends nothing after a run that went through without a refusal before it", async () => {
+        const { card, notifications } = await mount();
+        await clickRoom(card, "1");
+        await tapRun(card);
+        await settle(card.element);
+        expect(notifications).toEqual([]);
+    });
+
+    it("keeps each card's messages apart", async () => {
+        const first = await mount();
+        await tapRun(first.card);
+        const second = await mount();
+        await tapRun(second.card);
+        expect(details(first.notifications)[0].id).not.toEqual(details(second.notifications)[0].id);
+    });
+
+    it("outside Home Assistant hides the card's own toast", async () => {
+        const { card } = await mount(false);
+        await tapRun(card);
+        const toast = card.shadowRoot.getElementById("map-card-toast")!;
+        expect(toast.classList.contains("show")).toBe(true);
+        await clickRoom(card, "1");
+        await tapRun(card);
+        await settle(card.element);
+        expect(toast.classList.contains("show")).toBe(false);
+    });
+});

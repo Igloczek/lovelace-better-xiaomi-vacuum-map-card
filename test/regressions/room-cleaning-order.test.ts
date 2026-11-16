@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle, MockHass } from "../harness";
 import {
+    roomQuery,
+    roomQueryAll,
     fixtureConfig,
     fixtureHass,
     loadSyntheticFixture,
@@ -61,7 +63,7 @@ function roomElement(card: CardHandle, id: string): Element {
 
 /** The order number rendered inside a room, or undefined when the room shows none. */
 function badge(card: CardHandle, id: string): string | undefined {
-    return roomElement(card, id).querySelector(".room-order")?.textContent?.trim() || undefined;
+    return roomQuery(card.shadowRoot, id, ".room-order")?.textContent?.trim() || undefined;
 }
 
 /** Every badge on the map, keyed by room id; unselected rooms are absent. */
@@ -75,7 +77,7 @@ function badges(card: CardHandle): Record<string, string> {
 }
 
 async function clickRoom(card: CardHandle, id: string): Promise<void> {
-    const polygon = roomElement(card, id).querySelector(".room-outline");
+    const polygon = roomQuery(card.shadowRoot, id, ".room-outline");
     if (!polygon) throw new Error(`room ${id} has no clickable outline`);
     polygon.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
     await settle(card.element);
@@ -205,7 +207,7 @@ describe("cleaning-order badges (#866, upstream #959)", () => {
         });
 
         const iconWrapper = (id: string): Element => {
-            const wrapper = roomElement(card, id).querySelector(".room-icon-wrapper");
+            const wrapper = roomQuery(card.shadowRoot, id, ".room-icon-wrapper");
             if (!wrapper) throw new Error(`room ${id} has no icon wrapper`);
             return wrapper;
         };
@@ -220,11 +222,11 @@ describe("cleaning-order badges (#866, upstream #959)", () => {
 
         // The selected room's pill (badge + name) takes the icon's place: the icon is gone, and
         // the number appears once, in the pill's badge (Xiaomi Home app style).
-        expect(roomElement(card, "1").querySelector(".room-icon-wrapper")).toBeNull();
-        expect(
-            roomElement(card, "1").querySelector(".room-pill .room-pill-badge.room-order")?.textContent?.trim(),
-        ).toBe("1");
-        expect(roomElement(card, "1").querySelectorAll(".room-order")).toHaveLength(1);
+        expect(roomQuery(card.shadowRoot, "1", ".room-icon-wrapper")).toBeNull();
+        expect(roomQuery(card.shadowRoot, "1", ".room-pill .room-pill-badge.room-order")?.textContent?.trim()).toBe(
+            "1",
+        );
+        expect(roomQueryAll(card.shadowRoot, "1", ".room-order")).toHaveLength(1);
     });
 
     it("does not number a room that cannot be selected once the selection limit is reached", async () => {

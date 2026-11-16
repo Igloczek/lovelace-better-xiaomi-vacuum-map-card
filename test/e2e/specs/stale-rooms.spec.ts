@@ -152,8 +152,9 @@ function markerAndPill(target: CardHandle, staleId: string, liveId: string) {
                 const rect = node.getBoundingClientRect();
                 return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
             };
-            const stale = element.shadowRoot.querySelector(`.room-${ids.staleId}-wrapper`);
-            const live = element.shadowRoot.querySelector(`.room-${ids.liveId}-wrapper`);
+            // The marker and the pill live in the rooms' label groups, above every outline.
+            const stale = element.shadowRoot.querySelector(`.room-label-layer.room-${ids.staleId}-wrapper`);
+            const live = element.shadowRoot.querySelector(`.room-label-layer.room-${ids.liveId}-wrapper`);
             return {
                 marker: box(`.room-${ids.staleId}-wrapper .room-stale-marker`),
                 markerRoom: box(`.room-${ids.staleId}-wrapper .room-outline`),

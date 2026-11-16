@@ -8,6 +8,7 @@ import type { ServiceCall } from "../model/map_mode/service-call";
 import { SelectionType } from "../model/map_mode/selection-type";
 import type { XiaomiVacuumMapCard } from "../xiaomi-vacuum-map-card";
 import { errorMessage } from "../utils";
+import { ToastRenderer } from "../renderers/toast-renderer";
 import { getUsableSelectedRooms } from "./selection";
 import { getUnsendableRoomIds } from "./rooms";
 import { selectionChanged } from "./selection";
@@ -28,6 +29,8 @@ export function setRunFeedback(card: XiaomiVacuumMapCard, feedback: RunFeedback 
     if (card.runFeedbackTimer !== undefined) window.clearTimeout(card.runFeedbackTimer);
     card.runFeedbackTimer = undefined;
     card.runFeedback = feedback;
+    // A run that went through answers the refusal before it: take that message back.
+    if (feedback === "success") ToastRenderer.dismissFailure(card, "map-card");
     if (feedback === "success" || feedback === "failure") {
         card.runFeedbackTimer = window.setTimeout(() => {
             card.runFeedbackTimer = undefined;

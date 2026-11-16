@@ -26,6 +26,8 @@
 !/test/e2e/ha/config/map_fixture.png
 !/test/e2e/ha/config/map_interlock.png
 !/test/e2e/ha/config/map_interlock_path.png
+!/test/e2e/ha/config/map_apartment.png
+!/test/e2e/ha/config/map_apartment_rooms.json
 !/test/e2e/ha/config/custom_components/
 /test/e2e/ha/config/custom_components/*
 !/test/e2e/ha/config/custom_components/map_fixture/

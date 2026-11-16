@@ -294,3 +294,22 @@ export function setupHarness(): void {
 }
 
 export { HA_ELEMENTS };
+
+/**
+ * A room is drawn in two groups that both carry its `.room-<id>-wrapper` class: its outline, and in
+ * a layer above every outline its icon, label and stale marker (so no room's border cuts a label).
+ * These find a part of the room in either group.
+ */
+export function roomQuery(root: ParentNode, id: string, selector: string): Element | null {
+    for (const group of Array.from(root.querySelectorAll(`.room-${id}-wrapper`))) {
+        const found = group.querySelector(selector);
+        if (found) return found;
+    }
+    return null;
+}
+
+export function roomQueryAll(root: ParentNode, id: string, selector: string): Element[] {
+    return Array.from(root.querySelectorAll(`.room-${id}-wrapper`)).flatMap(group =>
+        Array.from(group.querySelectorAll(selector)),
+    );
+}

@@ -188,7 +188,7 @@ function roomOrder(card: CardHandle): string[] {
 /** The badge numbers drawn on the map, keyed by room id. */
 function badges(card: CardHandle): Record<string, string> {
     const result: Record<string, string> = {};
-    card.shadowRoot.querySelectorAll(".room-wrapper").forEach(wrapper => {
+    card.shadowRoot.querySelectorAll(".room-label-layer").forEach(wrapper => {
         const id = /room-([^\s]+)-wrapper/.exec(wrapper.getAttribute("class") ?? "")?.[1];
         const badge = wrapper.querySelector(".room-order")?.textContent?.trim();
         if (id && badge) result[id] = badge;

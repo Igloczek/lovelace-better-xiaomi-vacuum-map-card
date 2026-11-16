@@ -457,7 +457,12 @@ export function drawSelection(card: XiaomiVacuumMapCard): SVGTemplateResult | nu
         case SelectionType.ROOM:
             // A selected room whose id left the camera metadata is drawn too: it is the warning
             // that the run would send nothing (see `getUnsendableRoomIds`).
-            return svg`${[...card.selectableRooms, ...card.unavailableRooms].map(r => r.render())}`;
+            // Every outline first, then every icon, label and stale marker above them, so no room's
+            // border crosses a label that reaches over it.
+            return svg`${[...card.selectableRooms, ...card.unavailableRooms].map(r => r.render())}${[
+                ...card.selectableRooms,
+                ...card.unavailableRooms,
+            ].map(r => r.renderLabels())}`;
         case SelectionType.MANUAL_PATH:
             return svg`${card.selectedManualPath?.render()}`;
         case SelectionType.MANUAL_POINT:
