@@ -44,6 +44,19 @@
 - Run each check once per head. When a check has already passed locally on the exact commit (unit tests, build, the visual suite in the CI image, the real-HA e2e suite), merge without waiting for CI's copy of it, and say which local run it rests on. Wait only for checks that ran nowhere else; the HACS and manifest `validate` jobs take under a minute.
 - The visual suite needs the CI Docker image only to regenerate baselines (`test/visual/README.md`). On Apple Silicon that image is emulated and takes about five minutes a pass, so regenerate and prove stability in one container invocation, and run the cheap checks (`npm test`, `npx playwright test --ignore-snapshots`, a single spec on the host) first, so a wrong assertion fails in seconds instead of costing an emulated pass. When no baseline changes, the `visual` label's CI run (about two minutes) is enough on its own.
 
+## Every bug improves the test suite
+
+A bug that reached a user is also a bug in the test suite: the suite let it through. Fix both, so the
+suite grows with every bug and the same class of problem cannot come back.
+
+- **Red first.** Before fixing, write a test that reproduces the bug and fails on the current code. Prove it: run it against the unfixed code (or the last release) and see it fail, then fix and see it pass. A test that was never red proves nothing.
+- **Find the gap, not only the case.** Ask why the suite missed it and close that gap for the whole class: a fixture too tidy to show it (three separated rectangles cannot show a label cut by a neighbour's border), a check that reads layout instead of pixels, one browser engine instead of Chromium and WebKit, a mock where the real Home Assistant behaves differently, a zoom, rotation or theme never tried. Extend the fixture, harness or helper so every later test gets the coverage too.
+- **Test where the bug lives.** Logic in the Vitest DOM suite, rendering by its pixels in the visual suite in Chromium and WebKit, anything that depends on Home Assistant in the real-instance e2e suite. A bug that crossed levels gets a test at each.
+- **Keep fixtures real.** New map tests use the realistic floor plan (`test/fixtures/apartment/`, camera `camera.apartment_map` in both the visual harness and the e2e instance): rooms sharing walls, irregular shapes, long and non-ASCII names, unnamed rooms, furniture and paths. When a user's map shows something the fixtures lack (a shape, a colour scheme, metadata, a platform's quirk), add it to the fixture's generator so it stays covered.
+- **Report what testing turns up.** A realistic fixture finds problems beyond the one being fixed (labels of small neighbouring rooms overlapping each other). Fix them when they are in scope; otherwise name them to the maintainer instead of fixing them silently or leaving them unmentioned.
+- **Never weaken the suite to pass.** Do not delete, loosen or skip a test to make a change pass; a test that needs updating keeps what it proved. A flaky test is a bug of its own.
+- In the hand-off or report, name the test that was red before the fix and the gap in the suite it closes.
+
 ## Who decides what ships
 
 Agents drive this project: they investigate, reproduce, build, test, open pull requests and prepare releases without waiting to be asked. They do not yet have the taste to judge UI and UX nuances, so whether a change may be merged and released depends on what kind of change it is. Sort every change into one of these three classes before merging; when it is not clearly class 1, it is class 2.
