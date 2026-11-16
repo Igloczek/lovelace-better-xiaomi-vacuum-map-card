@@ -11,7 +11,7 @@ suite passes against the release candidate; screenshots are written to the gitig
 |---|---|
 | `render.spec.ts` | The card renders from the installed Lovelace resource against a real camera entity. |
 | `editor.spec.ts` | The visual editor opens in edit mode on a card whose ROOM mode starts empty; the Title field is the element the frontend provides and real keyboard typing reaches Home Assistant's edit-dialog config; **Generate rooms config** is the only way the room ids appear, and it does. The four switch labels are visible even though this frontend no longer defines `ha-formfield`. The entity, vacuum-platform and camera pickers each show the configured value and changing one reaches the dialog config. |
-| `element-names.spec.ts` | The fork renders from `custom:better-xiaomi-vacuum-map-card`; `custom:xiaomi-vacuum-map-card` renders through the compatibility alias while the upstream bundle is absent; with the fork served from the pre-rename `/local/community/lovelace-xiaomi-vacuum-map-card/` path (the real Marketplace layout) the old type still renders and the stored view migrates; a dead resource row at that path, left by an upgrade, does not stop the alias; with upstream's released v2.4.1 bundle installed as a second Lovelace resource, in both orders, both cards render and the console shows no `customElements.define` error (the legacy name stays upstream's). The upstream bundle is downloaded into the instance's ignored `www/`, never committed. |
+| `element-names.spec.ts` | The fork renders from `custom:better-xiaomi-vacuum-map-card`; `custom:xiaomi-vacuum-map-card` renders through the compatibility alias while the upstream bundle is absent; with the fork served from the pre-rename `/local/community/lovelace-xiaomi-vacuum-map-card/` path (the real Marketplace layout) the old type still renders and the stored view migrates; a dead resource row at that path, left by an upgrade, does not stop the alias. With upstream's released bundle (v2.4.1, pinned and sha256-checked by `fetch-upstream.cjs`) installed where a real user has it — the HACS repository folder, served at `/local/community/lovelace-xiaomi-vacuum-map-card/` because Home Assistant 2026.11 no longer serves the `/hacsfiles/` prefix, and a manual `/local/xiaomi-vacuum-map-card.js` — in both resource orders, `custom:xiaomi-vacuum-map-card` renders the upstream class and `custom:better-xiaomi-vacuum-map-card` this card, neither shows Home Assistant's error card, the console shows no `customElements.define` error and no fork warning, and the upstream card's stored view and run stay in its own keys and are never migrated. The same holds when this card is served from the pre-rename path next to a manual upstream install. The upstream bundle is downloaded into the gitignored `test/e2e/.cache/`, never committed. |
 | `map-view.spec.ts` | `map_view` opens at the configured view, a real wheel gesture changes scale and offsets, the reset control returns to the default, and the view persists across reloads. A reset fired while the card is hidden (no map layout) is not applied or stored against zero size: it applies the centred default once the card is shown and stores that. |
 | `layout.spec.ts` | `layout: horizontal` places the map beside the controls in a real **sections** view, a long mode name ellipsizes inside the column, and changing the card's grid options (what the resize handle causes) resizes the card: a 6-column override stops at the card's 9-column floor, a user `min_columns` goes narrower, and per-card `rows` overrides render exactly at 12 and 9 columns for a wide (4:1) and a tall (1:4) map, including two rows below the card's old floor and a tall map that only fits at a larger size. Below a 400 px card width the card stacks the map above the full-width controls: the narrowest sections span (9 of 12 columns) and a 390 px phone stack, the room outline still sits on the map, a tap selects the room, the card scrolls to its controls, and a narrow window with a wide card stays side by side. The vertical layout stays stacked. |
 | `zoom-rotation.spec.ts` | At zoom 2.5 and rotation 90, the painted room colour's screen box must match the outline's screen box within 4 px in all four directions (set `E2E_OVERLAY_SHIFT="20,0"` to prove the check fails on a shifted overlay), and clicking each outline selects that room. |
@@ -60,11 +60,21 @@ node test/e2e/setup.cjs                            # onboarding + storage dashbo
 node test/e2e/connect-github.cjs --restart         # Marketplace GitHub token (GITHUB_TOKEN or gh auth)
 node test/e2e/marketplace-install.cjs              # install from the repository URL (proves the path)
 node test/e2e/install-local-build.cjs              # put this checkout's build in front of the specs
+node test/e2e/fetch-upstream.cjs                   # pinned upstream release for the side-by-side spec
 npm run test:e2e
 ```
 
 Screenshots are written to `test/e2e/artifacts/` (gitignored); attach the relevant ones to a pull
 request or release when a behaviour changes.
+
+`fetch-upstream.cjs` pins the upstream release (`v2.4.1`) and its sha256, caches it under the
+gitignored `test/e2e/.cache/`, and copies it into the instance's `www/` at both locations a real
+install leaves it: the historical HACS folder (`www/community/lovelace-xiaomi-vacuum-map-card/`) and
+a manual `www/xiaomi-vacuum-map-card.js`. Home Assistant 2026.11 blocks HACS and no longer serves
+the `/hacsfiles/` prefix HACS registered, so the HACS folder is loaded from its
+`/local/community/<repository>/` URL — the same URL the Marketplace migration writes. The spec
+verifies the cached digest too, so a replaced release asset fails loudly instead of testing another
+build. Use `node test/e2e/fetch-upstream.cjs --refresh` after changing the pin.
 
 ## Fixture camera
 
