@@ -15,6 +15,8 @@
 /test/e2e/ha/config/.cloud/
 /test/e2e/.auth/
 /test/e2e/artifacts/
+# The pinned upstream release the side-by-side spec loads (test/e2e/fetch-upstream.cjs).
+/test/e2e/.cache/
 /test/artifacts/
 
 # Home Assistant runtime state (the authored fixture files are re-included below)
