@@ -156,10 +156,14 @@ function removeOldPathBundle(): void {
 }
 
 function knownForkResourceUrl(): string {
-    if (forkResourceUrl === undefined) {
-        throw new Error("the fork's Lovelace resource is missing; run node test/e2e/marketplace-install.cjs");
+    if (forkResourceUrl !== undefined) return forkResourceUrl;
+    // A restarted worker forgets the URL after a test replaced the fork's row; the installed file is
+    // still there, so restore its row instead of failing every later test.
+    if (fs.existsSync(INSTALLED_FILE)) {
+        console.warn(`the fork's resource row is gone; restoring it at ${INSTALLED_URL}`);
+        return `${INSTALLED_URL}?v=e2e-side-by-side`;
     }
-    return forkResourceUrl;
+    throw new Error("the fork's Lovelace resource is missing; run node test/e2e/marketplace-install.cjs");
 }
 
 /**
@@ -357,16 +361,20 @@ async function holdSecondUntilFirstRuns(page: Page, first: BundleName, paths: Bu
         (tracked: string[]) => {
             const loads: string[] = [];
             (window as any).__bundleLoads = loads;
-            document.addEventListener(
-                "load",
-                event => {
-                    const src = (event.target as HTMLScriptElement | null)?.src;
-                    if (!src) return;
-                    const pathname = new URL(src).pathname;
-                    if (tracked.includes(pathname)) loads.push(pathname);
-                },
-                true,
-            );
+            // A bundle that fails to load is recorded too, so the held one is released and the order
+            // assertion names the failed bundle instead of the navigation timing out.
+            for (const type of ["load", "error"]) {
+                document.addEventListener(
+                    type,
+                    event => {
+                        const src = (event.target as HTMLScriptElement | null)?.src;
+                        if (!src) return;
+                        const pathname = new URL(src).pathname;
+                        if (tracked.includes(pathname)) loads.push(type === "load" ? pathname : `failed ${pathname}`);
+                    },
+                    true,
+                );
+            }
         },
         [paths.fork, paths.upstream],
     );
@@ -378,12 +386,19 @@ async function holdSecondUntilFirstRuns(page: Page, first: BundleName, paths: Bu
                 await route.continue();
                 return;
             }
-            await page.waitForFunction(
-                (loaded: string) => ((window as any).__bundleLoads ?? []).includes(loaded),
-                firstPath,
-                { timeout: 60_000 },
-            );
-            await route.continue();
+            // Released when the first bundle ran or failed, and in any case before the navigation's
+            // own 30 s timeout, so a stuck first bundle surfaces in expectRanInOrder.
+            await page
+                .waitForFunction(
+                    (loaded: string) =>
+                        ((window as any).__bundleLoads ?? []).some(
+                            (entry: string) => entry === loaded || entry === `failed ${loaded}`,
+                        ),
+                    firstPath,
+                    { timeout: 20_000 },
+                )
+                .catch(() => undefined);
+            await route.continue().catch(() => undefined);
         },
     );
 }
