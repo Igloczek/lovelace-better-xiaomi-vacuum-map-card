@@ -52,10 +52,10 @@ Agents drive this project: they investigate, reproduce, build, test, open pull r
 2. **Needs the maintainer's call: build it fully, then stop.** This covers anything that is not an obvious bug, a rough idea without a settled design, and every change to what users see or how they interact: layout, colours, icons, wording, animations, defaults, new or changed behaviour, and where a message or control appears. Do all the work, open the pull request, and do not merge or release it. Make the decision easy (see below) and wait for the maintainer's answer.
 3. **Cannot be reproduced here: pre-release.** The change depends on a vacuum or integration we do not run. Follow the pre-release bullet under "GitHub releases" so external contributors can install and test it.
 
-**What a class 2 hand-off contains.** The maintainer should be able to decide from the pull request alone, in a few minutes:
+**What a class 2 hand-off contains.** The hand-off goes in the chat with the maintainer, never on GitHub: do not post hand-offs, screenshots or summaries as pull request or issue comments, and keep the pull request description short. GitHub comments are only for external contributors (the pre-release flow). Present it with the chat's built-in visualization tools (a rendered HTML page with the images side by side, or embedded images), so the maintainer can decide in a few minutes:
 
 - The problem and the change in one short paragraph, written for a user, not as a diff summary.
-- What it looks like: before and after screenshots, or a short recording for motion or interaction, in Chromium and WebKit, at the sizes and themes it affects. Attach them to the pull request.
+- What it looks like: before and after screenshots, or a short recording for motion or interaction, in Chromium and WebKit, at the sizes and themes it affects. Capture them from a real Home Assistant (the e2e instance), keep the files in the scratchpad, and show them in the chat. When a step happens too fast to see (an instant test vacuum hides a spinner), slow it down for the capture.
 - How to try it: a `vX.Y.Z-beta.N` pre-release (see "GitHub releases") with install steps, or the exact dashboard and steps. Install it on the maintainer's Home Assistant only when they ask.
 - The alternatives you considered, your recommendation, and what you would change if they say no.
 - What is proven: the tests and checks that passed on the head, and anything not verified.
