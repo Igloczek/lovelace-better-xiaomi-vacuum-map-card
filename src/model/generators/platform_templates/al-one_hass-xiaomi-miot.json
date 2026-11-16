@@ -48,7 +48,7 @@
                         "service": "vacuum.send_command",
                         "service_data": {
                             "command": "set_zone",
-                            "params": "{%set s='[[selection]]'|from_json%}{%set n=[[repeats]]%}{%set ns=namespace(i=0,out=[])%}{%for z in s%}{%for r in range(n)%}{%set ns.out=ns.out+[ns.i~'_0_'~(z|map('round',3)|join('_'))]%}{%set ns.i=ns.i+1%}{%endfor%}{%endfor%}{{([ns.i]+ns.out)|to_json}}|[[jsonify_jinja]]",
+                            "params": "{%set s='[[selection]]'|from_json%}{%set n=[[repeats]]%}{%set ns=namespace(i=0,out=[])%}{%for z in s%}{%for r in range(n)%}{%set ns.out=ns.out+[ns.i~'_0_'~(z|map('round',3)|join('_'))]%}{%set ns.i=ns.i+1%}{%endfor%}{%endfor%}[{{ns.i}}{%for e in ns.out%}, \"{{e}}\"{%endfor%}]|[[jsonify_jinja]]",
                             "entity_id": "[[entity_id]]"
                         },
                         "evaluate_data_as_template": true
