@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9.0
+
+### Changed
+
+- The run button shows what happened right where you tapped: a spinner while the command is on its
+  way, then a check (green) when Home Assistant accepted it or a cross (red) when it was refused or
+  failed. The colours follow your theme and can be set with `--map-card-run-success-color` and
+  `--map-card-run-failure-color`.
+- The card's messages (why a run was refused, why it failed) now appear in Home Assistant's own
+  notification on the screen instead of at the bottom of the card, where they were easy to miss. A
+  failure stays longer and can be dismissed. An accepted run needs no message.
+
 ## 1.8.0
 
 ### Changed
