@@ -82,7 +82,7 @@ function drawnZones(card: CardHandle): Element[] {
 }
 
 function zoneLabels(card: CardHandle): string[] {
-    return Array.from(card.shadowRoot.querySelectorAll(".manual-rectangle-description text")).map(
+    return Array.from(card.shadowRoot.querySelectorAll(".manual-rectangle-description .room-pill-badge")).map(
         text => text.textContent?.trim().split(/\s+/)[0] ?? "",
     );
 }
@@ -273,5 +273,97 @@ describe("the default zone and the user's own zones", () => {
         const drawn = zones(card);
         await run(card);
         expect(zones(card)).toEqual(drawn);
+    });
+});
+
+describe("the zone reads on any floor", () => {
+    it("draws a halo under the outline and labels the zone with the room pill: number and size", async () => {
+        const card = await mount([ZONE]);
+        const wrapper = card.shadowRoot.querySelector(".manual-rectangle-wrapper")!;
+        const halo = wrapper.querySelector("polygon.manual-rectangle-halo");
+        const zone = wrapper.querySelector("polygon.manual-rectangle");
+        expect(halo).not.toBeNull();
+        // The halo is under the outline (painted first) and has the zone's exact shape.
+        expect(halo!.compareDocumentPosition(zone!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(halo!.getAttribute("points")).toBe(zone!.getAttribute("points"));
+        const pill = wrapper.querySelector(".manual-rectangle-description .room-pill.manual-rectangle-label");
+        expect(pill).not.toBeNull();
+        expect(pill!.querySelector(".room-pill-badge")?.textContent?.trim()).toBe("1");
+        expect(pill!.querySelector(".room-pill-name")?.textContent?.trim()).toMatch(/^\d+\.\d \S+ × \d+\.\d \S+$/);
+    });
+
+    it("places the label at the zone's centre", async () => {
+        const card = await mount([ZONE]);
+        const points = card.shadowRoot
+            .querySelector("polygon.manual-rectangle")!
+            .getAttribute("points")!
+            .trim()
+            .split(/[\s,]+/)
+            .map(Number);
+        const cx = (points[0] + points[2] + points[4] + points[6]) / 4;
+        const cy = (points[1] + points[3] + points[5] + points[7]) / 4;
+        const anchor = card.shadowRoot.querySelector(".manual-rectangle-description .room-pill-anchor") as HTMLElement;
+        expect(parseFloat(anchor.style.getPropertyValue("--room-pill-x"))).toBeCloseTo(cx, 3);
+        expect(parseFloat(anchor.style.getPropertyValue("--room-pill-y"))).toBeCloseTo(cy, 3);
+    });
+});
+
+describe("a zone being dragged", () => {
+    const pointsOf = (card: CardHandle, selector: string): number[] =>
+        card.shadowRoot
+            .querySelector(selector)!
+            .getAttribute("points")!
+            .trim()
+            .split(/[\s,]+/)
+            .map(Number);
+
+    it("moves its outline, halo and label together before the drag ends", async () => {
+        const card = await mount([ZONE]);
+        const rectangle = internals(card).selectedManualRectangles[0] as unknown as {
+            getMousePosition: () => { x: number; y: number };
+            scaledMapToVacuum: () => number[];
+        };
+        const before = pointsOf(card, "polygon.manual-rectangle");
+        rectangle.getMousePosition = () => ({ x: 0, y: 0 });
+        let at = [1000, 1000];
+        rectangle.scaledMapToVacuum = () => at;
+        const zone = card.shadowRoot.querySelector("polygon.manual-rectangle")!;
+        zone.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, composed: true }));
+        at = [1400, 1300];
+        zone.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, composed: true }));
+
+        // Mid-drag, no render yet: every part has followed the zone.
+        const during = pointsOf(card, "polygon.manual-rectangle");
+        expect(during).not.toEqual(before);
+        expect(pointsOf(card, "polygon.manual-rectangle-halo")).toEqual(during);
+        const anchor = card.shadowRoot.querySelector(".manual-rectangle-description .room-pill-anchor") as HTMLElement;
+        const cx = (during[0] + during[2] + during[4] + during[6]) / 4;
+        const cy = (during[1] + during[3] + during[5] + during[7]) / 4;
+        expect(parseFloat(anchor.style.getPropertyValue("--room-pill-x"))).toBeCloseTo(cx, 3);
+        expect(parseFloat(anchor.style.getPropertyValue("--room-pill-y"))).toBeCloseTo(cy, 3);
+
+        zone.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, composed: true }));
+        await settle(card.element);
+        expect(pointsOf(card, "polygon.manual-rectangle")).toEqual(during);
+        expect(pointsOf(card, "polygon.manual-rectangle-halo")).toEqual(during);
+    });
+
+    it("updates the size in the label while it is resized", async () => {
+        const card = await mount([ZONE]);
+        const rectangle = internals(card).selectedManualRectangles[0] as unknown as {
+            getMousePosition: () => { x: number; y: number };
+            scaledMapToVacuum: () => number[];
+        };
+        const name = () => card.shadowRoot.querySelector(".manual-rectangle-description .room-pill-name")!.textContent;
+        const before = name();
+        rectangle.getMousePosition = () => ({ x: 0, y: 0 });
+        let at = [0, 0];
+        rectangle.scaledMapToVacuum = () => at;
+        const handle = card.shadowRoot.querySelector(".manual-rectangle-resize-circle")!;
+        handle.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, composed: true }));
+        at = [2000, 2000];
+        handle.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, composed: true }));
+        expect(name()).not.toEqual(before);
+        handle.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, composed: true }));
     });
 });

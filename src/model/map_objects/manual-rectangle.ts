@@ -87,6 +87,14 @@ export class ManualRectangle extends MapObject {
         return [vacuum.map(p => this.vacuumToScaledMap(p[0], p[1])) as RectangleType, vacuum];
     }
 
+    /** The centre of a rectangle given by its four corners, in the same space. */
+    private static _centre(rect: RectangleType): PointType {
+        return [
+            rect.reduce((sum, p) => sum + p[0], 0) / rect.length,
+            rect.reduce((sum, p) => sum + p[1], 0) / rect.length,
+        ];
+    }
+
     private static _toPoints(rect: RectangleType): string {
         const points = rect
             .filter(p => !isNaN(p[0]) && !isNaN(p[1]))
@@ -116,6 +124,7 @@ export class ManualRectangle extends MapObject {
                       --x-description:${descriptionPoint[0]}px;
                       --y-description:${descriptionPoint[1]}px;
                       --angle-description: ${angle}rad;">
+                <polygon class="manual-rectangle-halo" points="${ManualRectangle._toPoints(mapRect)}"></polygon>
                 <polygon class="manual-rectangle draggable movable"
                          @mousedown="${(e: MouseEvent): void => this._startDrag(e)}"
                          @mousemove="${(e: MouseEvent): void => this._drag(e)}"
@@ -128,9 +137,7 @@ export class ManualRectangle extends MapObject {
                          points="${ManualRectangle._toPoints(mapRect)}">
                 </polygon>
                 <g class="manual-rectangle-description">
-                    <text>
-                        ${this._id} ${this._getDimensions()}
-                    </text>
+                    ${this._renderLabel(mapRect)}
                 </g>
                 <circle class="manual-rectangle-delete-circle clickable"
                         @mouseup="${(e: MouseEvent): void => this._delete(e)}"></circle>
@@ -153,6 +160,23 @@ export class ManualRectangle extends MapObject {
                 ${this.rotatable ? this._renderRotateHandle() : ""}
             </g>
         `;
+    }
+
+    /**
+     * The zone's label: the same pill the rooms wear, at the zone's centre, upright and the same size
+     * on screen at any zoom and rotation. The badge is the zone's number, the text its size (and its
+     * angle when turned). The pill ignores the pointer, so a drag that starts on it moves the zone.
+     */
+    private _renderLabel(mapRect: RectangleType): SVGTemplateResult {
+        const centre = ManualRectangle._centre(mapRect);
+        const number = Number(this._id);
+        return this.renderPill(
+            centre,
+            [0, 0],
+            this._getDimensions() || undefined,
+            Number.isFinite(number) ? number : undefined,
+            "manual-rectangle-label",
+        );
     }
 
     private _renderRotateHandle(): SVGTemplateResult {
@@ -203,9 +227,8 @@ export class ManualRectangle extends MapObject {
         if (divider === -1) return "";
         const rounder = (v: number): string => (v / divider).toFixed(1);
         const angle = this._angle !== 0 ? ` ${angleDegrees(this._angle)}°` : "";
-        return `${rounder(width)}${this.localize("unit.meter_shortcut")} x ${rounder(height)}${this.localize(
-            "unit.meter_shortcut",
-        )}${angle}`;
+        const unit = this.localize("unit.meter_shortcut");
+        return `${rounder(width)} ${unit} × ${rounder(height)} ${unit}${angle ? ` ·${angle}` : ""}`;
     }
 
     private _startDrag(event: MouseEvent | TouchEvent): void {
@@ -326,7 +349,23 @@ export class ManualRectangle extends MapObject {
     }
 
     private _setup(mapRect: RectangleType): void {
-        this._selectedElement?.children?.item(0)?.setAttribute("points", ManualRectangle._toPoints(mapRect));
+        // A drag reshapes the zone without a render: the outline, its halo and the label follow here.
+        const points = ManualRectangle._toPoints(mapRect);
+        this._selectedElement?.querySelector?.("polygon.manual-rectangle")?.setAttribute("points", points);
+        this._selectedElement?.querySelector?.("polygon.manual-rectangle-halo")?.setAttribute("points", points);
+        const anchor = this._selectedElement?.querySelector?.(".room-pill-anchor") as SVGElement | null | undefined;
+        if (anchor) {
+            const centre = ManualRectangle._centre(mapRect);
+            anchor.style.setProperty("--room-pill-x", `${centre[0]}px`);
+            anchor.style.setProperty("--room-pill-y", `${centre[1]}px`);
+        }
+        // Lit owns the name's text node (its markers sit around it), so change only its data: setting
+        // textContent would remove the markers and break the next render.
+        const name = this._selectedElement?.querySelector?.(".room-pill-name");
+        const text = name
+            ? Array.from(name.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.nodeValue?.trim())
+            : undefined;
+        if (text) text.nodeValue = this._getDimensions();
         const descriptionPoint = mapRect[0];
         const movePoint = mapRect[2];
         const deletePoint = mapRect[3];
@@ -393,6 +432,19 @@ export class ManualRectangle extends MapObject {
             .manual-rectangle-wrapper.selected {
             }
 
+            /* A wider stroke in the card's background colour under the zone's own outline, so the
+               outline reads on white floor and on coloured rooms alike. */
+            .manual-rectangle-halo {
+                fill: none;
+                stroke: var(--map-card-internal-manual-rectangle-halo-color);
+                stroke-linejoin: round;
+                stroke-width: calc(
+                    (var(--map-card-internal-manual-rectangle-line-width) + 2 * var(--map-card-internal-manual-rectangle-halo-width)) /
+                        var(--map-scale)
+                );
+                pointer-events: none;
+            }
+
             .manual-rectangle {
                 stroke: var(--map-card-internal-manual-rectangle-line-color);
                 stroke-linejoin: round;
@@ -405,23 +457,6 @@ export class ManualRectangle extends MapObject {
             .manual-rectangle-wrapper.selected > .manual-rectangle {
                 stroke: var(--map-card-internal-manual-rectangle-line-color-selected);
                 fill: var(--map-card-internal-manual-rectangle-fill-color-selected);
-            }
-
-            .manual-rectangle-description {
-                transform: translate(
-                        calc(
-                            var(--x-description) + var(--map-card-internal-manual-rectangle-description-offset-x) /
-                                var(--map-scale)
-                        ),
-                        calc(
-                            var(--y-description) + var(--map-card-internal-manual-rectangle-description-offset-y) /
-                                var(--map-scale)
-                        )
-                    )
-                    rotate(var(--angle-description)) rotate(calc(-1 * var(--map-rotation, 0deg)));
-                font-size: calc(var(--map-card-internal-manual-rectangle-description-font-size) / var(--map-scale));
-                fill: var(--map-card-internal-manual-rectangle-description-color);
-                background: transparent;
             }
 
             .manual-rectangle-delete-circle {

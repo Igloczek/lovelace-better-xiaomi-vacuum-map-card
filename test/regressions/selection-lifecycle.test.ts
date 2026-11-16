@@ -570,9 +570,9 @@ describe("manual selections across rebuilds", () => {
         const deleteFirst = card.shadowRoot.querySelector(".manual-rectangle-delete-circle");
         deleteFirst?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, composed: true }));
         await settle(card.element);
-        const labels = Array.from(card.shadowRoot.querySelectorAll(".manual-rectangle-description text")).map(
-            text => text.textContent?.trim().split(/\s+/)[0],
-        );
+        const labels = Array.from(
+            card.shadowRoot.querySelectorAll(".manual-rectangle-description .room-pill-badge"),
+        ).map(text => text.textContent?.trim().split(/\s+/)[0]);
         expect(labels).toEqual(["1", "2"]);
     });
 
