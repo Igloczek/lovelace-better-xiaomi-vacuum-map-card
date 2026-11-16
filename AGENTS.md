@@ -44,6 +44,26 @@
 - Run each check once per head. When a check has already passed locally on the exact commit (unit tests, build, the visual suite in the CI image, the real-HA e2e suite), merge without waiting for CI's copy of it, and say which local run it rests on. Wait only for checks that ran nowhere else; the HACS and manifest `validate` jobs take under a minute.
 - The visual suite needs the CI Docker image only to regenerate baselines (`test/visual/README.md`). On Apple Silicon that image is emulated and takes about five minutes a pass, so regenerate and prove stability in one container invocation, and run the cheap checks (`npm test`, `npx playwright test --ignore-snapshots`, a single spec on the host) first, so a wrong assertion fails in seconds instead of costing an emulated pass. When no baseline changes, the `visual` label's CI run (about two minutes) is enough on its own.
 
+## Who decides what ships
+
+Agents drive this project: they investigate, reproduce, build, test, open pull requests and prepare releases without waiting to be asked. They do not yet have the taste to judge UI and UX nuances, so whether a change may be merged and released depends on what kind of change it is. Sort every change into one of these three classes before merging; when it is not clearly class 1, it is class 2.
+
+1. **Clear bug: merge it yourself.** The report is binary (it works or it does not), the reproduction was immediate, and the fix restores behaviour that is documented or obviously intended, with nothing visible changing beyond the fix. Merge it after the checks in "Local checks" pass on the exact head.
+2. **Needs the maintainer's call: build it fully, then stop.** This covers anything that is not an obvious bug, a rough idea without a settled design, and every change to what users see or how they interact: layout, colours, icons, wording, animations, defaults, new or changed behaviour, and where a message or control appears. Do all the work, open the pull request, and do not merge or release it. Make the decision easy (see below) and wait for the maintainer's answer.
+3. **Cannot be reproduced here: pre-release.** The change depends on a vacuum or integration we do not run. Follow the pre-release bullet under "GitHub releases" so external contributors can install and test it.
+
+**What a class 2 hand-off contains.** The maintainer should be able to decide from the pull request alone, in a few minutes:
+
+- The problem and the change in one short paragraph, written for a user, not as a diff summary.
+- What it looks like: before and after screenshots, or a short recording for motion or interaction, in Chromium and WebKit, at the sizes and themes it affects. Attach them to the pull request.
+- How to try it: a `vX.Y.Z-beta.N` pre-release (see "GitHub releases") with install steps, or the exact dashboard and steps. Install it on the maintainer's Home Assistant only when they ask.
+- The alternatives you considered, your recommendation, and what you would change if they say no.
+- What is proven: the tests and checks that passed on the head, and anything not verified.
+
+End the thread's report with a single question the maintainer can answer yes or no, or by picking one option.
+
+**Releases are batched.** Merging does not mean releasing. Before you cut a release, check the state of the whole project: other agent threads still running, open pull requests close to merging, and what master has gained since the last release (`git log <last tag>..origin/master`). Release when a batch is ready, not after every merge. Release on its own only for an urgent fix, such as a card that does not render, a run that cleans the wrong room, or lost configuration. Class 2 changes are released only after the maintainer has approved them.
+
 ## GitHub releases
 
 - `.github/workflows/release.yml` builds and uploads `xiaomi-vacuum-map-card.js` when a GitHub release is published. Check that workflow when changing release packaging.
