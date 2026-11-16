@@ -647,6 +647,12 @@ List of supported templates depends on selected [`vacuum_platform`](platforms.md
 
 Following selection types are supported at this moment:
 
+A zone mode (`MANUAL_RECTANGLE`, `MANUAL_ROTATABLE_RECTANGLE`) opens with one zone on the map, ready to
+drag, resize and run. The `+` control adds further zones, up to the mode's `max_selections`, and each
+zone's `×` deletes it. The zone is placed again on every fresh selection: opening the mode, switching
+the preset, the `selection.clear` action and a run with `clean_selection_on_start` (the default). A
+deleted zone stays deleted until then.
+
 - `MANUAL_RECTANGLE`: Free-drawn rectangular zones on the map
   <details>
   <summary>Example video</summary>

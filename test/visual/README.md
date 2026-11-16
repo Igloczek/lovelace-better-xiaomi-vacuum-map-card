@@ -40,6 +40,11 @@ pill (unselected, selected, its badge), room icon and predefined point icon and 
 box again; the two must differ. It takes no baselines, so the WebKit project needs none. On the
 1.5.0 pill it fails in WebKit and passes in Chromium.
 
+`default-zone.spec.ts` also runs in Chromium and WebKit, with no baselines. For `MANUAL_RECTANGLE` and
+`MANUAL_ROTATABLE_RECTANGLE`, at rotation 0 and 90, the zone mode opens with one zone inside the map
+and painted there (its pixels change when it is hidden); real mouse input then moves and resizes it,
+`+` adds a second zone and the delete control removes one.
+
 `map-view-robustness.spec.ts` asserts geometry only — no screenshots — so it also runs on a
 developer machine. It reads the map point in the middle of the viewport from the rendered
 transform, and the living room's outline against the room's place in the rendered image:

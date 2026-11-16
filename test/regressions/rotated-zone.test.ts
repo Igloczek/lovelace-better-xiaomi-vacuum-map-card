@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { addRectangle } from "../../src/card/selection";
 import { validateConfig } from "../../src/config-validators";
 import { rotatedZoneCorners } from "../../src/model/rotated-zone";
 import type { MapModeConfig, XiaomiVacuumMapCardConfig, ZoneType } from "../../src/types/types";
@@ -71,7 +70,6 @@ async function run(card: CardHandle): Promise<void> {
 describe("rotatable zones", () => {
     it("draws a rotate handle and sends four corners, turned with the zone", async () => {
         const card = await mount([ROTATABLE_MODE]);
-        addRectangle(card.element as any);
         await settle(card.element);
         expect(card.shadowRoot.querySelectorAll(".manual-rectangle-rotate-circle")).toHaveLength(1);
 
@@ -95,7 +93,6 @@ describe("rotatable zones", () => {
 
     it("keeps the plain rectangle a four-number box without a rotate handle", async () => {
         const card = await mount([{ ...ROTATABLE_MODE, selection_type: "MANUAL_RECTANGLE" } as MapModeConfig]);
-        addRectangle(card.element as any);
         await settle(card.element);
         expect(card.shadowRoot.querySelectorAll(".manual-rectangle-rotate-circle")).toHaveLength(0);
         expect(selection(card)[0]).toHaveLength(4);
@@ -106,7 +103,6 @@ describe("rotatable zones", () => {
 
     it("turns with the rotate handle", async () => {
         const card = await mount([ROTATABLE_MODE]);
-        addRectangle(card.element as any);
         await settle(card.element);
         const rectangle = (card.element as any).selectedManualRectangles[0];
         // The handle is dragged a quarter turn around the zone's centre, in vacuum coordinates.
@@ -129,7 +125,6 @@ describe("rotatable zones", () => {
 describe("a service_call_schema list", () => {
     it("sends every call in order with the same selection", async () => {
         const card = await mount([SEQUENCE_MODE]);
-        addRectangle(card.element as any);
         await settle(card.element);
         await run(card);
         const calls = vi.mocked(card.hass.callService).mock.calls.map(call => call[2] as Record<string, unknown>);
@@ -141,7 +136,6 @@ describe("a service_call_schema list", () => {
 
     it("stops at the first call Home Assistant refuses", async () => {
         const card = await mount([SEQUENCE_MODE]);
-        addRectangle(card.element as any);
         await settle(card.element);
         vi.mocked(card.hass.callService).mockImplementation(async (_domain, _service, data) => {
             if ((data as Record<string, unknown>).command === "zone") throw new Error("refused");

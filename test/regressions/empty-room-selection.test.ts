@@ -299,6 +299,12 @@ describe("a ROOM selection that would send no room ids", () => {
             hass,
         );
         const toast = vi.spyOn(card.element as unknown as { _showToast: (...a: unknown[]) => void }, "_showToast");
+        // The zone mode opens with a zone on the map; the user deletes it, leaving nothing selected.
+        card.shadowRoot
+            .querySelector(".manual-rectangle-delete-circle")
+            ?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, composed: true }));
+        await settle(card.element);
+        expect(card.shadowRoot.querySelectorAll(".manual-rectangle-wrapper")).toHaveLength(0);
 
         await runSelection(card);
 

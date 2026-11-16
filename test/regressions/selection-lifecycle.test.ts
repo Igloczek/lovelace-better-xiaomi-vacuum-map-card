@@ -548,7 +548,7 @@ describe("manual selections across rebuilds", () => {
         useHarnessClock();
         const card = await mountCard(config, baseHass());
         await card.fireMapLoad();
-        addRectangle(card.element);
+        // The zone mode opens with one zone on the map; the user adds a second one.
         addRectangle(card.element);
         await settle(card.element);
         const drawn = selection(card);
@@ -564,7 +564,8 @@ describe("manual selections across rebuilds", () => {
 
     it("renumbers the remaining rectangles when one is deleted", async () => {
         const card = await mount([MANUAL_RECTANGLE_MODE]);
-        for (let i = 0; i < 3; i++) addRectangle(card.element);
+        // The default zone and two added ones.
+        for (let i = 0; i < 2; i++) addRectangle(card.element);
         await settle(card.element);
         const deleteFirst = card.shadowRoot.querySelector(".manual-rectangle-delete-circle");
         deleteFirst?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, composed: true }));
