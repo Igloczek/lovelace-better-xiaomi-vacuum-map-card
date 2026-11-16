@@ -38,9 +38,35 @@ suite passes against the release candidate; screenshots are written to the gitig
 - Real phone scrolling and a real drag-resize: the resize uses the grid options the handle writes,
   and the hidden-tab check overrides `document.hidden` rather than moving the page to a background
   window. Both are documented limitations of a headless run.
-- Two worktrees side by side by default: the container name and port can be overridden with
-  `E2E_CONTAINER` and `E2E_HA_PORT`, but `connect-github.cjs --restart` still targets the default
-  compose project unless `COMPOSE_PROJECT_NAME` is set.
+
+## Isolation between worktrees
+
+Every script resolves the instance the same way. `E2E_HA_URL` wins; otherwise the URL is
+`http://localhost:$E2E_HA_PORT` (default `8123`). `E2E_CONTAINER` names the container (default
+`xvmc-e2e-ha`), and a custom container derives its own compose project, so the default
+`npm run test:e2e:fresh` sequence in **another checkout** cannot stop, restart or install into this
+one. Set `COMPOSE_PROJECT_NAME` explicitly to override the derived project. This closes the old
+limitation where `connect-github.cjs --restart` targeted the default project while the container had
+been renamed.
+
+## Stale state and sessions
+
+`test/e2e/ha/config/.storage` and `test/e2e/.auth/token.json` are gitignored and survive a branch
+switch or a recreated container. A saved session that no longer matches the instance used to leave
+every spec on the login page until its own timeout.
+
+The harness now validates the session before the suite and again before each worker seeds it:
+
+- a token the instance accepts is reused (the short-lived access token is refreshed first);
+- a token the instance rejects is discarded and the session is re-created from the instance's refresh
+  token or the e2e credentials, which is the self-heal path for a stale file;
+- an instance with no e2e dashboards, no card resource, or a resource that is not served fails
+  immediately with the command that rebuilds it.
+
+`npm run test:e2e:fresh` does the whole documented sequence from a clean state: reset the ignored
+runtime files, recreate the container, wait for `/api/`, onboard, connect Marketplace, install from
+the repository, build and install the branch bundle, then run Playwright. It tears nothing down
+unless `--down` is passed, so a failing run can still be inspected.
 
 ## Install path
 
@@ -54,8 +80,35 @@ siblings, which Home Assistant would otherwise serve instead).
 ## Running it
 
 ```sh
+# from a clean tree, or after switching branches: the whole sequence, one command
+E2E_CONTAINER=xvmc-e2e-harness E2E_HA_PORT=8162 COMPOSE_PROJECT_NAME=xvmc-harness \
+  npm run test:e2e:fresh
+
+# after a run, tear the instance down
+E2E_CONTAINER=xvmc-e2e-harness E2E_HA_PORT=8162 COMPOSE_PROJECT_NAME=xvmc-harness \
+  npm run test:e2e:fresh -- --down
+```
+
+`test:e2e:fresh` also accepts `--no-build` (reuse `dist/`) and Playwright arguments after `--`. It
+runs:
+
+```sh
+docker compose -f test/e2e/compose.yaml down --remove-orphans
+git clean -fdX test/e2e/ha/config test/e2e/.auth test/e2e/artifacts
+docker compose -f test/e2e/compose.yaml up -d                 # wait for /api/ to answer 401
+node test/e2e/setup.cjs                                       # onboarding + storage dashboards
+node test/e2e/connect-github.cjs --restart                    # Marketplace GitHub token
+node test/e2e/marketplace-install.cjs                         # install from the repository URL
+npm run build && node test/e2e/install-local-build.cjs        # put this checkout's build in front
+npm run test:e2e
+```
+
+The manual steps below do the same thing and remain useful for a single step; they honour the same
+`E2E_CONTAINER`, `E2E_HA_PORT`, `E2E_HA_URL` and `COMPOSE_PROJECT_NAME`:
+
+```sh
 npm run build
-docker compose -f test/e2e/compose.yaml up -d      # Home Assistant 2026.11.0 on :8123
+docker compose -f test/e2e/compose.yaml up -d      # Home Assistant 2026.11.0 on $E2E_HA_PORT
 node test/e2e/setup.cjs                            # onboarding + storage dashboards
 node test/e2e/connect-github.cjs --restart         # Marketplace GitHub token (GITHUB_TOKEN or gh auth)
 node test/e2e/marketplace-install.cjs              # install from the repository URL (proves the path)

@@ -8,48 +8,41 @@
  * repository-add and install commands the Marketplace panel calls, then proves the asset and the
  * Lovelace resource.
  */
-const fs = require("node:fs");
-const path = require("node:path");
+const { haUrl, freshAccessToken, connectWebSocket, describeInstance } = require("./support/harness.cjs");
 
-const BASE = process.env.E2E_HA_URL || "http://localhost:8123";
+const BASE = haUrl();
 const REPO_URL = "https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card";
 const REPO_NAME = "Igloczek/lovelace-better-xiaomi-vacuum-map-card";
-const AUTH = path.join(__dirname, ".auth", "token.json");
 
-const { access_token: accessToken } = JSON.parse(fs.readFileSync(AUTH, "utf8"));
+async function socket() {
+    const token = await freshAccessToken({ base: BASE });
+    return connectWebSocket(token, { base: BASE });
+}
 
-function socket() {
-    return new Promise((resolve, reject) => {
-        const connection = new WebSocket(`${BASE.replace("http", "ws")}/api/websocket`);
-        let id = 0;
-        const pending = new Map();
-        connection.onmessage = event => {
-            const message = JSON.parse(event.data);
-            if (message.type === "auth_required")
-                connection.send(JSON.stringify({ type: "auth", access_token: accessToken }));
-            else if (message.type === "auth_ok") resolve({ send, close: () => connection.close() });
-            else if (message.type === "result") {
-                const call = pending.get(message.id);
-                if (!call) return;
-                pending.delete(message.id);
-                if (message.success) call.resolve(message.result);
-                else call.reject(new Error(`${call.type}: ${JSON.stringify(message.error)}`));
-            }
-        };
-        connection.onerror = () => reject(new Error("websocket error"));
-        function send(type, payload = {}) {
-            return new Promise((resolveCall, rejectCall) => {
-                const messageId = ++id;
-                pending.set(messageId, { resolve: resolveCall, reject: rejectCall, type });
-                connection.send(JSON.stringify({ id: messageId, type, ...payload }));
-            });
+/**
+ * Home Assistant answers `/api/` and the websocket before its integrations finish loading. The
+ * Marketplace then answers `not_loaded`; a restart right before this script is the normal case.
+ * Wait for the integration instead of failing the sequence on a startup race.
+ */
+async function waitForMarketplace(ws) {
+    for (let attempt = 0; attempt < 180; attempt++) {
+        try {
+            return await ws.send("marketplace/info");
+        } catch (error) {
+            const message = String(error.message);
+            // `not_loaded` is the integration loading; `unknown_command` is a command registered by
+            // that integration, so the frontend has not installed its handlers yet.
+            if (!message.includes("not_loaded") && !message.includes("unknown_command")) throw error;
         }
-    });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    throw new Error("the Marketplace integration did not load within 180s after the restart");
 }
 
 async function main() {
+    console.log(describeInstance());
     const ws = await socket();
-    const info = await ws.send("marketplace/info");
+    const info = await waitForMarketplace(ws);
     console.log(`marketplace ${info.version}, github_connected=${info.github_connected}, stage=${info.stage}`);
 
     await ws.send("marketplace/warning/accept");
@@ -75,7 +68,7 @@ async function main() {
     // from another checkout or on another host.
     const assetUrl = `${BASE}/local/community/lovelace-better-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js`;
     let bytes = 0;
-    for (let attempt = 0; attempt < 60; attempt++) {
+    for (let attempt = 0; attempt < 180; attempt++) {
         const response = await fetch(assetUrl);
         if (response.ok) {
             const body = await response.text();
