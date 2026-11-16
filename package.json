@@ -61,6 +61,8 @@
         "test:e2e": "playwright test -c test/e2e/playwright.config.ts",
         "test:e2e:fresh": "node test/e2e/fresh.cjs",
         "e2e:install": "node test/e2e/marketplace-install.cjs",
+        "e2e:down": "node test/e2e/down.cjs",
+        "e2e:prune": "node test/e2e/prune.cjs",
         "bundle": "rolldown -c rolldown.config.mjs",
         "format": "oxfmt",
         "format:check": "oxfmt --check"

@@ -88,8 +88,22 @@ Global setup also fails the run, with the rebuild command, when:
 
 `npm run test:e2e:fresh` does the whole documented sequence from a clean state: reset the ignored
 runtime files, recreate the container, wait for `/api/`, onboard, connect Marketplace, install from
-the repository, build and install the branch bundle, then run Playwright. It tears nothing down
-unless `--down` is passed, so a failing run can still be inspected.
+the repository, build and install the branch bundle, then run Playwright. It then tears the instance
+down, pass or fail; pass `--keep` to leave it running to inspect a failure or rerun single specs with
+`npm run test:e2e`, and stop it with `npm run e2e:down` (same environment) when done.
+
+## Leaving nothing running
+
+An instance outlives the agent and the worktree that started it: containers left by deleted
+worktrees used to run for days, logging errors against a missing bind mount and holding their ports.
+
+- `npm run test:e2e:fresh` tears down after itself unless `--keep` is passed.
+- `npm run e2e:down` stops this checkout's instance (it resolves the same variables as every script).
+- `npm run e2e:prune` removes harness containers (label `xvmc.harness`, from this compose file and the
+  demo-video one) whose worktree no longer exists, with their networks. It never touches an instance
+  whose worktree is still there; `--all` removes those too, `--dry-run` lists what it would remove.
+
+Before handing work back, an agent stops every instance it started and runs `npm run e2e:prune`.
 
 ## Install path
 
@@ -109,9 +123,11 @@ verifies the bytes Home Assistant actually serves, so the overlay cannot be skip
 E2E_CONTAINER=xvmc-e2e-harness E2E_HA_PORT=8162 COMPOSE_PROJECT_NAME=xvmc-harness \
   npm run test:e2e:fresh
 
-# after a run, tear the instance down
+# keep the instance to inspect it or rerun specs, then stop it
 E2E_CONTAINER=xvmc-e2e-harness E2E_HA_PORT=8162 COMPOSE_PROJECT_NAME=xvmc-harness \
-  npm run test:e2e:fresh -- --down
+  npm run test:e2e:fresh -- --keep
+E2E_CONTAINER=xvmc-e2e-harness E2E_HA_PORT=8162 COMPOSE_PROJECT_NAME=xvmc-harness \
+  npm run e2e:down
 ```
 
 `test:e2e:fresh` also accepts `--no-build` (reuse `dist/`) and Playwright arguments after `--`. It
@@ -127,6 +143,7 @@ node test/e2e/marketplace-install.cjs                         # install from the
 npm run build && node test/e2e/install-local-build.cjs        # put this checkout's build in front
 node test/e2e/fetch-upstream.cjs                              # pinned upstream for the side-by-side spec
 npm run test:e2e
+docker compose -f test/e2e/compose.yaml down --remove-orphans  # unless --keep
 ```
 
 The manual steps below do the same thing and remain useful for a single step; they honour the same
