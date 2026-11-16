@@ -132,6 +132,8 @@ export interface MapSourceConfig {
     readonly image?: string;
     readonly crop?: MapCroppingConfig;
     readonly transparent_background?: boolean;
+    /** False when the map image already names the rooms: the card then draws no room names. */
+    readonly room_labels?: boolean;
 }
 
 export interface CalibrationSourceConfig {

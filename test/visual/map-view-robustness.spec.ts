@@ -543,19 +543,24 @@ test.describe("map appearance", () => {
         // Room detection still finds the rooms on the processed canvas, aligned with the image.
         await expect.poll(() => livingRoomAlignmentError(page)).toBeLessThanOrEqual(1.5);
 
-        // Labels stay readable on any room colour: a light fill with a dark outline.
+        // Labels stay readable on any room colour: the pill draws its own opaque body behind the
+        // name, in the dark theme's colours, with the name at 4.5:1 or better against it.
         const label = await page.evaluate(() => {
             const card = document.querySelector("better-xiaomi-vacuum-map-card") as HTMLElement;
-            const text = card.shadowRoot?.querySelector(".room-1-wrapper text.room-label-text, .room-1-wrapper text");
-            const style = getComputedStyle(text as Element);
-            return { fill: style.fill, stroke: style.stroke };
+            const pill = card.shadowRoot?.querySelector(".room-1-wrapper .room-pill");
+            const style = getComputedStyle(pill as Element);
+            return { colour: style.color, background: style.backgroundColor };
         });
         const luminance = (colour: string): number => {
-            const [r, g, b] = (colour.match(/\d+(\.\d+)?/g) ?? ["0", "0", "0"]).map(Number);
+            const [r, g, b] = (colour.match(/\d+(\.\d+)?/g) ?? ["0", "0", "0"])
+                .slice(0, 3)
+                .map(Number)
+                .map(v => v / 255)
+                .map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
             return 0.2126 * r + 0.7152 * g + 0.0722 * b;
         };
-        expect(luminance(label.fill)).toBeGreaterThan(200);
-        expect(luminance(label.stroke)).toBeLessThan(80);
+        const [light, dark] = [luminance(label.colour), luminance(label.background)].sort((a, b) => b - a);
+        expect((light + 0.05) / (dark + 0.05)).toBeGreaterThanOrEqual(4.5);
     });
 });
 

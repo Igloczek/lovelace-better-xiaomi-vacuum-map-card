@@ -113,7 +113,7 @@ async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<voi
             expect(luminance(pill.background), `${scheme} ${label}: light pill`).toBeGreaterThan(0.7);
         else expect(luminance(pill.background), `${scheme} ${label}: dark pill`).toBeLessThan(0.2);
     }
-    expect(await readPill(target, "1"), "an unselected room keeps its plain label").toBeNull();
+    expect(await readPill(target, "1"), "an unselected room's pill has no badge").toBeNull();
     await shot(page, `17-room-pill-${scheme}`);
 }
 

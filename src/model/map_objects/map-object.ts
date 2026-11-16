@@ -13,6 +13,13 @@ import {
     ZoneType,
 } from "../../types/types";
 import { conditional } from "../../utils";
+import { cssRgb } from "../room-pill-palette";
+
+/** Material Design Icons `check`. */
+const CHECK_PATH = "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
+
+/** What a pill's badge shows: a position in the cleaning order, a checkmark, or no badge at all. */
+export type PillBadge = number | "check" | undefined;
 
 export abstract class MapObject {
     protected readonly _context: Context;
@@ -175,6 +182,94 @@ export abstract class MapObject {
         )}`;
     }
 
+    /**
+     * The card's one label style: a pill with the name, in the theme's colours, the same for rooms,
+     * predefined points and predefined rectangles. A selected object's pill also carries a badge (a
+     * position in the cleaning order or a checkmark); an unselected one is the same pill without it.
+     *
+     * The pill is HTML in a foreignObject so it sizes to its text. The foreignObject covers the map
+     * and half of it again on every side, so its own box always contains the pill: a browser that
+     * repaints only what changed (Chromium, WebKit) repaints that box when the pill goes, where a
+     * small box with the pill overflowing it left the rest of the pill painted over the map after
+     * deselection. It is turned back against the map rotation around `origin` and stepped away by
+     * `offset` on screen, exactly as `renderLabel` places a label, and divided by the zoom, so it stays
+     * upright and the same size on screen; it ignores pointer events, so a tap reaches the object
+     * underneath. Its colours come from the resolved palette (`roomPillPalette`), which keeps every
+     * text pair at 4.5:1 or better.
+     */
+    protected renderPill(
+        origin: PointType,
+        offset: PointType,
+        name: string | undefined,
+        badge: PillBadge,
+        htmlClass = "",
+    ): SVGTemplateResult {
+        if (!name && badge === undefined) return svg``;
+        const palette = this._context.roomPillPalette();
+        const style = [
+            `--room-pill-background: ${cssRgb(palette.background)}`,
+            `--room-pill-text: ${cssRgb(palette.text)}`,
+            `--room-pill-ring: ${cssRgb(palette.ring)}`,
+            `--room-pill-badge: ${cssRgb(palette.badge)}`,
+            `--room-pill-badge-text: ${cssRgb(palette.badgeText)}`,
+            `--room-pill-x: ${origin[0]}px`,
+            `--room-pill-y: ${origin[1]}px`,
+            `--room-pill-offset-x: ${offset[0]}px`,
+            `--room-pill-offset-y: ${offset[1]}px`,
+        ].join("; ");
+        const badgeElement =
+            badge === undefined
+                ? ""
+                : badge === "check"
+                  ? html`<span class="room-pill-badge room-check" aria-label="selected"
+                        ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CHECK_PATH}"></path></svg
+                    ></span>`
+                  : html`<span class="room-pill-badge room-order">${badge}</span>`;
+        const classes = [
+            "room-pill",
+            htmlClass,
+            badge === undefined ? "no-badge" : "",
+            name ? "" : "badge-only",
+            palette.badgeRing ? "badge-ring" : "",
+        ]
+            .filter(Boolean)
+            .join(" ");
+        return svg`
+            <foreignObject class="room-pill-anchor" x="-50%" y="-50%" width="200%" height="200%">
+                <body xmlns="http://www.w3.org/1999/xhtml" class="room-pill-canvas">
+                    ${html`<div class="${classes}" style="${style}">${badgeElement}${name ? html`<span class="room-pill-name">${name}</span>` : ""}</div>`}
+                </body>
+            </foreignObject>
+        `;
+    }
+
+    /**
+     * A configured label drawn as a pill, placed as `renderLabel` places the plain text: around the
+     * icon it belongs to (`anchor`), when there is one, and stepped away by the label's offset on
+     * screen. A label without text draws nothing.
+     */
+    protected renderLabelPill(
+        config: LabelConfig | undefined,
+        htmlClass: string,
+        anchor: IconConfig | undefined,
+        badge: PillBadge,
+    ): SVGTemplateResult {
+        const name = config?.text?.trim();
+        if (!config || !name) return svg``;
+        const point = this.vacuumToScaledMap(config.x, config.y);
+        const origin = anchor ? this.vacuumToScaledMap(anchor.x, anchor.y) : point;
+        return this.renderPill(
+            origin,
+            [
+                point[0] - origin[0] + this.scaled(config.offset_x ?? 0),
+                point[1] - origin[1] + this.scaled(config.offset_y ?? 0),
+            ],
+            name,
+            badge,
+            htmlClass,
+        );
+    }
+
     protected vacuumToMapRect([vacX1, vacY1, vacX2, vacY2]: ZoneType): [RectangleType, RectangleType] {
         const v1 = [vacX1, vacY1];
         const v2 = [vacX2, vacY1];
@@ -216,6 +311,110 @@ export abstract class MapObject {
                 align-items: center;
                 justify-content: center;
                 pointer-events: auto;
+            }
+
+/* The label pill, the card's one label style (see renderPill). The foreignObject spans the map plus half of
+               it on every side, so its box contains the pill and removing the pill repaints all of
+               it; the pill is placed at the label's origin inside it (the body is twice the map, so
+               25% of it is the map's own top-left corner). Transforms apply right to left: centre the
+               pill on its own middle, divide by the zoom, step the label's offset, then turn back
+               against the map rotation around the origin - the same placement as .label-text, so
+               the pill sits exactly where the plain label was, upright and the same size on screen
+               at any zoom and rotation. */
+            .room-pill-anchor {
+                overflow: visible;
+                pointer-events: none;
+            }
+
+            .room-pill-canvas {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                pointer-events: none;
+            }
+
+            .room-pill {
+                --room-pill-font-size: var(--map-card-internal-room-label-font-size);
+                --room-pill-height: calc(var(--room-pill-font-size) * 2);
+                position: absolute;
+                left: calc(25% + var(--room-pill-x, 0px));
+                top: calc(25% + var(--room-pill-y, 0px));
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                width: max-content;
+                height: var(--room-pill-height);
+                padding: 0 10px 0 3px;
+                border-radius: calc(var(--room-pill-height) / 2);
+                background: var(--room-pill-background);
+                color: var(--room-pill-text);
+                /* Set apart from the map by depth, not a hard outline: a hairline from the text
+                   colour, and a soft two-layer shadow. */
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-pill-ring) 18%, transparent);
+                filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.2)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.14));
+                font-size: var(--room-pill-font-size);
+                font-weight: 600;
+                letter-spacing: 0.01em;
+                line-height: 1;
+                white-space: nowrap;
+                pointer-events: none;
+                transform-origin: 0 0;
+                transform: rotate(calc(-1 * var(--map-rotation, 0deg)))
+                    translate(var(--room-pill-offset-x, 0px), var(--room-pill-offset-y, 0px))
+                    scale(calc(1 / var(--map-scale)))
+                    translate(-50%, -50%);
+            }
+
+            .room-pill.badge-only {
+                padding: 0 3px;
+            }
+
+            /* An unselected label: the same pill, without the badge. */
+            .room-pill.no-badge {
+                padding: 0 10px;
+            }
+
+            .room-pill.predefined-point-label {
+                --room-pill-font-size: var(--map-card-internal-predefined-point-label-font-size);
+            }
+
+            .room-pill.predefined-rectangle-label {
+                --room-pill-font-size: var(--map-card-internal-predefined-rectangle-label-font-size);
+            }
+
+            .room-pill-badge {
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex: none;
+                min-width: calc(var(--room-pill-height) - 6px);
+                height: calc(var(--room-pill-height) - 6px);
+                padding: 0 5px;
+                border-radius: calc(var(--room-pill-height) / 2);
+                background: var(--room-pill-badge);
+                color: var(--room-pill-badge-text);
+                font-size: calc(var(--room-pill-font-size) - 1px);
+                font-weight: 700;
+                font-variant-numeric: tabular-nums;
+            }
+
+            /* The checkmark sits in a true circle, the same size as a one-digit number. */
+            .room-pill-badge.room-check {
+                width: calc(var(--room-pill-height) - 6px);
+                padding: 0;
+            }
+
+            .room-pill.badge-ring .room-pill-badge {
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-pill-text) 35%, transparent);
+            }
+
+            .room-pill-badge svg {
+                width: 13px;
+                height: 13px;
+                fill: currentColor;
             }
 
             .label-text {

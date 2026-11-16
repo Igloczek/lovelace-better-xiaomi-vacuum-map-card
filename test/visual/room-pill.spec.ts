@@ -83,20 +83,15 @@ async function select(page: Page, ids: string[]): Promise<void> {
 }
 
 /**
- * The room label's anchor on screen: its `x`/`y` through the SVG's screen transform. The label is
- * drawn centred on that point (and turned around it), so it is where the pill's middle must be.
+ * The middle of an unselected room's badge-less pill on screen. The pill is centred on the label's
+ * point, so selecting the room (which adds the badge and widens the pill) must keep that middle.
  */
 async function labelCentre(page: Page, id: string): Promise<{ x: number; y: number }> {
     return page.locator(CARD).evaluate((card: Element, roomId: string) => {
-        const text = card.shadowRoot!.querySelector(`.room-${roomId}-wrapper text.room-label`) as SVGTextElement | null;
-        const svg = text?.ownerSVGElement;
-        const matrix = svg?.getScreenCTM();
-        if (!text || !svg || !matrix) throw new Error(`room ${roomId} has no label`);
-        const point = svg.createSVGPoint();
-        point.x = parseFloat(text.getAttribute("x") ?? "0");
-        point.y = parseFloat(text.getAttribute("y") ?? "0");
-        const screen = point.matrixTransform(matrix);
-        return { x: screen.x, y: screen.y };
+        const pill = card.shadowRoot!.querySelector(`.room-${roomId}-wrapper .room-pill.no-badge`);
+        if (!pill) throw new Error(`room ${roomId} has no unselected label pill`);
+        const rect = pill.getBoundingClientRect();
+        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
     }, id);
 }
 
@@ -188,8 +183,10 @@ for (const theme of ["light", "dark"] as const) {
                 await expect(page.locator(`${CARD} .room-1-wrapper .room-pill-name`)).toHaveText("Living room");
                 if (zoom === 1)
                     await expect(page.locator(`${CARD} .room-2-wrapper .room-pill .room-order`)).toHaveText("2");
-                await expect(page.locator(`${CARD} .room-1-wrapper text.room-label`)).toHaveCount(0);
-                await expect(page.locator(`${CARD} .room-0-wrapper text.room-label`)).toHaveText("Kitchen");
+                await expect(page.locator(`${CARD} .room-1-wrapper .room-pill.no-badge`)).toHaveCount(0);
+                await expect(page.locator(`${CARD} .room-0-wrapper .room-pill.no-badge .room-pill-name`)).toHaveText(
+                    "Kitchen",
+                );
 
                 const pill = await measurePill(page, "1");
                 expectReadable(pill, label);

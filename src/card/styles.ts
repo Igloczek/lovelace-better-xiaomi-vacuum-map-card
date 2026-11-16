@@ -80,14 +80,6 @@ export const cardStyles = css`
                 --map-card-predefined-point-icon-background-color-selected,
                 var(--map-card-internal-primary-color)
             );
-            --map-card-internal-predefined-point-label-color: var(
-                --map-card-predefined-point-label-color,
-                var(--map-card-internal-secondary-text-color)
-            );
-            --map-card-internal-predefined-point-label-color-selected: var(
-                --map-card-predefined-point-label-color-selected,
-                var(--map-card-internal-primary-text-color)
-            );
             --map-card-internal-predefined-point-label-font-size: var(
                 --map-card-predefined-point-label-font-size,
                 12px
@@ -156,14 +148,6 @@ export const cardStyles = css`
             --map-card-internal-predefined-rectangle-icon-background-color-selected: var(
                 --map-card-predefined-rectangle-icon-background-color-selected,
                 var(--map-card-internal-primary-color)
-            );
-            --map-card-internal-predefined-rectangle-label-color: var(
-                --map-card-predefined-rectangle-label-color,
-                var(--map-card-internal-secondary-text-color)
-            );
-            --map-card-internal-predefined-rectangle-label-color-selected: var(
-                --map-card-predefined-rectangle-label-color-selected,
-                var(--map-card-internal-primary-text-color)
             );
             --map-card-internal-predefined-rectangle-label-font-size: var(
                 --map-card-predefined-rectangle-label-font-size,
@@ -305,21 +289,13 @@ export const cardStyles = css`
                 --map-card-room-icon-background-color-selected,
                 var(--map-card-internal-primary-color)
             );
-            --map-card-internal-room-label-color: var(
-                --map-card-room-label-color,
-                #fff
-            );
-            --map-card-internal-room-label-color-selected: var(
-                --map-card-room-label-color-selected,
-                #fff
-            );
             --map-card-internal-room-label-font-size: var(--map-card-room-label-font-size, 12px);
             --map-card-internal-room-label-outline-color: var(
                 --map-card-room-label-outline-color,
                 rgba(0, 0, 0, 0.95)
             );
             --map-card-internal-room-label-outline-width: var(--map-card-room-label-outline-width, 2px);
-            /* Selected-room pill. Theme-aware defaults: the theme's card background as the body and
+            /* The label pill, every label on the map (rooms, points, rectangles). Theme-aware defaults: the theme's card background as the body and
                its text colour as the name, so the pill is light in a light theme and dark in a dark
                one, like the card it sits on. The card checks every pair it draws text with and
                swaps in black or white text when a theme or override would fall below 4.5:1

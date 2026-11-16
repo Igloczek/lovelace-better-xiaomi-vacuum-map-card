@@ -56,7 +56,7 @@ export class PredefinedPoint extends PredefinedMapObject {
         return svg`
             <g class="predefined-point-wrapper ${this._selected ? "selected" : ""}">
                 ${this.renderIcon(this._iconConfig, () => this._click(), "predefined-point-icon-wrapper")}
-                ${this.renderLabel(this._config.label, "predefined-point-label", this._iconConfig)}
+                ${this.renderLabelPill(this._config.label, "predefined-point-label", this._iconConfig, this._selected ? "check" : undefined)}
             </g>
         `;
     }
@@ -121,24 +121,12 @@ export class PredefinedPoint extends PredefinedMapObject {
                     background var(--map-card-internal-transitions-duration) ease;
             }
 
-            .predefined-point-label {
-                text-anchor: middle;
-                dominant-baseline: middle;
-                pointer-events: none;
-                font-size: calc(var(--map-card-internal-predefined-point-label-font-size) / var(--map-scale));
-                fill: var(--map-card-internal-predefined-point-label-color);
-                transition: color var(--map-card-internal-transitions-duration) ease,
-                    background var(--map-card-internal-transitions-duration) ease;
-            }
 
             .predefined-point-wrapper.selected > * > .predefined-point-icon-wrapper {
                 background: var(--map-card-internal-predefined-point-icon-background-color-selected);
                 color: var(--map-card-internal-predefined-point-icon-color-selected);
             }
 
-            .predefined-point-wrapper.selected > .predefined-point-label {
-                fill: var(--map-card-internal-predefined-point-label-color-selected);
-            }
         `;
     }
 }

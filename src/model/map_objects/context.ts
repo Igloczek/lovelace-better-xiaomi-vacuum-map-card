@@ -41,7 +41,7 @@ export class Context {
          * vacuum does not follow.
          */
         public readonly showRoomOrder: () => boolean = () => true,
-        /** Colours of the selected-room pill, resolved from the theme with readable contrast. */
+        /** Colours of the label pill, resolved from the theme with readable contrast. */
         public readonly roomPillPalette: () => RoomPillPalette = () => DEFAULT_ROOM_PILL_PALETTE,
         /**
          * True when the live camera metadata lists the room id. A room whose id is gone cannot be
@@ -55,6 +55,11 @@ export class Context {
          * is a rotated direction in map coordinates.
          */
         public readonly mapRotation: () => number = () => 0,
+        /**
+         * False when the preset's `map_source.room_labels` is off: the map image already names the
+         * rooms, so the card draws no room names of its own (a selected room keeps its badge).
+         */
+        public readonly showRoomLabels: () => boolean = () => true,
     ) {}
 
     public roundMap([x, y]: PointArrayNotation): PointArrayNotation {

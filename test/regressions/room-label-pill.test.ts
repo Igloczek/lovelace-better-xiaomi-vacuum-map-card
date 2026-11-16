@@ -14,10 +14,10 @@ import {
 } from "../harness";
 
 /**
- * A selected room's label becomes a pill in the style of the Xiaomi Home app: a badge at its left
- * end and the room name. The badge shows the room's place in the order when the mode's
- * `cleaning_order` is on, and a checkmark when it is off. The rooms of a started run use the same
- * pill. Unselected rooms keep their plain label.
+ * Every room label is a pill, in the style of the Xiaomi Home app. A selected room's pill gains a
+ * badge at its left end: the room's place in the order when the mode's `cleaning_order` is on, and
+ * a checkmark when it is off. The rooms of a started run use the same pill. An unselected room
+ * shows the same pill without the badge.
  *
  * The synthetic fixture's camera rooms are Kitchen (0), Living room (1) and Bedroom (2).
  */
@@ -59,11 +59,11 @@ interface PillView {
     name: string;
 }
 
-/** Every pill on the map, keyed by room id. */
+/** Every selected (badged) pill on the map, keyed by room id. */
 function pills(card: CardHandle): Record<string, PillView> {
     const out: Record<string, PillView> = {};
     for (const id of ["0", "1", "2"]) {
-        const pill = wrapper(card, id).querySelector(".room-pill");
+        const pill = wrapper(card, id).querySelector(".room-pill:not(.no-badge)");
         if (!pill) continue;
         const check = pill.querySelector(".room-pill-badge.room-check");
         const number = pill.querySelector(".room-pill-badge.room-order")?.textContent?.trim();
@@ -75,11 +75,12 @@ function pills(card: CardHandle): Record<string, PillView> {
     return out;
 }
 
+/** The name on an unselected room's badge-less pill. */
 function plainLabel(card: CardHandle, id: string): string | undefined {
-    return wrapper(card, id).querySelector("text.room-label")?.textContent?.trim();
+    return wrapper(card, id).querySelector(".room-pill.no-badge .room-pill-name")?.textContent?.trim();
 }
 
-describe("selected-room pill", () => {
+describe("room label pill", () => {
     afterEach(() => window.localStorage.removeItem(ACTIVE_ROOM_RUN_STORE_KEY));
 
     it("numbers the pill in click order when the cleaning order is on", async () => {
@@ -90,10 +91,11 @@ describe("selected-room pill", () => {
             "2": { badge: "1", name: "Bedroom" },
             "0": { badge: "2", name: "Kitchen" },
         });
-        // The pill replaces the plain label of a selected room; the others keep theirs.
+        // A selected room's pill gains the badge; the others keep the same pill without one.
         expect(plainLabel(card, "2")).toBeUndefined();
         expect(plainLabel(card, "1")).toBe("Living room");
-        // The old badge drawn above the label is gone.
+        // There is one label style: no plain SVG text label, and no badge drawn above a label.
+        expect(card.shadowRoot.querySelectorAll("text.room-label")).toHaveLength(0);
         expect(card.shadowRoot.querySelectorAll("text.room-order")).toHaveLength(0);
     });
 
@@ -140,7 +142,7 @@ describe("selected-room pill", () => {
         }
     });
 
-    it("shows the icon while unselected and the pill instead once selected", async () => {
+    it("shows the icon and a badge-less pill while unselected, the badged pill instead once selected", async () => {
         const card = await mount({
             cleaning_order: true,
             predefined_selections: [
@@ -171,6 +173,7 @@ describe("selected-room pill", () => {
         const icon = (id: string): Element | null => wrapper(card, id).querySelector(".room-icon-wrapper ha-icon");
         expect(icon("1")).not.toBeNull();
         expect(pills(card)).toEqual({});
+        expect(plainLabel(card, "1")).toBe("Living room");
 
         await clickRoom(card, "1");
         expect(icon("1")).toBeNull();
@@ -178,7 +181,7 @@ describe("selected-room pill", () => {
         expect(icon("0")).not.toBeNull();
     });
 
-    it("sits exactly where the plain label is: same origin, same offset, centred, no pointer", async () => {
+    it("stays where it is when selected: same origin, same offset, centred, no pointer", async () => {
         // Kitchen has an icon with a label offset below it, so the label turns around the icon and
         // steps its offset on screen; Living room has a label of its own.
         const card = await mount({
@@ -208,15 +211,17 @@ describe("selected-room pill", () => {
             ],
         } as Partial<MapModeConfig>);
         const labelPlacement = (id: string): string[] => {
-            const text = wrapper(card, id).querySelector("text.room-label") as SVGTextElement;
+            const pill = wrapper(card, id).querySelector(".room-pill") as HTMLElement;
             return [
-                text.getAttribute("x")!,
-                text.getAttribute("y")!,
-                text.style.getPropertyValue("--label-offset-x"),
-                text.style.getPropertyValue("--label-offset-y"),
+                pill.style.getPropertyValue("--room-pill-x"),
+                pill.style.getPropertyValue("--room-pill-y"),
+                pill.style.getPropertyValue("--room-pill-offset-x"),
+                pill.style.getPropertyValue("--room-pill-offset-y"),
             ];
         };
         const before = { "0": labelPlacement("0"), "1": labelPlacement("1") };
+        // Kitchen turns around its icon and steps its offset below it on screen.
+        expect(before["0"]).toEqual(["50px", "45px", "0px", "35px"]);
 
         await clickRoom(card, "0");
         await clickRoom(card, "1");
@@ -252,8 +257,12 @@ describe("selected-room pill", () => {
             box.getAttribute("width"),
             box.getAttribute("height"),
         ]).toEqual(["-50%", "-50%", "200%", "200%"]);
+        // Deselected, the room keeps its pill, without the badge, in the same box.
         await clickRoom(card, "1");
-        expect(wrapper(card, "1").querySelector("foreignObject.room-pill-anchor")).toBeNull();
+        const after = wrapper(card, "1").querySelectorAll("foreignObject.room-pill-anchor");
+        expect(after).toHaveLength(1);
+        expect(after[0].getAttribute("width")).toBe("200%");
+        expect(after[0].querySelector(".room-pill-badge")).toBeNull();
     });
 
     it("shows the badge alone for a room without a label", async () => {
@@ -288,9 +297,10 @@ describe("selected-room pill", () => {
         expect(pill?.querySelector(".room-pill-name")).toBeNull();
     });
 
-    it("never draws a pill on a stale room, so it cannot cover the stale marker", async () => {
+    it("never badges a stale room, and paints its marker over its name pill", async () => {
         // Room 5 is configured but missing from the camera metadata (stale). A stored run that
-        // still names it must not give it a pill: its `!` marker sits where the pill would.
+        // still names it must not badge it: it is not part of the run. Its name keeps the plain
+        // pill, and the `!` marker is drawn after it, so it is never covered.
         const run = { entity: VACUUM, roomIds: ["5", "0"], startedAt: Date.now(), seenActive: true };
         useHarnessClock();
         window.localStorage.setItem(
@@ -318,8 +328,14 @@ describe("selected-room pill", () => {
         await card.fireMapLoad();
         const stale = card.shadowRoot.querySelector(".room-5-wrapper");
         expect(stale?.classList.contains("room-stale")).toBe(true);
-        expect(stale?.querySelector(".room-pill")).toBeNull();
-        expect(stale?.querySelector("text.room-stale-marker")?.textContent?.trim()).toBe("!");
+        expect(stale?.querySelector(".room-pill-badge")).toBeNull();
+        expect(stale?.querySelector(".room-pill.no-badge .room-pill-name")?.textContent?.trim()).toBe("Old room");
+        const children = [...stale!.children];
+        const marker = stale!.querySelector("text.room-stale-marker")!;
+        expect(marker.textContent?.trim()).toBe("!");
+        expect(children.indexOf(marker)).toBeGreaterThan(
+            children.indexOf(stale!.querySelector("foreignObject.room-pill-anchor")!),
+        );
         expect(pills(card)).toEqual({ "0": { badge: "2", name: "Kitchen" } });
     });
 

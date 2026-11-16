@@ -21,8 +21,6 @@
 --map-card-predefined-point-icon-color-selected
 --map-card-predefined-point-icon-background-color
 --map-card-predefined-point-icon-background-color-selected
---map-card-predefined-point-label-color
---map-card-predefined-point-label-color-selected
 --map-card-predefined-point-label-font-size
 --map-card-manual-point-radius
 --map-card-manual-point-line-color
@@ -47,8 +45,6 @@
 --map-card-predefined-rectangle-icon-color-selected
 --map-card-predefined-rectangle-icon-background-color
 --map-card-predefined-rectangle-icon-background-color-selected
---map-card-predefined-rectangle-label-color
---map-card-predefined-rectangle-label-color-selected
 --map-card-predefined-rectangle-label-font-size
 --map-card-manual-rectangle-line-width
 --map-card-manual-rectangle-line-color
@@ -90,8 +86,6 @@
 --map-card-room-icon-color-selected
 --map-card-room-icon-background-color
 --map-card-room-icon-background-color-selected
---map-card-room-label-color
---map-card-room-label-color-selected
 --map-card-room-label-font-size
 --map-card-room-label-outline-color
 --map-card-room-label-outline-width
@@ -104,12 +98,14 @@
 --map-card-transitions-duration
 ```
 
-Room labels default to white text with a dark outline for contrast across map colors. Use the room label color and outline variables above to customize them.
+Every map label is a pill coloured by the `--map-card-room-pill-*` variables; the
+`*-label-font-size` variables set the size of each kind of label. The room label outline variables
+now only outline the `!` marker of a stale room.
 
 The map viewport (`--map-card-zoomer-background`) is transparent by default, so a map with
 transparent or near-white areas blends into the card's own background. Set the variable to a color
 when you want a visible frame around the map instead.
 
-The `--map-card-room-pill-*` variables colour the label of a selected room; see
-[Selected room label](configuration.md#selected-room-label). The card keeps their text readable
+The `--map-card-room-pill-*` variables colour every label on the map; see
+[Map labels](configuration.md#selected-room-label). The card keeps their text readable
 whatever they are set to.

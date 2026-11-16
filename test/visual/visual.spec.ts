@@ -339,11 +339,11 @@ test("room hit-testing selects the clicked room at zoom 1", async ({ page }) => 
 
     // The selected room's label becomes its pill (room-pill.spec.ts covers its geometry, contrast
     // and both themes). This mode numbers rooms (`cleaning_order: true`), so the badge carries the
-    // room's place in the order; the unselected rooms keep their plain label and no pill.
+    // room's place in the order; the unselected rooms keep the same pill without a badge.
     await expect(page.locator(`${CARD} .room-1-wrapper .room-pill .room-order`)).toHaveText("1");
     await expect(page.locator(`${CARD} .room-1-wrapper .room-pill-name`)).toHaveText("Living room");
-    await expect(page.locator(`${CARD} .room-0-wrapper .room-pill`)).toHaveCount(0);
-    await expect(page.locator(`${CARD} .room-0-wrapper text.room-label`)).toHaveText("Kitchen");
+    await expect(page.locator(`${CARD} .room-0-wrapper .room-pill-badge`)).toHaveCount(0);
+    await expect(page.locator(`${CARD} .room-0-wrapper .room-pill.no-badge .room-pill-name`)).toHaveText("Kitchen");
     await expect(page.locator(`${CARD} .room-order`)).toHaveCount(1);
 
     await expect(page.locator(CARD)).toHaveScreenshot("room-hit-test.png");
