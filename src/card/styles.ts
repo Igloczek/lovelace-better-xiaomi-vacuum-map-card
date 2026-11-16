@@ -162,43 +162,35 @@ export const cardStyles = css`
                 --map-card-predefined-rectangle-label-font-size,
                 12px
             );
-            --map-card-internal-manual-rectangle-line-width: var(--map-card-manual-rectangle-line-width, 1px);
-            --map-card-internal-manual-rectangle-line-color: var(--map-card-manual-rectangle-line-color, white);
+            --map-card-internal-manual-rectangle-line-width: var(--map-card-manual-rectangle-line-width, 2px);
+            --map-card-internal-manual-rectangle-line-color: var(
+                --map-card-manual-rectangle-line-color,
+                var(--map-card-internal-primary-color)
+            );
             --map-card-internal-manual-rectangle-fill-color: var(
                 --map-card-manual-rectangle-fill-color,
-                rgba(255, 255, 255, 0.2)
+                color-mix(in srgb, var(--map-card-internal-primary-color) 25%, transparent)
             );
             --map-card-internal-manual-rectangle-line-color-selected: var(
                 --map-card-manual-rectangle-line-color-selected,
-                white
+                var(--map-card-internal-primary-color)
             );
             --map-card-internal-manual-rectangle-fill-color-selected: var(
                 --map-card-manual-rectangle-fill-color-selected,
-                transparent
+                color-mix(in srgb, var(--map-card-internal-primary-color) 40%, transparent)
             );
+            --map-card-internal-manual-rectangle-halo-color: var(
+                --map-card-manual-rectangle-halo-color,
+                var(--ha-card-background, var(--card-background-color, white))
+            );
+            --map-card-internal-manual-rectangle-halo-width: var(--map-card-manual-rectangle-halo-width, 1.5px);
             --map-card-internal-manual-rectangle-line-segment-line: var(
                 --map-card-manual-rectangle-line-segment-line,
                 10px
             );
             --map-card-internal-manual-rectangle-line-segment-gap: var(
                 --map-card-manual-rectangle-line-segment-gap,
-                5px
-            );
-            --map-card-internal-manual-rectangle-description-color: var(
-                --map-card-manual-rectangle-description-color,
-                white
-            );
-            --map-card-internal-manual-rectangle-description-font-size: var(
-                --map-card-manual-rectangle-description-font-size,
-                12px
-            );
-            --map-card-internal-manual-rectangle-description-offset-x: var(
-                --map-card-manual-rectangle-description-offset-x,
-                2px
-            );
-            --map-card-internal-manual-rectangle-description-offset-y: var(
-                --map-card-manual-rectangle-description-offset-y,
-                -8px
+                0px
             );
             --map-card-internal-manual-rectangle-delete-circle-radius: var(
                 --map-card-manual-rectangle-delete-circle-radius,

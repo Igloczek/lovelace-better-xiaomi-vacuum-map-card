@@ -88,7 +88,9 @@ describe("rotatable zones", () => {
             .flat()
             .map(v => Math.round(v));
         expect(turned).toEqual(expected);
-        expect(card.shadowRoot.querySelector(".manual-rectangle-description text")?.textContent).toMatch(/30°/);
+        expect(card.shadowRoot.querySelector(".manual-rectangle-description .room-pill-name")?.textContent).toMatch(
+            /30°/,
+        );
     });
 
     it("keeps the plain rectangle a four-number box without a rotate handle", async () => {

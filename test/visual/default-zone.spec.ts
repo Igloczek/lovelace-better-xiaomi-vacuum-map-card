@@ -106,6 +106,28 @@ for (const selectionType of ["MANUAL_RECTANGLE", "MANUAL_ROTATABLE_RECTANGLE"]) 
             const inside = { x: zoneBox.x + zoneBox.width * 0.3, y: zoneBox.y + zoneBox.height * 0.7 };
             expect(await zonePaintsAt(page, inside), "the default zone is painted").toBe(true);
 
+            // The label pill is painted where it is laid out (WebKit paints foreignObject HTML away
+            // from its box when it is misplaced), and the outline shows over white floor.
+            const pill = page.locator(CARD).locator(".manual-rectangle-description .room-pill").first();
+            const pillBox = (await pill.boundingBox())!;
+            const pillCentre = { x: pillBox.x + pillBox.width / 2, y: pillBox.y + pillBox.height / 2 };
+            const pillShown = await page.screenshot({
+                clip: { x: pillBox.x, y: pillBox.y, width: pillBox.width, height: pillBox.height },
+            });
+            await page.locator(CARD).evaluate((card: Element) => {
+                (card.shadowRoot!.querySelector(".manual-rectangle-description") as SVGElement).style.visibility =
+                    "hidden";
+            });
+            const pillHidden = await page.screenshot({
+                clip: { x: pillBox.x, y: pillBox.y, width: pillBox.width, height: pillBox.height },
+            });
+            await page.locator(CARD).evaluate((card: Element) => {
+                (card.shadowRoot!.querySelector(".manual-rectangle-description") as SVGElement).style.visibility = "";
+            });
+            expect(pillShown.equals(pillHidden), "the label pill is painted").toBe(false);
+            expect(pillCentre.x).toBeGreaterThan(zoneBox.x);
+            expect(pillCentre.x).toBeLessThan(zoneBox.x + zoneBox.width);
+
             // Real mouse input moves it and resizes it.
             const [start] = await zones(page);
             await drag(page, inside, 30, 20);

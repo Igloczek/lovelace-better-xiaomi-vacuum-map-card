@@ -58,10 +58,8 @@
 --map-card-manual-rectangle-fill-color-selected
 --map-card-manual-rectangle-line-segment-line
 --map-card-manual-rectangle-line-segment-gap
---map-card-manual-rectangle-description-color
---map-card-manual-rectangle-description-font-size
---map-card-manual-rectangle-description-offset-x
---map-card-manual-rectangle-description-offset-y
+--map-card-manual-rectangle-halo-color
+--map-card-manual-rectangle-halo-width
 --map-card-manual-rectangle-delete-circle-radius
 --map-card-manual-rectangle-delete-circle-line-color
 --map-card-manual-rectangle-delete-circle-fill-color
@@ -104,6 +102,11 @@
 --map-card-toast-unsuccessful-icon-color
 --map-card-transitions-duration
 ```
+
+A drawn zone is outlined and tinted in the theme's primary colour, over a halo in the card's background
+colour (`--map-card-manual-rectangle-halo-*`) so it reads on white floor and on coloured rooms alike. Its
+label is the same pill as the room names: the zone's number in the badge, its size as the text. Set
+`--map-card-manual-rectangle-line-segment-gap` above `0px` for a dashed outline.
 
 The run button turns `--map-card-run-success-color` (default: the theme's `--success-color`) with a
 check when Home Assistant accepts a run, and `--map-card-run-failure-color` (default: the theme's

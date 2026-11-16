@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { PNG } from "pngjs";
 
 import type { MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 
@@ -110,35 +111,39 @@ async function roomAt(page: Page, point: [number, number], rotation: number): Pr
     return ids;
 }
 
+interface Clip {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 /** The solid middle of every pill on screen (rounded ends and shadow left out), by room. */
-function pillBands(
-    page: Page,
-): Promise<Array<{ id: string; clip: { x: number; y: number; width: number; height: number } }>> {
+function pillBands(page: Page): Promise<Array<{ id: string; clip: Clip }>> {
     return page.locator(CARD).evaluate((card: Element) => {
         const zoomer = card.shadowRoot!.getElementById("map-zoomer")!.getBoundingClientRect();
-        return Array.from(card.shadowRoot!.querySelectorAll(".room-label-layer"))
-            .map(layer => {
-                const pill = layer.querySelector(".room-pill");
-                if (!pill) return undefined;
-                const r = pill.getBoundingClientRect();
-                const id = /room-(\w+)-wrapper/.exec(layer.getAttribute("class") ?? "")?.[1] ?? "?";
-                const clip = {
-                    x: Math.ceil(r.x + r.height / 2),
-                    y: Math.ceil(r.y + r.height * 0.3),
-                    width: Math.floor(r.width - r.height),
-                    height: Math.floor(r.height * 0.4),
-                };
-                const inside =
-                    clip.width > 2 &&
-                    clip.x >= zoomer.left &&
-                    clip.y >= zoomer.top &&
-                    clip.x + clip.width <= zoomer.right &&
-                    clip.y + clip.height <= zoomer.bottom;
-                return inside ? { id, clip } : undefined;
-            })
-            .filter(
-                (band): band is { id: string; clip: { x: number; y: number; width: number; height: number } } => !!band,
-            );
+        const out: Array<{ id: string; clip: Clip }> = [];
+        // By the pill and the room class around it, not by the group layout: the check must mean the
+        // same thing whichever way the card groups its overlays.
+        card.shadowRoot!.querySelectorAll(".room-pill").forEach(pill => {
+            const owner = pill.closest("[class*='-wrapper']");
+            const r = pill.getBoundingClientRect();
+            const id = /room-(\w+)-wrapper/.exec(owner?.getAttribute("class") ?? "")?.[1] ?? "?";
+            const clip = {
+                x: Math.ceil(r.x + r.height / 2),
+                y: Math.ceil(r.y + r.height * 0.3),
+                width: Math.floor(r.width - r.height),
+                height: Math.floor(r.height * 0.4),
+            };
+            const inside =
+                clip.width > 2 &&
+                clip.x >= zoomer.left &&
+                clip.y >= zoomer.top &&
+                clip.x + clip.width <= zoomer.right &&
+                clip.y + clip.height <= zoomer.bottom;
+            if (inside) out.push({ id, clip });
+        });
+        return out;
     });
 }
 
@@ -152,20 +157,57 @@ const setHidden = (page: Page, selector: string, hidden: boolean): Promise<void>
         { selector, hidden },
     );
 
-/** No room outline paints over any pill, and every pill paints where it is laid out. */
+/** Every room outline solid magenta, a colour nothing else on the map or in a label uses. */
+const setOutlinesMarked = (page: Page, marked: boolean): Promise<void> =>
+    page.locator(CARD).evaluate((card: Element, value: boolean) => {
+        const root = card.shadowRoot!;
+        root.getElementById("outline-marked")?.remove();
+        if (!value) return;
+        const style = document.createElement("style");
+        style.id = "outline-marked";
+        style.textContent = `.room-outline { stroke: rgb(255, 0, 255) !important; stroke-dasharray: none !important;
+            stroke-width: calc(3px / var(--map-scale)) !important; transition: none !important; }`;
+        root.appendChild(style);
+    }, marked);
+
+/** Pixels in a screenshot that are the marked outline's magenta (or a blend that is mostly it). */
+function magentaPixels(png: Buffer): number {
+    const image = PNG.sync.read(png);
+    let count = 0;
+    for (let i = 0; i < image.data.length; i += 4) {
+        const [r, g, b] = [image.data[i], image.data[i + 1], image.data[i + 2]];
+        if (r > 180 && b > 180 && g < 110) count++;
+    }
+    return count;
+}
+
+/**
+ * No room outline is painted over any pill, and every pill paints where it is laid out.
+ *
+ * The outlines are drawn solid magenta for the check, so a border crossing a label shows as magenta
+ * pixels inside the label's box. Nothing is toggled between two screenshots: text and antialiased
+ * edges can land a subpixel apart from one paint to the next, which made a before/after comparison
+ * flaky. The map itself must show magenta, or the check would be vacuous.
+ */
 async function expectPillsOnTop(page: Page, label: string): Promise<number> {
     const bands = await pillBands(page);
     expect(bands.length, `${label}: pills on screen`).toBeGreaterThan(0);
+    await setOutlinesMarked(page, true);
+    try {
+        const zoomer = (await page.locator(CARD).locator("#map-zoomer").boundingBox())!;
+        expect(magentaPixels(await page.screenshot({ clip: zoomer })), `${label}: outlines drawn`).toBeGreaterThan(100);
+        for (const { id, clip } of bands) {
+            const pixels = magentaPixels(await page.screenshot({ clip, animations: "disabled" }));
+            expect(pixels, `${label}: no room border is painted over room ${id}'s label`).toBe(0);
+        }
+    } finally {
+        await setOutlinesMarked(page, false);
+    }
     for (const { id, clip } of bands) {
         const shown = await page.screenshot({ clip, animations: "disabled" });
-        await setHidden(page, ".room-wrapper", true);
-        const withoutOutlines = await page.screenshot({ clip, animations: "disabled" });
-        await setHidden(page, ".room-wrapper", false);
-        expect(shown.equals(withoutOutlines), `${label}: no outline paints over room ${id}'s label`).toBe(true);
-
-        await setHidden(page, `.room-label-layer.room-${id}-wrapper .room-pill-anchor`, true);
+        await setHidden(page, `.room-${id}-wrapper .room-pill-anchor`, true);
         const withoutPill = await page.screenshot({ clip, animations: "disabled" });
-        await setHidden(page, `.room-label-layer.room-${id}-wrapper .room-pill-anchor`, false);
+        await setHidden(page, `.room-${id}-wrapper .room-pill-anchor`, false);
         expect(shown.equals(withoutPill), `${label}: room ${id}'s label is painted where it is laid out`).toBe(false);
     }
     return bands.length;
