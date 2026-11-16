@@ -7,7 +7,7 @@ import {
     contractCases,
     ENTITY_ID,
     isExpectedToPass,
-    USER_CONFIGURED,
+    isUserConfigured,
 } from "../../contract/service-contracts";
 import { evaluateJinjaTemplate } from "../../../src/utils";
 import type { HomeAssistantFixed } from "../../../src/types/fixes";
@@ -33,7 +33,7 @@ test.beforeAll(async () => {
 
 test.afterAll(() => hass?.close());
 
-const cases = contractCases().filter(c => !USER_CONFIGURED[c.platform] && isExpectedToPass(c));
+const cases = contractCases().filter(c => !isUserConfigured(c) && isExpectedToPass(c));
 
 test("every templated mode renders in Home Assistant and matches its integration's schema", async () => {
     const templated = cases.filter(c => c.templated);
@@ -41,10 +41,12 @@ test("every templated mode renders in Home Assistant and matches its integration
     const failures: string[] = [];
     for (const testCase of templated) {
         try {
-            const call = await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed);
-            const errors = checkContract(testCase, call);
+            const calls = await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed);
+            const errors = checkContract(testCase, calls);
             if (errors.length)
-                failures.push(`${testCase.name}: ${errors.join("; ")} ${JSON.stringify(call.serviceData)}`);
+                failures.push(
+                    `${testCase.name}: ${errors.join("; ")} ${JSON.stringify(calls.map(call => call.serviceData))}`,
+                );
         } catch (e) {
             failures.push(`${testCase.name}: ${(e as Error).message}`);
         }
@@ -55,8 +57,8 @@ test("every templated mode renders in Home Assistant and matches its integration
 test("every plain mode matches its integration's schema", async () => {
     const failures: string[] = [];
     for (const testCase of cases.filter(c => !c.templated)) {
-        const call = await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed);
-        const errors = checkContract(testCase, call);
+        const calls = await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed);
+        const errors = checkContract(testCase, calls);
         if (errors.length) failures.push(`${testCase.name}: ${errors.join("; ")}`);
     }
     expect(failures).toEqual([]);
@@ -67,7 +69,7 @@ test("Home Assistant accepts the setup platforms' notifications", async () => {
     expect(setupCases.length).toBe(6);
     const failures: string[] = [];
     for (const testCase of setupCases) {
-        const call = await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed);
+        const [call] = await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed);
         try {
             await hass.callService(call.domain, call.service, call.serviceData, call.target);
         } catch (e) {
@@ -78,16 +80,21 @@ test("Home Assistant accepts the setup platforms' notifications", async () => {
 });
 
 test("Home Assistant's vacuum.send_command schema accepts every send_command template", async () => {
-    const sendCommandCases = cases.filter(c => c.contract?.service === "vacuum.send_command");
+    const steps = (c: (typeof cases)[number]) =>
+        Array.isArray(c.contract) ? c.contract : c.contract ? [c.contract] : [];
+    const sendCommandCases = cases.filter(c => steps(c).some(step => step.service === "vacuum.send_command"));
     expect(sendCommandCases.length).toBeGreaterThan(0);
     const failures: string[] = [];
     for (const testCase of sendCommandCases) {
-        const call = await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed);
-        const data = { ...(call.serviceData ?? {}), entity_id: DEMO_VACUUM };
-        try {
-            await hass.callService(call.domain, call.service, data);
-        } catch (e) {
-            failures.push(`${testCase.name}: ${JSON.stringify(e)}`);
+        // Every call of a sequence, in order: each one has to pass Home Assistant's own schema.
+        for (const call of await buildServiceCall(testCase, hass as unknown as HomeAssistantFixed)) {
+            if (`${call.domain}.${call.service}` !== "vacuum.send_command") continue;
+            const data = { ...(call.serviceData ?? {}), entity_id: DEMO_VACUUM };
+            try {
+                await hass.callService(call.domain, call.service, data);
+            } catch (e) {
+                failures.push(`${testCase.name}: ${JSON.stringify(e)}`);
+            }
         }
     }
     expect(failures).toEqual([]);

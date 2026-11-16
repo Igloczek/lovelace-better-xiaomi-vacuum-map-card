@@ -40,8 +40,6 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 - **Templated predefined selections.** Dynamic selections currently come from an entity's state or
   attribute. Supporting Jinja templates would be a large change and needs a concrete use case that
   entity-backed selections cannot serve.
-- **Rotated zone rectangles.** Zone APIs are axis-aligned; supporting arbitrary quadrilaterals
-  needs evidence that a target platform accepts four points.
 - **Valetudo JSON map source and icons.** Large and platform-specific; needs a Valetudo instance or
   a captured fixture before it can be tested.
 - **Ecovacs SVG viewbox handling.** Needs an Ecovacs SVG camera fixture.
@@ -53,7 +51,6 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 |---|---|---|
 | Roborock status/battery tiles | The templates need the integration's real registry entries | A scrubbed Roborock-core registry dump and a status string sample are available ([#53](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/53)) |
 | Templated predefined selections | No concrete use case and a large Jinja subscription change | A report that entity-backed selections cannot serve ([#48](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/48)) |
-| Rotated zone rectangles | No platform documented to accept arbitrary points | Vendor documentation or a working service call ([#49](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/49)) |
 | Valetudo JSON map / icons | No Valetudo instance to verify | A captured map fixture or a Valetudo instance ([#50](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/50)) |
 | Ecovacs SVG viewbox | No Ecovacs fixture | An Ecovacs SVG camera capture ([#51](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/51)) |
 | Delayed start | A script or automation is the better place | A product reason that belongs in the card |

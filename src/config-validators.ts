@@ -334,6 +334,7 @@ function validateMapModeConfig(
             parsed.predefinedSelections.flatMap(ps => validatePredefinedPointConfig(ps)).forEach(e => errors.push(e));
             break;
         case SelectionType.MANUAL_RECTANGLE:
+        case SelectionType.MANUAL_ROTATABLE_RECTANGLE:
         case SelectionType.MANUAL_PATH:
         case SelectionType.MANUAL_POINT:
             if ((parsed.predefinedSelections?.length ?? 0) > 0) {
@@ -344,7 +345,14 @@ function validateMapModeConfig(
                 ]);
             }
     }
-    if (config.service_call_schema)
+    if (Array.isArray(config.service_call_schema)) {
+        // A list is a sequence of calls sent in order; each entry is a complete schema.
+        if (config.service_call_schema.length === 0)
+            errors.push("validation.preset.map_modes.service_call_schema.missing");
+        config.service_call_schema
+            .flatMap((step, i) => validateServiceCallSchemaConfig(step, `service_call_schema[${i}]`))
+            .forEach(e => errors.push(e));
+    } else if (config.service_call_schema)
         validateServiceCallSchemaConfig(config.service_call_schema).forEach(e => errors.push(e));
     return errors;
 }

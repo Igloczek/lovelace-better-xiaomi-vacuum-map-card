@@ -168,6 +168,38 @@ const sendCommand = (command: string, params: Validator): Validator =>
     entityService({ command: literal(command) }, { params });
 
 const zone4 = (coord: Validator): Validator => exactSequence(coord, coord, coord, coord);
+
+/**
+ * A Viomi `set_zone`: `[count, "0_0_x1_y1_x2_y2_x3_y3_x4_y4", ...]`, the count matching the entries
+ * and each entry numbered from 0. tykarol/home-assistant-viomi-vacuum-v8 vacuum.py `async_clean_area`
+ * (L497-512, commit 0a59cff) and Valetudo's ViomiZoneCleaningCapability build the same strings.
+ */
+const viomiSetZone: Validator = (v, p) => {
+    if (!Array.isArray(v) || v.length < 2) return fail(p, "expected [count, zone, ...]", v);
+    const [count, ...zones] = v;
+    if (count !== zones.length) return fail(p, `count must be the number of zones (${zones.length})`, v);
+    const number = "-?\\d+(\\.\\d+)?";
+    return zones.flatMap((zone, i) =>
+        typeof zone === "string" && new RegExp(`^${i}_0_(${number}_){7}${number}$`).test(zone)
+            ? ok
+            : fail(`${p}[${i + 1}]`, `expected "${i}_0_" and eight numbers joined by "_"`, zone),
+    );
+};
+
+/** The three raw commands a Viomi zone clean takes, sent through `vacuum.send_command`. */
+const VIOMI_ROTATABLE_ZONE: ServiceContract[] = [
+    { service: "vacuum.send_command", data: sendCommand("set_uploadmap", exactSequence(literal(1))), source: "" },
+    { service: "vacuum.send_command", data: sendCommand("set_zone", viomiSetZone), source: "" },
+    {
+        service: "vacuum.send_command",
+        data: sendCommand("set_mode", exactSequence(literal(3), literal(1))),
+        source: "",
+    },
+].map(step => ({
+    ...step,
+    source: "python-miio raw command via the integration's send_command; robot protocol from tykarol vacuum.py L480-512 and Valetudo ViomiZoneCleaningCapability, verified on a Viomi V8 (viomi.vacuum.v8) through al-one/hass-xiaomi-miot",
+}));
+const area8 = (coord: Validator): Validator => exactSequence(coord, coord, coord, coord, coord, coord, coord, coord);
 const point2 = (coord: Validator): Validator => exactSequence(coord, coord);
 
 // ---------------------------------------------------------------------------------------------
@@ -207,7 +239,10 @@ const PERSISTENT = "home-assistant/core persistent_notification/services.py L70-
 const mqttPublish = (payload: Validator): Validator =>
     object({ required: { topic: cvString, payload }, optional: { qos: coerceInt, retain: cvBoolean } });
 
-export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
+export const CONTRACTS: Record<string, Record<string, ServiceContract | ServiceContract[]>> = {
+    "al-one/hass-xiaomi-miot": {
+        vacuum_clean_zone_rotatable: VIOMI_ROTATABLE_ZONE,
+    },
     "Xiaomi Miio": {
         vacuum_clean_segment: {
             service: "xiaomi_miio.vacuum_clean_segment",
@@ -364,6 +399,7 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
         },
     },
     "KrzysztofHajdamowicz/miio2": {
+        vacuum_clean_zone_rotatable: VIOMI_ROTATABLE_ZONE,
         vacuum_clean_segment: {
             service: "vacuum.vacuum_clean_segment",
             data: plainService({ segments: anyOf(coerceInt, listOf(coerceInt, { min: 1 })) }),
@@ -402,6 +438,11 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
             data: plainService({ zone: listOf(zone4(coerceFloat), { min: 1 }), repeats: clampedInt }),
             source: VIOMI_V8,
         },
+        vacuum_clean_zone_rotatable: {
+            service: "viomi_vacuum_v8.clean_area",
+            data: plainService({ area: listOf(area8(coerceFloat), { min: 1 }), repeats: clampedInt }),
+            source: VIOMI_V8,
+        },
         vacuum_clean_zone_predefined: {
             service: "viomi_vacuum_v8.clean_zone",
             data: plainService({ zone: listOf(zone4(coerceFloat), { min: 1 }), repeats: clampedInt }),
@@ -419,6 +460,7 @@ export const CONTRACTS: Record<string, Record<string, ServiceContract>> = {
         },
     },
     "marotoweb/viomise": {
+        vacuum_clean_zone_rotatable: VIOMI_ROTATABLE_ZONE,
         vacuum_clean_zone: {
             service: "vacuum.xiaomi_clean_zone",
             data: plainService({ zone: listOf(zone4(coerceFloat), { min: 1 }) }, { repeats: clampedInt }),
@@ -857,7 +899,8 @@ export interface ContractCase {
     selection: unknown[];
     repeats: number;
     variables: VariablesStorage;
-    contract: ServiceContract | undefined;
+    /** One contract per service call; a list for a mode that sends a sequence. */
+    contract: ServiceContract | ServiceContract[] | undefined;
     templated: boolean;
     name: string;
 }
@@ -865,6 +908,11 @@ export interface ContractCase {
 const ZONES = [
     [25500, 25500, 26500, 26500],
     [27000, 25000, 28500, 26000],
+];
+/** Two zones as `MANUAL_ROTATABLE_RECTANGLE` sends them: four corners each, the second turned 45°. */
+const AREAS = [
+    [25500, 26500, 25500, 25500, 26500, 25500, 26500, 26500],
+    [27750, 26560, 26690, 25500, 27750, 24440, 28810, 25500],
 ];
 const POINT = [25500, 25000];
 const PATH = [
@@ -896,6 +944,8 @@ function selectionFor(mode: MapMode, ids: IdVariant | undefined, repeats: number
         case SelectionType.MANUAL_RECTANGLE:
         case SelectionType.PREDEFINED_RECTANGLE:
             return mode.repeatSelection(ZONES.slice(0, Math.min(2, mode.maxSelections)).map(withRepeats), repeats);
+        case SelectionType.MANUAL_ROTATABLE_RECTANGLE:
+            return mode.repeatSelection(AREAS.slice(0, Math.min(2, mode.maxSelections)).map(withRepeats), repeats);
         case SelectionType.MANUAL_POINT:
         case SelectionType.PREDEFINED_POINT:
             return mode.repeatSelection(withRepeats(POINT), repeats);
@@ -943,7 +993,7 @@ export function contractCases(): ContractCase[] {
                             repeats,
                             variables: variablesFor(platform, mode, roomCount),
                             contract,
-                            templated: mode.getServiceCallSchema(haVersion).evaluateDataAsTemplate,
+                            templated: mode.getServiceCallSchema(haVersion).anyEvaluatedAsTemplate,
                             name: [
                                 platform,
                                 template,
@@ -973,18 +1023,42 @@ export function isExpectedToPass(testCase: ContractCase): boolean {
     return testCase.idType === own;
 }
 
-export async function buildServiceCall(testCase: ContractCase, hass: HomeAssistantFixed): Promise<ServiceCall> {
+/**
+ * Whether a case is left to the user's own configuration (a platform in `USER_CONFIGURED`), unless
+ * the template has a contract of its own.
+ */
+export function isUserConfigured(testCase: { platform: string; template: string }): boolean {
+    return Boolean(USER_CONFIGURED[testCase.platform]) && !CONTRACTS[testCase.platform]?.[testCase.template];
+}
+
+export async function buildServiceCall(testCase: ContractCase, hass: HomeAssistantFixed): Promise<ServiceCall[]> {
     // A real hass keeps its connection; only the version the template sees is set by the case.
     const versioned = Object.assign(Object.create(hass as object), {
         config: { ...((hass as { config?: object }).config ?? {}), version: testCase.haVersion },
     }) as HomeAssistantFixed;
-    return testCase.mode.getServiceCall(versioned, ENTITY_ID, testCase.selection, testCase.repeats, testCase.variables);
+    return testCase.mode.getServiceCalls(
+        versioned,
+        ENTITY_ID,
+        testCase.selection,
+        testCase.repeats,
+        testCase.variables,
+    );
 }
 
-/** Errors of a built call against its contract: wrong service, or data the integration rejects. */
-export function checkContract(testCase: ContractCase, call: ServiceCall): string[] {
-    const contract = testCase.contract;
-    if (!contract) return [`no contract for ${testCase.platform} / ${testCase.template}`];
+/**
+ * Errors of the built calls against their contract: a different number of calls, a wrong service,
+ * or data the integration rejects.
+ */
+export function checkContract(testCase: ContractCase, calls: ServiceCall[]): string[] {
+    if (!testCase.contract) return [`no contract for ${testCase.platform} / ${testCase.template}`];
+    const contracts = Array.isArray(testCase.contract) ? testCase.contract : [testCase.contract];
+    if (contracts.length !== calls.length) return [`expected ${contracts.length} calls, got ${calls.length}`];
+    return calls.flatMap((call, i) =>
+        checkStep(contracts[i], call).map(e => (contracts.length > 1 ? `step ${i + 1}: ${e}` : e)),
+    );
+}
+
+function checkStep(contract: ServiceContract, call: ServiceCall): string[] {
     const errors: string[] = [];
     const service = `${call.domain}.${call.service}`;
     if (service !== contract.service) errors.push(`service: expected ${contract.service}, got ${service}`);

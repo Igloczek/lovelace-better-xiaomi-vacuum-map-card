@@ -41,7 +41,9 @@ Its own card type, upstream-compatible YAML: [switching takes a minute](#coming-
   which clean in the order you tap, the pill shows the room's place in that order; other vacuums
   choose their own route, so it shows a checkmark
   ([per platform](docs/platforms.md#cleaning-order-per-platform)).
-- **Zones:** draw rectangles, or save the zones you use often and pick them with one tap.
+- **Zones:** draw rectangles, or save the zones you use often and pick them with one tap. On Viomi
+  robots a drawn zone can be turned to follow an angled wall
+  ([which vacuums](docs/platforms.md#rotated-zones-per-platform)).
 - **Go to a spot:** tap a point and the robot drives there. Saved points work too.
 - **Repeats and custom actions:** set the number of passes, or call any Home Assistant service with
   the selection.

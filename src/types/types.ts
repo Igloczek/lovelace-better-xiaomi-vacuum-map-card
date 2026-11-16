@@ -171,7 +171,8 @@ export interface MapModeConfig {
     readonly cleaning_order?: boolean;
     readonly repeats_type?: string;
     readonly max_repeats?: number;
-    readonly service_call_schema?: ServiceCallSchemaConfig;
+    /** One service call, or a list of them sent in order (stopping at the first that fails). */
+    readonly service_call_schema?: ServiceCallSchemaConfig | ServiceCallSchemaConfig[];
     /**
      * Set by platform templates and kept in an exported config: the schema to use on an older Home
      * Assistant, for an integration whose service changed its payload format. The first entry whose

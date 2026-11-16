@@ -80,6 +80,23 @@ Used service: `xiaomi_miot.call_action`.
 
   </details>
 
+* ### Rotatable zone cleaning (`vacuum_clean_zone_rotatable`)
+
+  Draws zones like `vacuum_clean_zone`, with a rotate handle to turn a zone to follow an angled
+  wall. **Viomi robots only** (models `viomi.vacuum.*`, such as the Mi Robot Vacuum-Mop P / Viomi V8): sends the zone's four corners to the robot as Viomi's own raw commands, through `vacuum.send_command`: `set_uploadmap`, `set_zone` and `set_mode`. Not turned, it cleans the same box as `vacuum_clean_zone`. Unlike `vacuum_clean_zone` it needs no `service_call_schema` of your own.
+
+  Used service: `vacuum.send_command`
+
+  <details>
+  <summary>Example configuration</summary>
+
+  ```yaml
+  map_modes:
+    - template: vacuum_clean_zone_rotatable
+  ```
+
+  </details>
+
 * ### Predefined zone cleaning (`vacuum_clean_zone_predefined`)
 
   Uses 4 coordinates to clean rectangular zones that have been defined in the configuration. Requires `predefined_selections` to be provided.

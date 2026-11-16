@@ -63,7 +63,11 @@ export default defineConfig({
         // differently from Chromium; the paint spec proves every overlay is drawn where it is laid
         // out, and the live-path spec proves the path and robot by their pixels. Neither takes
         // baseline screenshots, so they need no WebKit baselines.
-        { name: "webkit", use: { browserName: "webkit" }, testMatch: ["paint.spec.ts", "live-path.spec.ts"] },
+        {
+            name: "webkit",
+            use: { browserName: "webkit" },
+            testMatch: ["paint.spec.ts", "live-path.spec.ts", "rotated-zone.spec.ts"],
+        },
     ],
     webServer: {
         command: "node test/visual/server.cjs",

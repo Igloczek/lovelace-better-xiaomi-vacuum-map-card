@@ -248,6 +248,31 @@ async function main() {
             },
         },
         {
+            // rotated-zone.spec.ts: xiaomi_miot's turnable zone on the fake vacuum, which takes the
+            // Viomi zone protocol (set_uploadmap, set_zone, set_mode) the way the robot parses it.
+            url_path: "e2e-rotated-zone",
+            title: "E2E rotated zone",
+            config: {
+                title: "E2E rotated zone",
+                views: [
+                    {
+                        title: "Zone",
+                        path: "zone",
+                        cards: [
+                            card({
+                                entity: "vacuum.fake_vacuum",
+                                vacuum_platform: "al-one/hass-xiaomi-miot",
+                                map_modes: [{ template: "vacuum_clean_zone_rotatable" }],
+                                tiles: [],
+                                icons: [],
+                                persist_map_view: false,
+                            }),
+                        ],
+                    },
+                ],
+            },
+        },
+        {
             // The fake vacuum (map_fixture/vacuum.py) reports late, plans its own route, ignores
             // commands while returning, and can fail or go unavailable: run-lifecycle.spec.ts.
             url_path: "e2e-run",

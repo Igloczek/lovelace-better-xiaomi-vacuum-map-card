@@ -77,6 +77,23 @@ This platform can be used to control vacuums connected to Home Assistant using V
 
   </details>
 
+* ### Rotatable zone cleaning (`vacuum_clean_zone_rotatable`)
+
+  Draws zones like `vacuum_clean_zone`, with a rotate handle to turn a zone to follow an angled
+  wall. Sends each zone's four corners through `viomi_vacuum_v8.clean_area`. Not turned, it cleans the same box as `vacuum_clean_zone`.
+
+  Used service: `viomi_vacuum_v8.clean_area`
+
+  <details>
+  <summary>Example configuration</summary>
+
+  ```yaml
+  map_modes:
+    - template: vacuum_clean_zone_rotatable
+  ```
+
+  </details>
+
 * ### Predefined zone cleaning (`vacuum_clean_zone_predefined`)
 
   Uses 4 coordinates to clean rectangular zones that have been defined in the configuration. Requires `predefined_selections` to be provided.

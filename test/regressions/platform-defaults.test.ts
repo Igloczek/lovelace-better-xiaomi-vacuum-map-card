@@ -147,7 +147,7 @@ describe("platform templates", () => {
         if (roomsTemplate !== undefined) {
             const mode = new MapMode(platform, { template: roomsTemplate }, "en");
             expect(mode.name).not.toBe("Invalid mode");
-            expect(mode.toMapModeConfig().service_call_schema?.service).toContain(".");
+            expect(JSON.stringify(mode.toMapModeConfig().service_call_schema)).toMatch(/"service":"\w+\.\w+"/);
         }
     });
 

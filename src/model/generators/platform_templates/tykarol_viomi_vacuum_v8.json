@@ -34,6 +34,24 @@
                     }
                 }
             },
+            "vacuum_clean_zone_rotatable": {
+                "name": "map_mode.vacuum_clean_zone_rotatable",
+                "icon": "mdi:rotate-right",
+                "selection_type": "MANUAL_ROTATABLE_RECTANGLE",
+                "coordinates_rounding": false,
+                "coordinates_to_meters_divider": 1,
+                "max_selections": 5,
+                "repeats_type": "EXTERNAL",
+                "max_repeats": 3,
+                "service_call_schema": {
+                    "service": "viomi_vacuum_v8.clean_area",
+                    "service_data": {
+                        "area": "[[selection]]",
+                        "repeats": "[[repeats]]",
+                        "entity_id": "[[entity_id]]"
+                    }
+                }
+            },
             "vacuum_clean_zone_predefined": {
                 "name": "map_mode.vacuum_clean_zone_predefined",
                 "icon": "mdi:floor-plan",
