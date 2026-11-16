@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { card, clickRoom, expect, openDashboard, shot, test, waitForCard, type CardHandle } from "./helpers";
+import { inkGaps } from "../../support/ink-centre";
 
 /**
  * The selected-room pill inside the real Home Assistant frontend, in its default light theme and
@@ -123,8 +124,38 @@ async function selectAndCheck(page: Page, scheme: "light" | "dark"): Promise<voi
     // painted 1.5.0's pills away from their boxes, which no layout reading notices.
     for (const selector of [".room-2-wrapper .room-pill", ".room-0-wrapper .room-pill", ".room-1-wrapper .room-pill"])
         await expectPaintedInPlace(page, target, selector, scheme);
+    // Centred on their letters in Home Assistant's own font (Roboto). Bedroom and Kitchen have no
+    // descenders; the check reads pixels, since no layout box shows where glyphs are drawn. WebKit
+    // draws glyphs up to about 0.75 px below their layout position (it rounds the baseline), so
+    // the gaps may differ by up to 1.5 px; anything more is a real misalignment.
+    for (const id of ["2", "0"]) {
+        const name = await inkGaps(
+            page,
+            target.locator,
+            `.room-${id}-wrapper .room-pill`,
+            `.room-${id}-wrapper .room-pill-name`,
+        );
+        expect(
+            Math.abs(name.above - name.below),
+            `${scheme} room ${id} name ${JSON.stringify(name)}`,
+        ).toBeLessThanOrEqual(1.5);
+        const number = await inkGaps(
+            page,
+            target.locator,
+            `.room-${id}-wrapper .room-pill-badge`,
+            `.room-${id}-wrapper .room-pill-badge .room-pill-text`,
+        );
+        expect(
+            Math.abs(number.above - number.below),
+            `${scheme} room ${id} badge ${JSON.stringify(number)}`,
+        ).toBeLessThanOrEqual(1.5);
+    }
     await shot(page, `17-room-pill-${scheme}`);
 }
+
+// A retina pixel ratio, as on a Mac: at 1x the browser snaps text to whole pixels, which hides a
+// one-pixel offset inside the rounding the centring check has to tolerate.
+test.use({ deviceScaleFactor: 2 });
 
 test("selected rooms show a readable pill in the light theme", async ({ loggedIn: page }) => {
     await selectAndCheck(page, "light");
