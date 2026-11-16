@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.0
+
+### Added
+
+- `live_path: true` draws the robot and the path it drives during a run over the map, from the
+  position the integration reports (`vacuum_position` on the map camera, as Tasshack/dreame-vacuum
+  and the Xiaomi Cloud Map Extractor publish it). The path stays after docking, survives a page
+  reload and starts again with the next run. It follows the map when the camera image shifts, and
+  through zoom and rotation. `live_path.entity` and `live_path.attribute` read the position from
+  another entity, which also puts the path on a static floorplan. Style it with the
+  `--map-card-live-path-*` variables.
+
 ## 1.5.2
 
 ### Fixed
