@@ -230,7 +230,7 @@ fold, so reaching them needs a scroll inside the card. The alternative — squee
 `grid_options.rows` for that card to give the stacked controls their own room:
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.roborock_s7
 layout: horizontal
 grid_options:
@@ -255,7 +255,7 @@ maximum height, so the size you pick is the size you get. The 9-column minimum i
 for the horizontal layout; add a smaller `min_columns` to go narrower.
 
 ```yaml
-type: custom:xiaomi-vacuum-map-card
+type: custom:better-xiaomi-vacuum-map-card
 entity: vacuum.roborock_s7
 map_source:
   camera: camera.vacuum_map
