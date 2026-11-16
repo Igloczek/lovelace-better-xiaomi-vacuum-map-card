@@ -332,6 +332,7 @@ its content scrolls inside the cell; the map keeps its aspect ratio instead of b
 | `image`  | string | no<sup>1</sup> | -             | URL of map image                             |
 | `crop`   | object | no             | _no cropping_ | Images [cropping options](#cropping-options) |
 | `transparent_background` | boolean | no | `false` | Makes near-white map pixels transparent so the map blends into the card |
+| `room_labels` | boolean | no | `true` | Set to `false` when the map image already shows room names (some integrations draw them into the map); the card then draws no room names of its own, and a selected room shows its badge alone |
 
 <sup>1</sup> Exactly one of `camera` or `image` must be provided
 
@@ -360,17 +361,21 @@ If your vacuum does follow the order sent (for example your own service call ask
 numbers; it does not make a vacuum follow the order. `cleaning_order: false` shows checkmarks on
 the platforms that number by default.
 
-#### Selected room label
+<a id="selected-room-label"></a>
+#### Map labels
 
-A selected room's label turns into a pill, as in the Xiaomi Home app: a round badge with the room's
-number in the cleaning order (or a checkmark, see above) next to the room name, drawn exactly where
-the room's label is. A room with an icon shows its icon until it is selected and the pill after; a
-room without a name shows the badge alone. The rooms of a started run keep their pills. The pill
+Every label on the map is drawn the same way, as a pill, in the style of the Xiaomi Home app: room
+names, and the labels of predefined points and rectangles. Selecting adds a round badge to the
+pill: a room's number in the cleaning order (or a checkmark, see above), and a checkmark for a
+predefined point or rectangle. The pill stays where it is. A room with an icon shows its icon next to its
+pill until it is selected, and the badged pill alone after; a room without a name shows the badge
+alone once selected. If your map image already shows room names, set
+[`room_labels: false`](#map-source-options) on the map source to hide the card's copies. The rooms of a started run keep their pills. The pill
 stays upright and the same size at any zoom and rotation, and taps go through it to the room.
 
 The pill follows the theme: light with dark text in a light theme, dark with light text in a dark
 theme, like the card it sits on. A soft shadow and a hairline edge set it apart from any room
-colour and from a light or dark dashboard. Colours can be changed with CSS variables on the card
+colour and from a light or dark dashboard. The same colours apply to every label. Colours can be changed with CSS variables on the card
 (for example with `card_mod`):
 
 | Variable | Default | Colours |

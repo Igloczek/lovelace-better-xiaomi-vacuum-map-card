@@ -62,7 +62,7 @@ export class PredefinedMultiRectangle extends PredefinedMapObject {
                 `,
                 )}
                 ${this.renderIcon(this._config.icon, () => this._click(), "predefined-rectangle-icon-wrapper")}
-                ${this.renderLabel(this._config.label, "predefined-rectangle-label", this._config.icon)}
+                ${this.renderLabelPill(this._config.label, "predefined-rectangle-label", this._config.icon, this._selected ? "check" : undefined)}
             </g>
         `;
     }
@@ -160,15 +160,6 @@ export class PredefinedMultiRectangle extends PredefinedMapObject {
                     background var(--map-card-internal-transitions-duration) ease;
             }
 
-            .predefined-rectangle-label {
-                text-anchor: middle;
-                dominant-baseline: middle;
-                pointer-events: none;
-                font-size: calc(var(--map-card-internal-predefined-rectangle-label-font-size) / var(--map-scale));
-                fill: var(--map-card-internal-predefined-rectangle-label-color);
-                transition: color var(--map-card-internal-transitions-duration) ease,
-                    background var(--map-card-internal-transitions-duration) ease;
-            }
 
             .predefined-rectangle-wrapper.selected > .predefined-rectangle {
                 stroke: var(--map-card-internal-predefined-rectangle-line-color-selected);
@@ -180,9 +171,6 @@ export class PredefinedMultiRectangle extends PredefinedMapObject {
                 color: var(--map-card-internal-predefined-rectangle-icon-color-selected);
             }
 
-            .predefined-rectangle-wrapper.selected > .predefined-rectangle-label {
-                fill: var(--map-card-internal-predefined-rectangle-label-color-selected);
-            }
         `;
     }
 }
