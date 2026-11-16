@@ -197,6 +197,29 @@ test.describe("the run after Start, with a misbehaving vacuum", () => {
         expect(await running(target)).toEqual([]);
     });
 
+    test("a run that goes through takes back the refusal still on screen", async ({ loggedIn: page }) => {
+        await resetVacuum();
+        const target = await openRunCard(page);
+        const runIcon = (): Promise<string | null | undefined> =>
+            target.evaluate(element =>
+                element.shadowRoot.querySelector(".map-actions-item.main .run-icon")?.getAttribute("icon"),
+            );
+
+        // Nothing selected: refused, and Home Assistant shows why for 8 s.
+        await pressStart(page, target);
+        await expect.poll(() => haNotification(page)).toContain("No selection");
+        const refusedAt = Date.now();
+
+        // Pick a room and run again well inside those 8 s.
+        await tapRoom(page, target, "1");
+        await pressStart(page, target);
+        await expect.poll(() => attribute(page, "commands")).toEqual([["1"]]);
+        await expect.poll(runIcon).toBe("mdi:check");
+        // The refusal is gone long before it would have expired on its own.
+        await expect.poll(() => haNotification(page), { timeout: 3000 }).toBe("");
+        expect(Date.now() - refusedAt).toBeLessThan(7000);
+    });
+
     test("Start on an unavailable vacuum sends nothing and keeps the selection", async ({ loggedIn: page }) => {
         // A vacuum that died away from the dock is `unavailable`; Home Assistant skips it without
         // an error, so the card must not report a run that never started.

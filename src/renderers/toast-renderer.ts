@@ -18,6 +18,21 @@ export function isInsideHomeAssistant(element: Element): boolean {
     return false;
 }
 
+/** Each element's notification id, so it updates or closes its own message and no other. */
+const notificationIds = new WeakMap<HTMLElement, string>();
+let nextNotificationId = 0;
+function notificationId(host: HTMLElement): string {
+    let id = notificationIds.get(host);
+    if (!id) {
+        id = `better-xiaomi-vacuum-map-card-${++nextNotificationId}`;
+        notificationIds.set(host, id);
+    }
+    return id;
+}
+
+/** Until when (ms epoch) an element's failure message is still on screen. */
+const failureShownUntil = new WeakMap<HTMLElement, number>();
+
 export class ToastRenderer {
     public static render(idPrefix: string): TemplateResult {
         return html`
@@ -55,6 +70,7 @@ export class ToastRenderer {
             host.dispatchEvent(
                 new CustomEvent("hass-notification", {
                     detail: {
+                        id: notificationId(host),
                         message,
                         duration: successful ? SUCCESS_DURATION : FAILURE_DURATION,
                         dismissable: !successful,
@@ -63,6 +79,8 @@ export class ToastRenderer {
                     composed: true,
                 }),
             );
+            if (successful) failureShownUntil.delete(host);
+            else failureShownUntil.set(host, Date.now() + FAILURE_DURATION);
             return;
         }
         const shadowRoot = host.shadowRoot;
@@ -78,6 +96,28 @@ export class ToastRenderer {
                 : "var(--map-card-internal-toast-unsuccessful-icon-color)";
             delay(timeout).then(() => (toast.className = toast.className.replace(" show", "")));
         }
+    }
+
+    /**
+     * Takes back the element's failure message once it no longer holds, so a run that went through
+     * is not shown next to the reason the previous one was refused. Home Assistant closes a message
+     * by its id (`duration: 0`); a frontend without ids closes the message on screen, which is why
+     * nothing is sent unless this element's failure is still within its display time.
+     */
+    public static dismissFailure(host: HTMLElement, idPrefix: string): void {
+        const until = failureShownUntil.get(host);
+        failureShownUntil.delete(host);
+        if (until !== undefined && until > Date.now() && isInsideHomeAssistant(host)) {
+            host.dispatchEvent(
+                new CustomEvent("hass-notification", {
+                    detail: { id: notificationId(host), message: "", duration: 0 },
+                    bubbles: true,
+                    composed: true,
+                }),
+            );
+        }
+        const toast = host.shadowRoot?.getElementById(`${idPrefix}-toast`);
+        if (toast) toast.className = toast.className.replace(" show", "");
     }
 
     public static get styles(): CSSResultGroup {
