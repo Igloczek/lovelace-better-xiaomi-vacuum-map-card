@@ -32,6 +32,14 @@ is involved: `index.html` plus `harness.js` mount the card element with a mock `
 | `a sections-view grid cell makes the card fill its height: scroll when short, controls use a taller one` | the reflected `layout="grid"` hook makes the card fill a fixed cell and scroll inside it when shorter than the content, and a taller cell's extra height is used by the controls column instead of sitting below the map as dead space |
 | `horizontal layout keeps room, mode and tile interactions` | room hit-testing, opening the mode dropdown and selecting a mode (the mode changes), a tile click and the map-before-controls DOM/focus order in the horizontal arrangement |
 
+`paint.spec.ts` runs in Chromium **and WebKit** (the `webkit` project in `playwright.config.ts`).
+WebKit, the engine of Safari and the Home Assistant iOS and macOS apps, can paint HTML in a
+`foreignObject` away from its layout box, so a layout reading proves nothing there. For each label
+pill (unselected, selected, its badge), room icon and predefined point icon and label, at zoom 1 and
+2.5 and rotation 0 and 90, it screenshots the overlay's box, hides the overlay and screenshots the
+box again; the two must differ. It takes no baselines, so the WebKit project needs none. On the
+1.5.0 pill it fails in WebKit and passes in Chromium.
+
 `map-view-robustness.spec.ts` asserts geometry only — no screenshots — so it also runs on a
 developer machine. It reads the map point in the middle of the viewport from the rendered
 transform, and the living room's outline against the room's place in the rendered image:
@@ -76,8 +84,8 @@ cover the checkmark when the order is off, a dark dashboard with `transparent_ba
 geometry case also takes a screenshot (`room-pill-<theme>-zoom-<z>-rotation-<r>.png`,
 `room-pill-<theme>-checkmark.png`, `room-pill-dark-transparent.png`).
 
-`live-path.spec.ts` covers the live path overlay (`live_path`) and is the one spec that also runs in
-WebKit, the engine of the Home Assistant macOS app, because WebKit has painted map overlays away
+`live-path.spec.ts` covers the live path overlay (`live_path`) and runs in WebKit too, with
+`paint.spec.ts`: WebKit is the engine of the Home Assistant macOS app, and it has painted map overlays away
 from their layout boxes. It reads no overlay box: at zoom 1 and 2.5 × rotation 0 and 90 it computes
 the screen point of each driven position from the map image's rectangle and the calibration, and
 asserts the screenshot shows the path's and the robot's colours there, nothing in the path's colour

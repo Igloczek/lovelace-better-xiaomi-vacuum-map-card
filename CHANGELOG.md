@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1
+
+### Fixed
+
+- Room, point and rectangle labels show again in Safari and in the Home Assistant iOS and macOS
+  apps. 1.5.0 drew them away from the map there, so the map showed no labels at all.
+
 ## 1.5.0
 
 ### Changed

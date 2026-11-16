@@ -211,7 +211,7 @@ describe("room label pill", () => {
             ],
         } as Partial<MapModeConfig>);
         const labelPlacement = (id: string): string[] => {
-            const pill = wrapper(card, id).querySelector(".room-pill") as HTMLElement;
+            const pill = wrapper(card, id).querySelector(".room-pill-anchor") as SVGGElement;
             return [
                 pill.style.getPropertyValue("--room-pill-x"),
                 pill.style.getPropertyValue("--room-pill-y"),
@@ -226,7 +226,7 @@ describe("room label pill", () => {
         await clickRoom(card, "0");
         await clickRoom(card, "1");
         for (const id of ["0", "1"] as const) {
-            const pill = wrapper(card, id).querySelector(".room-pill") as HTMLElement;
+            const pill = wrapper(card, id).querySelector(".room-pill-anchor") as SVGGElement;
             expect(
                 [
                     pill.style.getPropertyValue("--room-pill-x"),
@@ -242,26 +242,35 @@ describe("room label pill", () => {
         const text = JSON.stringify(css);
         expect(text).not.toContain("room-pill-pointer");
         expect(text).not.toContain(".room-pill::after");
-        expect(text).toMatch(/\.room-pill \{[^}]*translate\(-50%, -50%\)/);
+        // Placed by the SVG group around the foreignObject. The pill's HTML carries no position,
+        // transform or filter: WebKit paints such HTML in a foreignObject away from its layout
+        // box, which is how 1.5.0's labels vanished in Safari and the Home Assistant apps.
+        expect(text).toMatch(/\.room-pill-anchor \{[^}]*transform: translate\(var\(--room-pill-x/);
+        const pillRule = (/\.room-pill \{([^}]*)\}/.exec(text)?.[1] ?? "").replace(/\/\*[\s\S]*?\*\//g, "");
+        expect(pillRule).not.toBe("");
+        expect(pillRule).not.toMatch(/(^|[;\s])(position|transform|filter|left|top):/);
     });
 
     it("gives the pill a foreignObject box that contains it, so removing it repaints all of it", async () => {
         // A browser repaints only what changed. With a 1 px foreignObject and the pill overflowing
         // it, deselecting left most of the pill painted over the map (seen in a real dashboard).
+        // The box is centred on the label point and far larger than any pill; the pill is centred
+        // in it by flex layout, never by positioning the HTML.
         const card = await mount({});
         await clickRoom(card, "1");
-        const box = wrapper(card, "1").querySelector("foreignObject.room-pill-anchor")!;
+        const box = wrapper(card, "1").querySelector(".room-pill-anchor > foreignObject.room-pill-box")!;
         expect([
             box.getAttribute("x"),
             box.getAttribute("y"),
             box.getAttribute("width"),
             box.getAttribute("height"),
-        ]).toEqual(["-50%", "-50%", "200%", "200%"]);
+        ]).toEqual(["-320", "-80", "640", "160"]);
+        expect(box.querySelector(".room-pill-canvas > .room-pill")).not.toBeNull();
         // Deselected, the room keeps its pill, without the badge, in the same box.
         await clickRoom(card, "1");
-        const after = wrapper(card, "1").querySelectorAll("foreignObject.room-pill-anchor");
+        const after = wrapper(card, "1").querySelectorAll("foreignObject.room-pill-box");
         expect(after).toHaveLength(1);
-        expect(after[0].getAttribute("width")).toBe("200%");
+        expect(after[0].getAttribute("width")).toBe("640");
         expect(after[0].querySelector(".room-pill-badge")).toBeNull();
     });
 
@@ -333,9 +342,7 @@ describe("room label pill", () => {
         const children = [...stale!.children];
         const marker = stale!.querySelector("text.room-stale-marker")!;
         expect(marker.textContent?.trim()).toBe("!");
-        expect(children.indexOf(marker)).toBeGreaterThan(
-            children.indexOf(stale!.querySelector("foreignObject.room-pill-anchor")!),
-        );
+        expect(children.indexOf(marker)).toBeGreaterThan(children.indexOf(stale!.querySelector(".room-pill-anchor")!));
         expect(pills(card)).toEqual({ "0": { badge: "2", name: "Kitchen" } });
     });
 
