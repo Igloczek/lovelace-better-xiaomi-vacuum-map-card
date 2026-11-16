@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.0
+
+### Changed
+
+- Every label on the map now uses one style, the room pill. Unselected rooms, predefined points and
+  predefined rectangles show the pill without a badge, and selecting adds the badge (the room's
+  number in the cleaning order, or a checkmark). The plain white outlined text labels are gone.
+- The `--map-card-room-label-color(-selected)` and
+  `--map-card-predefined-{point,rectangle}-label-color(-selected)` variables are removed. Every
+  label takes its colours from `--map-card-room-pill-*`, and the card keeps the text readable.
+
+### Added
+
+- `map_source.room_labels: false` hides the card's room names when the map image already shows
+  them (some integrations draw names into the map). A selected room keeps its badge.
+
 ## 1.4.3
 
 ### Fixed
