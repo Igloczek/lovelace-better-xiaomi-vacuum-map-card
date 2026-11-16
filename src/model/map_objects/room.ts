@@ -81,9 +81,57 @@ export class Room extends PredefinedMapObject {
         return (this._config?.outline ?? []).map(point => [point[0], point[1]]);
     }
 
+    /**
+     * The room's outline. Its icon, label and stale marker are drawn by `renderLabels`, in a layer
+     * the card paints after every room's outline: drawn inside each room's own group, the next
+     * room's outline painted over a label that reached across the border and cut it.
+     */
     public render(): SVGTemplateResult {
         const poly = this._outlinePoints();
-        // Read once per render: the live metadata decides it, and the accessor rebuilds its id set.
+        const { stale, highlighted, runOrder } = this._state();
+        return svg`
+            <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${stale ? "room-stale" : ""}
+            ${this._idClass()}">
+                <polygon class="room-outline ${this._imageOutline || stale || this._cardHitTest ? "" : "clickable"}"
+                         points="${poly.map(p => p.join(", ")).join(" ")}"
+                         @click="${
+                             this._imageOutline || stale || this._cardHitTest
+                                 ? undefined
+                                 : async (): Promise<void> => this.click()
+                         }">
+                </polygon>
+            </g>
+        `;
+    }
+
+    /** The room's icon, label pill and stale marker, for the layer above every outline. */
+    public renderLabels(): SVGTemplateResult {
+        const { stale, highlighted, order } = this._state();
+        // Every room label is a pill (see `renderPill`). A highlighted room's pill gains a badge and
+        // replaces the room's icon; an unselected room shows its icon and the same pill without the
+        // badge. A stale room is never highlighted: it is not a valid part of a run.
+        const pill = highlighted && !stale;
+        const name = this._context.showRoomLabels() ? this._config.label?.text?.trim() || undefined : undefined;
+        const anchor = pill || name ? this._pillAnchor() : undefined;
+        return svg`
+            <g class="room-label-layer ${highlighted ? "selected" : ""} ${stale ? "room-stale" : ""} ${this._idClass()}">
+                ${pill ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !stale)}
+                ${anchor ? this.renderPill(anchor.origin, anchor.offset, name, pill ? (order > 0 ? order : "check") : undefined, "room-label") : svg``}
+                ${this.renderStaleMarker(stale)}
+            </g>
+        `;
+    }
+
+    /** The class that names the room in the DOM; both its outline group and its label group carry it. */
+    private _idClass(): string {
+        return `room-${`${this._config.id}`.replace(/[^a-zA-Z0-9_-]/gm, "_")}-wrapper`;
+    }
+
+    /**
+     * Whether the room is stale, highlighted or part of a run, and its number in the order. Read once
+     * per render: the live metadata decides staleness, and the accessor rebuilds its id set.
+     */
+    private _state(): { stale: boolean; highlighted: boolean; runOrder: number; order: number } {
         const stale = this.stale;
         // Rooms are sent in click order, so a selected room shows its position in that order. Once
         // a run has started and the selection is cleared, the rooms of that run look exactly as they
@@ -97,28 +145,7 @@ export class Room extends PredefinedMapObject {
         // A room that cannot be cleaned is never drawn as selected, or the card would look ready to
         // send a selection that the service call drops (an empty room list).
         const highlighted = (this._selected && !stale) || runOrder > 0;
-        // Every room label is a pill (see `renderPill`). A highlighted room's pill gains a badge and
-        // replaces the room's icon; an unselected room shows its icon and the same pill without the
-        // badge. A stale room is never highlighted: it is not a valid part of a run.
-        const pill = highlighted && !stale;
-        const name = this._context.showRoomLabels() ? this._config.label?.text?.trim() || undefined : undefined;
-        const anchor = pill || name ? this._pillAnchor() : undefined;
-        return svg`
-            <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${stale ? "room-stale" : ""}
-            room-${`${this._config.id}`.replace(/[^a-zA-Z0-9_-]/gm, "_")}-wrapper">
-                <polygon class="room-outline ${this._imageOutline || stale || this._cardHitTest ? "" : "clickable"}"
-                         points="${poly.map(p => p.join(", ")).join(" ")}"
-                         @click="${
-                             this._imageOutline || stale || this._cardHitTest
-                                 ? undefined
-                                 : async (): Promise<void> => this.click()
-                         }">
-                </polygon>
-                ${pill ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !stale)}
-                ${anchor ? this.renderPill(anchor.origin, anchor.offset, name, pill ? (order > 0 ? order : "check") : undefined, "room-label") : svg``}
-                ${this.renderStaleMarker(stale)}
-            </g>
-        `;
+        return { stale, highlighted, runOrder, order };
     }
 
     /**
@@ -502,7 +529,8 @@ export class Room extends PredefinedMapObject {
                marker are all transparent; the icon's own pointer-events: auto rule in .map-icon-wrapper
                needs the more specific rule below to be covered too. */
             .room-wrapper.room-stale,
-            .room-wrapper.room-stale .map-icon-wrapper {
+            .room-label-layer.room-stale,
+            .room-label-layer.room-stale .map-icon-wrapper {
                 pointer-events: none;
             }
 
@@ -511,7 +539,7 @@ export class Room extends PredefinedMapObject {
                 fill: var(--map-card-internal-room-outline-fill-color-selected);
             }
 
-            .room-wrapper.selected > * > .room-icon-wrapper {
+            .room-label-layer.selected > * > .room-icon-wrapper {
                 background: var(--map-card-internal-room-icon-background-color-selected);
                 color: var(--map-card-internal-room-icon-color-selected);
             }

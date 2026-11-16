@@ -120,8 +120,8 @@ test("interlocking same-coloured rooms keep their own floor at every zoom and ro
             { timeout: 30_000 },
         )
         .toEqual([HALL, KITCHEN]);
-    await expect(target.locator.locator(`.room-${KITCHEN}-wrapper`)).toHaveCount(1);
-    await expect(target.locator.locator(`.room-${HALL}-wrapper`)).toHaveCount(1);
+    await expect(target.locator.locator(`.room-wrapper.room-${KITCHEN}-wrapper`)).toHaveCount(1);
+    await expect(target.locator.locator(`.room-wrapper.room-${HALL}-wrapper`)).toHaveCount(1);
 
     const views: Array<{ scale: number; rotation: number }> = [
         { scale: 1, rotation: 0 },

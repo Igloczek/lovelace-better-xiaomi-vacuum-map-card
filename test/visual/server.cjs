@@ -42,7 +42,11 @@ function resolveFile(urlPath) {
         return path.join(ROOT, "test/visual/harness.js");
     }
     if (urlPath.startsWith(CAMERA_PROXY_PREFIX)) {
-        // Any token/version query is irrelevant: every camera proxy request serves the fixture map.
+        // Any token/version query is irrelevant. The apartment camera serves the realistic floor plan
+        // (test/fixtures/apartment/); every other camera serves the synthetic three-room map.
+        if (urlPath.startsWith(`${CAMERA_PROXY_PREFIX}camera.apartment_map`)) {
+            return path.join(ROOT, "test/fixtures/apartment/map.png");
+        }
         return path.join(ROOT, "test/fixtures/synthetic/map.png");
     }
     for (const [prefix, directory] of DIRECTORIES) {

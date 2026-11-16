@@ -15,6 +15,7 @@ import {
     settle,
     useHarnessClock,
     withState,
+    roomQuery,
 } from "../harness";
 
 /**
@@ -181,7 +182,7 @@ describe("stale ROOM selections (#928)", () => {
         const { card, hass } = await mountAfterRemap([configuredRoom("0", "Kitchen", true)]);
 
         expect(roomElement(card, "0")?.classList.contains("room-stale")).toBe(true);
-        expect(roomElement(card, "0")?.querySelector(".room-stale-marker")?.textContent?.trim()).toBe("!");
+        expect(roomQuery(card.shadowRoot, "0", ".room-stale-marker")?.textContent?.trim()).toBe("!");
         expect(warnedStaleIds(card)).toEqual(["0"]);
 
         // `default_state: selected` on the stale room is ignored; the live rooms stay selectable.
@@ -269,7 +270,7 @@ describe("stale ROOM selections (#928)", () => {
      */
     it("hands the stylesheet the room's free space and no measured font", async () => {
         const { card } = await mountAfterRemap([hugeRoom("0")]);
-        const marker = roomElement(card, "0")?.querySelector(".room-stale-marker");
+        const marker = roomQuery(card.shadowRoot, "0", ".room-stale-marker");
         expect(marker).not.toBeNull();
 
         // The anchor, the label's own (unused) offset, and one length per screen direction. No size:
@@ -299,7 +300,7 @@ describe("stale ROOM selections (#928)", () => {
         // away, while the bounding box would claim 450 - enough for the marker to be put down in the
         // neighbouring room. Up the leg and the bar it is 650; down the leg 150; left 150.
         const { card } = await mountAfterRemap([lShapedRoom("0")]);
-        const marker = roomElement(card, "0")?.querySelector(".room-stale-marker");
+        const marker = roomQuery(card.shadowRoot, "0", ".room-stale-marker");
         expect(marker).not.toBeNull();
 
         expect(inlinePixels(marker!, "--stale-marker-right")).toBeCloseTo(15, 3);
@@ -319,7 +320,7 @@ describe("stale ROOM selections (#928)", () => {
         await settle(card.element);
 
         expect(read).not.toHaveBeenCalledWith("--map-card-internal-room-label-font-size");
-        expect(roomElement(card, "0")?.querySelector(".room-stale-marker")).not.toBeNull();
+        expect(roomQuery(card.shadowRoot, "0", ".room-stale-marker")).not.toBeNull();
     });
 
     it("sizes the marker from the pill's own variables in the stylesheet", async () => {
@@ -346,7 +347,7 @@ describe("stale ROOM selections (#928)", () => {
 
     it("does not repeat the label transform for the stale marker", async () => {
         const { card } = await mountAfterRemap([configuredRoom("0", "Old kitchen")]);
-        const marker = roomElement(card, "0")?.querySelector(".room-stale-marker");
+        const marker = roomQuery(card.shadowRoot, "0", ".room-stale-marker");
         expect(marker).not.toBeNull();
         // It is a `.label-text`, so it takes the shared counter-rotation and offset rule...
         expect(marker!.classList.contains("label-text")).toBe(true);
@@ -366,10 +367,9 @@ describe("stale ROOM selections (#928)", () => {
         // A room too small for the marker to clear the pill keeps the marker inside the room and
         // relies on SVG paint order; stale rooms are appended last, so their markers are on top.
         const { card } = await mountAfterRemap([configuredRoom("0", "Old kitchen")]);
-        const wrappers = [...card.shadowRoot.querySelectorAll(".room-wrapper")];
-        const staleIndex = wrappers.indexOf(roomElement(card, "0")!);
-        const liveIndexes = ["3", "4", "5"].map(id => wrappers.indexOf(roomElement(card, id)!));
-        expect(staleIndex).toBeGreaterThan(Math.max(...liveIndexes));
+        const layers = [...card.shadowRoot.querySelectorAll(".room-label-layer")];
+        const index = (id: string): number => layers.findIndex(layer => layer.classList.contains(`room-${id}-wrapper`));
+        expect(index("0")).toBeGreaterThan(Math.max(...["3", "4", "5"].map(index)));
     });
 
     it("does not warn when every configured id is still live", async () => {
