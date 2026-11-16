@@ -61,8 +61,9 @@ export default defineConfig({
         { name: "chromium" },
         // WebKit (Safari, the Home Assistant iOS and macOS apps) paints HTML in an SVG foreignObject
         // differently from Chromium; the paint spec proves every overlay is drawn where it is laid
-        // out. It takes no baseline screenshots, so it needs no WebKit baselines.
-        { name: "webkit", use: { browserName: "webkit" }, testMatch: "paint.spec.ts" },
+        // out, and the live-path spec proves the path and robot by their pixels. Neither takes
+        // baseline screenshots, so they need no WebKit baselines.
+        { name: "webkit", use: { browserName: "webkit" }, testMatch: ["paint.spec.ts", "live-path.spec.ts"] },
     ],
     webServer: {
         command: "node test/visual/server.cjs",

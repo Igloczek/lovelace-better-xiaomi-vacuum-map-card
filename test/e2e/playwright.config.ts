@@ -40,10 +40,10 @@ export default defineConfig({
         {
             // WebKit is the engine of Safari and of the Home Assistant iOS and macOS apps. It lays
             // out HTML overlays like Chromium but can paint them elsewhere (1.5.0's labels), so the
-            // label spec runs here too and checks the pixels, not only the layout.
+            // label and live-path specs run here too and check the pixels, not only the layout.
             name: "webkit",
             use: { browserName: "webkit" },
-            testMatch: ["room-pill.spec.ts"],
+            testMatch: ["room-pill.spec.ts", "live-path.spec.ts"],
         },
     ],
 });

@@ -223,6 +223,31 @@ async function main() {
             },
         },
         {
+            // live-path.spec.ts: the robot and its path from a position entity the spec publishes
+            // through the REST API (`sensor.e2e_live_position`), fed by the frontend's own updates.
+            url_path: "e2e-live-path",
+            title: "E2E live path",
+            config: {
+                title: "E2E live path",
+                views: [
+                    {
+                        title: "Live",
+                        path: "live",
+                        cards: [
+                            card({
+                                entity: "vacuum.fake_vacuum",
+                                map_modes: [{ template: "vacuum_clean_zone" }],
+                                tiles: [],
+                                icons: [],
+                                persist_map_view: false,
+                                live_path: { entity: "sensor.e2e_live_position" },
+                            }),
+                        ],
+                    },
+                ],
+            },
+        },
+        {
             // The fake vacuum (map_fixture/vacuum.py) reports late, plans its own route, ignores
             // commands while returning, and can fail or go unavailable: run-lifecycle.spec.ts.
             url_path: "e2e-run",

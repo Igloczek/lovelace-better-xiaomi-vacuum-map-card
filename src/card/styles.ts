@@ -11,6 +11,7 @@ import { DropdownMenu } from "../components/dropdown-menu";
 import { TilesWrapper } from "../components/tiles-wrapper";
 import { IconsWrapper } from "../components/icons-wrapper";
 import { PresetSelector } from "../components/preset-selector";
+import { livePathStyles } from "./live-path";
 
 /**
  * Card-surface width (px) below which the horizontal layout stacks the controls under the map.
@@ -97,6 +98,14 @@ export const cardStyles = css`
             --map-card-internal-manual-path-point-line-width: var(--map-card-manual-path-point-line-width, 1px);
             --map-card-internal-manual-path-line-color: var(--map-card-manual-path-line-color, yellow);
             --map-card-internal-manual-path-line-width: var(--map-card-manual-path-line-width, 1px);
+            --map-card-internal-live-path-color: var(--map-card-live-path-color, var(--map-card-internal-primary-color));
+            --map-card-internal-live-path-opacity: var(--map-card-live-path-opacity, 0.6);
+            --map-card-internal-live-path-width: var(--map-card-live-path-width, 4px);
+            --map-card-internal-live-path-robot-color: var(
+                --map-card-live-path-robot-color,
+                var(--map-card-internal-primary-color)
+            );
+            --map-card-internal-live-path-robot-outline-color: var(--map-card-live-path-robot-outline-color, white);
             --map-card-internal-predefined-rectangle-line-width: var(
                 --map-card-predefined-rectangle-line-width,
                 1px
@@ -722,6 +731,7 @@ export const cardStyles = css`
         ${ManualRectangle.styles}
         ${PredefinedMultiRectangle.styles}
         ${ManualPath.styles}
+        ${livePathStyles}
         ${ManualPoint.styles}
         ${PredefinedPoint.styles}
         ${Room.styles}

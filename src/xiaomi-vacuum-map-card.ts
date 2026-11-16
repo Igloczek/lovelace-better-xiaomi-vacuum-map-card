@@ -129,6 +129,8 @@ import {
     updateSelectables,
 } from "./card/selection";
 import { cardStyles } from "./card/styles";
+import { advanceCardLivePath, renderLivePath } from "./card/live-path";
+import type { LivePathTrack, VacuumPosition } from "./model/live-path";
 
 const line1 = "   BETTER-XIAOMI-VACUUM-MAP-CARD";
 const line2 = `   ${localize("common.version")} ${CARD_VERSION}`;
@@ -195,6 +197,10 @@ export class XiaomiVacuumMapCard extends LitElement {
     readonly mapTapGuard = createTapGuard();
     /** The room run started from this card, shown on the map until the vacuum finishes it. */
     activeRoomRun?: ActiveRoomRun;
+    /** The path the vacuum drove on its current or last run (`live_path`), in vacuum coordinates. */
+    livePath?: LivePathTrack;
+    /** The robot's current position from the `live_path` source. */
+    livePosition?: VacuumPosition;
     /**
      * True while the run button's service call waits for Home Assistant's answer. A state, so the
      * icons re-render: they treat the vacuum as starting meanwhile (see `getIconHass`).
@@ -281,6 +287,7 @@ export class XiaomiVacuumMapCard extends LitElement {
             this._firstHass();
         }
         if (this.config) advanceCardActiveRun(this);
+        if (this.config) advanceCardLivePath(this);
         if (this.config && !firstHass) refreshDefaultModes(this);
     }
 
@@ -613,6 +620,7 @@ export class XiaomiVacuumMapCard extends LitElement {
                         @mouseup="${async (e: PointerEvent): Promise<void> => {
                             await this._mouseUp(e);
                         }}">
+                        ${validCalibration ? renderLivePath(this) : null}
                         ${validCalibration ? drawSelection(this) : null}
                     </svg>
                 </div>

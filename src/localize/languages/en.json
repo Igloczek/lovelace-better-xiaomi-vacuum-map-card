@@ -31,6 +31,11 @@
             "platform": {
                 "invalid": "Invalid vacuum platform: {0}"
             },
+            "live_path": {
+                "invalid": "Invalid live_path: {0} (use true or a mapping with entity and attribute)",
+                "invalid_field": "Invalid live_path.{0}: must be text",
+                "missing_entity": "live_path needs an entity when the map is an image"
+            },
             "map_source": {
                 "missing": "Missing property: map_source",
                 "none_provided": "No camera neither image provided",

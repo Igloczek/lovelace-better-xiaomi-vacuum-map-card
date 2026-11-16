@@ -1,0 +1,122 @@
+[
+    {
+        "t": "12:47:48",
+        "x": 9496,
+        "y": 4999,
+        "a": 359,
+        "status": "room_cleaning",
+        "frame_id": 256
+    },
+    {
+        "t": "12:50:26",
+        "x": 9993,
+        "y": 4998,
+        "a": 177,
+        "status": "room_cleaning",
+        "frame_id": null
+    },
+    {
+        "t": "12:50:38",
+        "x": 10141,
+        "y": 6616,
+        "a": 103,
+        "status": "room_cleaning",
+        "frame_id": 5
+    },
+    {
+        "t": "12:50:50",
+        "x": 9147,
+        "y": 7694,
+        "a": 262,
+        "status": "room_cleaning",
+        "frame_id": 9
+    },
+    {
+        "t": "12:50:59",
+        "x": 9142,
+        "y": 8415,
+        "a": 89,
+        "status": "room_cleaning",
+        "frame_id": 12
+    },
+    {
+        "t": "12:51:11",
+        "x": 8472,
+        "y": 8552,
+        "a": 107,
+        "status": "room_cleaning",
+        "frame_id": 16
+    },
+    {
+        "t": "12:51:23",
+        "x": 7108,
+        "y": 8589,
+        "a": 178,
+        "status": "room_cleaning",
+        "frame_id": 20
+    },
+    {
+        "t": "12:51:36",
+        "x": 5494,
+        "y": 8590,
+        "a": 178,
+        "status": "room_cleaning",
+        "frame_id": 24
+    },
+    {
+        "t": "12:51:45",
+        "x": 5280,
+        "y": 8620,
+        "a": 317,
+        "status": "returning",
+        "frame_id": 28
+    },
+    {
+        "t": "12:51:57",
+        "x": 8308,
+        "y": 7956,
+        "a": 0,
+        "status": "returning",
+        "frame_id": 32
+    },
+    {
+        "t": "12:52:09",
+        "x": 10158,
+        "y": 6115,
+        "a": 269,
+        "status": "returning",
+        "frame_id": 36
+    },
+    {
+        "t": "12:52:21",
+        "x": 9956,
+        "y": 5010,
+        "a": 182,
+        "status": "returning",
+        "frame_id": 40
+    },
+    {
+        "t": "12:52:30",
+        "x": 9885,
+        "y": 5007,
+        "a": 4,
+        "status": "returning",
+        "frame_id": 43
+    },
+    {
+        "t": "12:52:42",
+        "x": 9573,
+        "y": 4999,
+        "a": 352,
+        "status": "returning",
+        "frame_id": 47
+    },
+    {
+        "t": "12:52:54",
+        "x": 9481,
+        "y": 5000,
+        "a": 358,
+        "status": "charging",
+        "frame_id": 51
+    }
+]
