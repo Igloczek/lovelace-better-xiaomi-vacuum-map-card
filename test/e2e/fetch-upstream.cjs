@@ -3,9 +3,14 @@
  * Fetches the pinned upstream card release and puts it where a real installation serves it.
  *
  * The side-by-side spec has to prove the two cards next to the bundle upstream actually ships, so
- * the version and its sha256 are pinned here. The download happens once, in this setup step, and is
- * cached under the git-ignored `.cache/`: a spec run must not depend on GitHub being reachable and
- * must not silently test a different release than the one recorded in the pull request.
+ * the version and its sha256 are pinned in `upstream-pin.json`, which this script and the spec both
+ * read: there is one path and one digest to keep in step. The download happens once, in this setup
+ * step, and is cached under the git-ignored `.cache/`: a spec run must not depend on GitHub being
+ * reachable and must not silently test a different release than the one recorded in the pull
+ * request.
+ *
+ * `--refresh` downloads the pinned release again even when the cache holds a matching file. A cache
+ * that does not match the pin is downloaded again without the flag.
  *
  * Two real layouts are installed, because they are the two ways this card ends up next to ours:
  *
@@ -21,12 +26,11 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const VERSION = "v2.4.1";
-const SHA256 = "6eb544c670480607c75d82321bb5d1932c781098c1f34391084ecefcac23d445";
-const RELEASE = `https://github.com/PiotrMachowski/lovelace-xiaomi-vacuum-map-card/releases/download/${VERSION}/xiaomi-vacuum-map-card.js`;
-const MIN_BYTES = 100_000;
+const pin = require("./upstream-pin.json");
 
-const CACHE = path.join(__dirname, ".cache", `xiaomi-vacuum-map-card-${VERSION}.js`);
+const MIN_BYTES = 100_000;
+const CACHE = path.join(__dirname, pin.cache);
+const REFRESH = process.argv.slice(2).includes("--refresh");
 const INSTALLS = [
     path.join(
         __dirname,
@@ -45,38 +49,41 @@ function digest(bytes) {
 }
 
 async function download() {
-    console.log(`downloading ${RELEASE}`);
-    const response = await fetch(RELEASE);
+    console.log(`downloading ${pin.url}`);
+    const response = await fetch(pin.url);
     if (!response.ok) throw new Error(`upstream download failed: ${response.status} ${response.statusText}`);
-    const bytes = Buffer.from(await response.arrayBuffer());
-    fs.mkdirSync(path.dirname(CACHE), { recursive: true });
-    fs.writeFileSync(CACHE, bytes);
-    return bytes;
+    return Buffer.from(await response.arrayBuffer());
 }
 
 async function main() {
-    let bytes = fs.existsSync(CACHE) ? fs.readFileSync(CACHE) : undefined;
-    if (bytes && digest(bytes) !== SHA256) {
-        console.log("the cached bundle does not match the pin; downloading it again");
-        bytes = undefined;
+    let bytes;
+    if (REFRESH) {
+        console.log("--refresh: downloading the pinned release again");
+    } else if (fs.existsSync(CACHE)) {
+        const cached = fs.readFileSync(CACHE);
+        if (digest(cached) === pin.sha256) bytes = cached;
+        else console.log("the cached bundle does not match the pin; downloading it again");
     }
     bytes = bytes ?? (await download());
 
     if (bytes.length < MIN_BYTES) throw new Error(`the upstream download is too small: ${bytes.length} bytes`);
     const actual = digest(bytes);
-    if (actual !== SHA256) {
+    if (actual !== pin.sha256) {
         throw new Error(
-            `the upstream bundle is not ${VERSION}: sha256 ${actual}, expected ${SHA256}. ` +
+            `the upstream bundle is not ${pin.version}: sha256 ${actual}, expected ${pin.sha256}. ` +
                 "A release asset was replaced; check the new file before changing the pin.",
         );
     }
 
+    // Written only after the digest matches, so a bad download never becomes the cached bundle.
+    fs.mkdirSync(path.dirname(CACHE), { recursive: true });
+    fs.writeFileSync(CACHE, bytes);
     for (const target of INSTALLS) {
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.writeFileSync(target, bytes);
-        console.log(`upstream ${VERSION} installed at ${target} (${bytes.length} bytes)`);
+        console.log(`upstream ${pin.version} installed at ${target} (${bytes.length} bytes)`);
     }
-    console.log(`pinned ${VERSION} sha256 ${SHA256}`);
+    console.log(`pinned ${pin.version} sha256 ${pin.sha256}`);
 }
 
 main().catch(error => {

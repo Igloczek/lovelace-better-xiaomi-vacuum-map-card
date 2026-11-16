@@ -1,8 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import { UPSTREAM_DEFINE_GRACE_MS } from "../../../src/card-element-names";
+import pin from "../upstream-pin.json";
 import { login, shot, waitForCard, waitForHaReady, wsSend } from "./helpers";
 
 /**
@@ -11,27 +13,45 @@ import { login, shot, waitForCard, waitForHaReady, wsSend } from "./helpers";
  * it with upstream loaded would make upstream's own `customElements.define` throw, and copying the
  * upstream-named storage keys would hand this card the upstream card's saved view and run.
  *
- * `test/e2e/fetch-upstream.cjs` downloads the pinned upstream release (v2.4.1, sha256 checked) and
- * installs it at the two locations a real installation leaves it:
+ * `test/e2e/fetch-upstream.cjs` downloads the pinned upstream release (`upstream-pin.json`, sha256
+ * checked) and installs it at the two locations a real installation leaves it:
  *
  * - the HACS repository folder, `www/community/lovelace-xiaomi-vacuum-map-card/`. Home Assistant
  *   2026.11 no longer serves the `/hacsfiles/` prefix HACS registered, so the surviving file is
  *   loaded from its `/local/community/<repository>/` URL (the one the Marketplace migration writes);
  * - a manual install in `www/`, loaded from `/local/xiaomi-vacuum-map-card.js`.
  *
- * Every mixed test runs against both, in both resource orders. Home Assistant appends every
- * resource's script before any of them runs, so the fork sees the upstream script before it
- * decides, in either order.
+ * What the mixed tests prove, against the pinned bundle: with both installed, and with the fork
+ * running first or upstream running first, both cards render, neither shows Home Assistant's error
+ * card, nothing reports a define error, `custom:xiaomi-vacuum-map-card` is upstream's own class, and
+ * the upstream card's stored view and run stay under its own keys. The order is forced rather than
+ * left to the network: Home Assistant appends each resource as an async module, so the browser would
+ * otherwise run them in download order. The second bundle's response is held until the first has
+ * run, and the spec asserts the order the page recorded.
+ *
+ * What they do not prove: a bundle that defines the element late (a wrapper or a renamed build).
+ * The pinned upstream defines the element as soon as it runs, so the fork's grace period after a
+ * loaded candidate is never reached here. The mixed tests cover the fork waiting for a pending
+ * upstream bundle; the timing test covers the fork not waiting on its own bundle.
  */
 
 const FORK_MARKER = "lovelace-better-xiaomi-vacuum-map-card";
 const FORK_TAG = "better-xiaomi-vacuum-map-card";
+const FORK_EDITOR_TAG = "better-xiaomi-vacuum-map-card-editor";
 const LEGACY_TAG = "xiaomi-vacuum-map-card";
+const LEGACY_VIEW_KEY = "xiaomi-vacuum-map-card.map-view";
+const LEGACY_RUN_KEY = "xiaomi-vacuum-map-card.active-room-run";
+const FORK_VIEW_KEY = "better-xiaomi-vacuum-map-card.map-view";
+const FORK_RUN_KEY = "better-xiaomi-vacuum-map-card.active-room-run";
+const FORK_MIGRATED_KEY = "better-xiaomi-vacuum-map-card.storage-migrated";
+const FORK_UPSTREAM_SEEN_KEY = "better-xiaomi-vacuum-map-card.upstream-seen";
+/** A define collision: the browser's message for a name that is already taken in the registry. */
+const REGISTRATION_ERROR = /customElements|CustomElementRegistry|already been (?:used|defined)/;
 
-/** The pinned upstream build; `fetch-upstream.cjs` owns the download and holds the same pin. */
-const UPSTREAM_VERSION = "v2.4.1";
-const UPSTREAM_SHA256 = "6eb544c670480607c75d82321bb5d1932c781098c1f34391084ecefcac23d445";
-const UPSTREAM_CACHE = path.join(__dirname, "..", ".cache", `upstream-${UPSTREAM_VERSION}.js`);
+/** The pinned upstream build. `fetch-upstream.cjs` reads the same `upstream-pin.json`. */
+const UPSTREAM_VERSION = pin.version;
+const UPSTREAM_SHA256 = pin.sha256;
+const UPSTREAM_CACHE = path.join(__dirname, "..", pin.cache);
 const WWW = path.join(__dirname, "..", "ha", "config", "www");
 
 /**
@@ -55,23 +75,34 @@ type UpstreamInstall = (typeof UPSTREAM_INSTALLS)[number];
 /** The fork's own Marketplace folder, created before the rename: upstream's path word for word. */
 const OLD_PATH_URL = "/local/community/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js";
 const OLD_PATH_FILE = UPSTREAM_INSTALLS[0].file;
+const INSTALLED_URL = "/local/community/lovelace-better-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js";
 const INSTALLED_FILE = path.join(
-    __dirname,
-    "..",
-    "ha",
-    "config",
-    "www",
+    WWW,
     "community",
     "lovelace-better-xiaomi-vacuum-map-card",
     "xiaomi-vacuum-map-card.js",
 );
-const BUILT_FILE = path.join(__dirname, "..", "..", "dist", "xiaomi-vacuum-map-card.js");
+const BUILT_FILE = path.join(__dirname, "..", "..", "..", "dist", "xiaomi-vacuum-map-card.js");
+
+/** The path of a resource URL without its cache-buster: what the page reports for a loaded script. */
+function pathOf(url: string): string {
+    return new URL(url, "http://localhost").pathname;
+}
 
 interface Resource {
     id: string;
     type: string;
     url: string;
 }
+
+interface BundlePaths {
+    fork: string;
+    upstream: string;
+}
+
+type BundleName = keyof BundlePaths;
+
+const other = (bundle: BundleName): BundleName => (bundle === "fork" ? "upstream" : "fork");
 
 let forkResourceUrl: string | undefined;
 
@@ -124,17 +155,17 @@ function removeOldPathBundle(): void {
     fs.rmSync(OLD_PATH_FILE, { force: true });
 }
 
-const INSTALLED_URL = "/local/community/lovelace-better-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js";
-
 function knownForkResourceUrl(): string {
-    // The installer's URL when a card row was seen, otherwise the installed path itself: a failed
-    // run must not leave the suite unable to restore the resource it needs.
-    return forkResourceUrl ?? `${INSTALLED_URL}?v=e2e-side-by-side`;
+    if (forkResourceUrl === undefined) {
+        throw new Error("the fork's Lovelace resource is missing; run node test/e2e/marketplace-install.cjs");
+    }
+    return forkResourceUrl;
 }
 
 /**
  * Replaces every card resource row with exactly these URLs, in this order. A `"fork"` entry is this
- * card's installed URL, resolved after the lookup so it can be restored after a test replaced it.
+ * card's installed URL, remembered from the first lookup so it can be restored after a test replaced
+ * it.
  */
 async function setCardResources(urls: Array<string | "fork">): Promise<void> {
     const resources = await wsSend<Resource[]>("lovelace/resources");
@@ -151,8 +182,8 @@ async function setCardResources(urls: Array<string | "fork">): Promise<void> {
     }
 }
 
-/** Registers the fork and the upstream card, in exactly this resource order. */
-async function setCardResourceOrder(upstreamUrl: string, order: Array<"fork" | "upstream">): Promise<void> {
+/** Registers the fork and the upstream card as resource rows, in exactly this order. */
+async function setCardResourceOrder(upstreamUrl: string, order: BundleName[]): Promise<void> {
     await setCardResources(order.map(kind => (kind === "fork" ? "fork" : upstreamUrl)));
 }
 
@@ -160,14 +191,14 @@ async function keepOnlyTheForkResource(): Promise<void> {
     await setCardResources(["fork"]);
 }
 
-function recordRegistrationErrors(page: import("@playwright/test").Page): string[] {
+function recordRegistrationErrors(page: Page): string[] {
     const errors: string[] = [];
     page.on("pageerror", error => {
-        if (/customElements|already been used|define/i.test(error.message)) errors.push(error.message);
+        if (REGISTRATION_ERROR.test(error.message)) errors.push(error.message);
     });
     page.on("console", message => {
         const text = message.text();
-        if (message.type() === "error" && /customElements|already been used|define/i.test(text)) errors.push(text);
+        if (message.type() === "error" && REGISTRATION_ERROR.test(text)) errors.push(text);
         // The fork explains the one failure it can see but not prevent: it took the legacy name
         // before a bundle it could not judge tried to register it. Seeing that warning means the
         // decision went the wrong way, even though nothing threw.
@@ -176,7 +207,7 @@ function recordRegistrationErrors(page: import("@playwright/test").Page): string
     return errors;
 }
 
-async function expectCardRendered(page: import("@playwright/test").Page, tag: string): Promise<void> {
+async function expectCardRendered(page: Page, tag: string): Promise<void> {
     await waitForCard(page, tag);
     const rendered = await page
         .locator(tag)
@@ -196,7 +227,7 @@ async function expectCardRendered(page: import("@playwright/test").Page, tag: st
  * `instanceof` is exact: the alias is a subclass of the fork's class, so an aliased card would be
  * an instance of it. An upstream card is not.
  */
-async function expectLegacyOwnedByUpstream(page: import("@playwright/test").Page): Promise<void> {
+async function expectLegacyOwnedByUpstream(page: Page): Promise<void> {
     const ownership = await page
         .locator(LEGACY_TAG)
         .first()
@@ -221,22 +252,146 @@ async function expectLegacyOwnedByUpstream(page: import("@playwright/test").Page
     });
 }
 
-/** The card with the fork's own type must be the fork's class, not another bundle's. */
-async function expectForkCardIsFork(page: import("@playwright/test").Page): Promise<void> {
-    const isFork = await page
-        .locator(FORK_TAG)
+/**
+ * Proves the card rendered for `tag` is the fork's own class. The fork's `getConfigElement()` names
+ * the fork's editor, which only this bundle defines; upstream's class names `xiaomi-vacuum-map-card-editor`.
+ * A card of the other bundle therefore fails this check, and `tag` lets a test point it at one.
+ */
+async function expectForkCardIsFork(page: Page, tag = FORK_TAG): Promise<void> {
+    const editor = await page
+        .locator(tag)
         .first()
-        .evaluate(
-            (element: any, forkTag: string) =>
-                element instanceof (customElements.get(forkTag) as CustomElementConstructor),
-            FORK_TAG,
-        );
-    expect(isFork).toBe(true);
+        .evaluate(async (element: any) => {
+            const config = await element.constructor.getConfigElement();
+            return String(config?.localName);
+        });
+    expect(editor).toBe(FORK_EDITOR_TAG);
 }
 
 /** A card whose type resolves to nothing shows Home Assistant's error card instead. */
-async function expectNoErrorCard(page: import("@playwright/test").Page): Promise<void> {
+async function expectNoErrorCard(page: Page): Promise<void> {
     await expect(page.locator("hui-error-card")).toHaveCount(0);
+}
+
+/**
+ * Seeds upstream-named storage before the first navigation of the page. The migration marks itself
+ * done on the first bundle evaluation even when it copies nothing, and `login()` loads the dashboard,
+ * so a seed made after it would be skipped. The seed is guarded by that marker: once the migration
+ * has run, a later navigation never re-seeds the page over the state the migration produced.
+ */
+async function seedLegacyStorage(page: Page, entries: Record<string, string>): Promise<void> {
+    await page.addInitScript(
+        (input: { marker: string; entries: Record<string, string> }) => {
+            try {
+                if (window.localStorage.getItem(input.marker) !== null) return;
+                for (const [key, value] of Object.entries(input.entries)) window.localStorage.setItem(key, value);
+            } catch {
+                // Blocked storage: the migration then has nothing to copy, and the test fails on that.
+            }
+        },
+        { marker: FORK_MIGRATED_KEY, entries },
+    );
+}
+
+async function readStoredJson(page: Page, key: string): Promise<Record<string, unknown>> {
+    const raw = await page.evaluate(storageKey => window.localStorage.getItem(storageKey), key);
+    return JSON.parse(raw ?? "{}") as Record<string, unknown>;
+}
+
+/**
+ * Records, in the page, when the fork's bundle finished loading and when the legacy name was
+ * defined. A module's `load` fires after it has run, so the gap is the time the fork spent deciding
+ * the alias: about one task when nothing competes, the grace period when it waits on a candidate.
+ */
+async function recordAliasTiming(page: Page, bundlePath: string): Promise<void> {
+    await page.addInitScript(
+        (input: { bundlePath: string; legacy: string }) => {
+            const timing: { bundleLoadedAt?: number; legacyDefinedAt?: number } = {};
+            (window as any).__aliasTiming = timing;
+            document.addEventListener(
+                "load",
+                event => {
+                    const src = (event.target as HTMLScriptElement | null)?.src;
+                    if (timing.bundleLoadedAt === undefined && src && new URL(src).pathname === input.bundlePath) {
+                        timing.bundleLoadedAt = performance.now();
+                    }
+                },
+                true,
+            );
+            customElements.whenDefined(input.legacy).then(() => {
+                timing.legacyDefinedAt = performance.now();
+            });
+        },
+        { bundlePath, legacy: LEGACY_TAG },
+    );
+}
+
+/**
+ * The alias was defined without the grace period. With nothing to wait for the alias follows the
+ * bundle's load by about one task; a fork that waits out its own grace period defines it
+ * `UPSTREAM_DEFINE_GRACE_MS` later. Half of that separates the two with room for a loaded CI machine.
+ */
+async function expectAliasWithoutGrace(page: Page): Promise<void> {
+    const timing = await page.evaluate(
+        () => (window as any).__aliasTiming as { bundleLoadedAt?: number; legacyDefinedAt?: number } | undefined,
+    );
+    expect(timing?.bundleLoadedAt, "the fork's bundle load was not recorded").toBeGreaterThan(0);
+    expect(timing?.legacyDefinedAt, "the alias was never defined").toBeGreaterThan(0);
+    const waited = (timing?.legacyDefinedAt ?? 0) - (timing?.bundleLoadedAt ?? 0);
+    expect(waited, `the alias was defined ${waited.toFixed(0)} ms after the fork's bundle loaded`).toBeLessThan(
+        UPSTREAM_DEFINE_GRACE_MS / 2,
+    );
+}
+
+/**
+ * Runs the two bundles in a fixed order. Home Assistant appends each resource as an async module, so
+ * the browser runs them as their responses arrive, which is a race. The second bundle's response is
+ * held until the first one has loaded (a module's `load` fires after it has run), so the order is
+ * the test's. `expectRanInOrder` then checks the order the page recorded.
+ */
+async function holdSecondUntilFirstRuns(page: Page, first: BundleName, paths: BundlePaths): Promise<void> {
+    const second = other(first);
+    const firstPath = paths[first];
+    const secondPath = paths[second];
+    await page.addInitScript(
+        (tracked: string[]) => {
+            const loads: string[] = [];
+            (window as any).__bundleLoads = loads;
+            document.addEventListener(
+                "load",
+                event => {
+                    const src = (event.target as HTMLScriptElement | null)?.src;
+                    if (!src) return;
+                    const pathname = new URL(src).pathname;
+                    if (tracked.includes(pathname)) loads.push(pathname);
+                },
+                true,
+            );
+        },
+        [paths.fork, paths.upstream],
+    );
+    await page.route(
+        url => url.pathname === paths.fork || url.pathname === paths.upstream,
+        async route => {
+            const request = route.request();
+            if (request.method() !== "GET" || pathOf(request.url()) !== secondPath) {
+                await route.continue();
+                return;
+            }
+            await page.waitForFunction(
+                (loaded: string) => ((window as any).__bundleLoads ?? []).includes(loaded),
+                firstPath,
+                { timeout: 60_000 },
+            );
+            await route.continue();
+        },
+    );
+}
+
+async function expectRanInOrder(page: Page, first: BundleName, paths: BundlePaths): Promise<void> {
+    const loads = await page.evaluate(() => ((window as any).__bundleLoads ?? []) as string[]);
+    const expected = first === "fork" ? [paths.fork, paths.upstream] : [paths.upstream, paths.fork];
+    expect(loads, "the order the browser ran the two bundles in").toEqual(expected);
 }
 
 test.describe("custom element names", () => {
@@ -284,25 +439,25 @@ test.describe("custom element names", () => {
         await setCardResources([`${OLD_PATH_URL}?v=e2e-old-path`]);
         const errors = recordRegistrationErrors(page);
         const storedView = { "card-e2e-old-path": { s: 2, x: 5, y: 6, r: 0, ts: 1 } };
+        await seedLegacyStorage(page, { [LEGACY_VIEW_KEY]: JSON.stringify(storedView) });
+        await recordAliasTiming(page, pathOf(OLD_PATH_URL));
 
         await login(page);
-        await page.addInitScript(value => {
-            window.localStorage.setItem("xiaomi-vacuum-map-card.map-view", JSON.stringify(value));
-        }, storedView);
         await page.goto("/e2e-element-names/legacy");
         await waitForHaReady(page);
         await expectCardRendered(page, LEGACY_TAG);
+        await expectAliasWithoutGrace(page);
 
-        const migrated = await page.evaluate(() => ({
-            view: window.localStorage.getItem("better-xiaomi-vacuum-map-card.map-view"),
-            isAlias: (() => {
-                const legacy = customElements.get("xiaomi-vacuum-map-card");
-                const fork = customElements.get("better-xiaomi-vacuum-map-card");
+        const isAlias = await page.evaluate(
+            (tags: { legacy: string; fork: string }) => {
+                const legacy = customElements.get(tags.legacy);
+                const fork = customElements.get(tags.fork);
                 return !!legacy && !!fork && Object.getPrototypeOf(legacy) === fork;
-            })(),
-        }));
-        expect(migrated.isAlias).toBe(true);
-        expect(JSON.parse(migrated.view ?? "{}")).toHaveProperty(["card-e2e-old-path"]);
+            },
+            { legacy: LEGACY_TAG, fork: FORK_TAG },
+        );
+        expect(isAlias).toBe(true);
+        await expect.poll(() => readStoredJson(page, FORK_VIEW_KEY)).toHaveProperty(["card-e2e-old-path"]);
         expect(errors).toEqual([]);
         await shot(page, "43-element-name-old-path");
     });
@@ -310,10 +465,12 @@ test.describe("custom element names", () => {
     test("renders the legacy type next to a dead resource row at the old path", async ({ page }) => {
         // The upgrade state from the rename: a resource row still points at the pre-rename path, the
         // installer deleted that file, and the working file is the fork's. The 404 must not stop the
-        // alias: it is evidence that nothing can register upstream's name.
+        // alias: it is evidence that nothing can register upstream's name, and it must not cost the
+        // grace period either.
         removeOldPathBundle();
         await setCardResources(["fork", `${OLD_PATH_URL}?v=e2e-dead-row`]);
         const errors = recordRegistrationErrors(page);
+        await recordAliasTiming(page, pathOf(INSTALLED_URL));
 
         await login(page);
         const status = await page.request.get(`${OLD_PATH_URL}?v=e2e-dead-row`);
@@ -321,6 +478,7 @@ test.describe("custom element names", () => {
         await page.goto("/e2e-element-names/legacy");
         await waitForHaReady(page);
         await expectCardRendered(page, LEGACY_TAG);
+        await expectAliasWithoutGrace(page);
 
         const isAlias = await page.evaluate(
             (tags: { legacy: string; fork: string }) => {
@@ -345,20 +503,20 @@ test.describe("side by side with the upstream card", () => {
     });
 
     for (const install of UPSTREAM_INSTALLS) {
-        for (const order of [
-            ["fork", "upstream"],
-            ["upstream", "fork"],
-        ] as const) {
-            test(`loads both cards from the ${install.name} install with the ${order.join("-then-")} order`, async ({
+        for (const first of ["fork", "upstream"] as const) {
+            test(`loads both cards from the ${install.name} install with the ${first} bundle running first`, async ({
                 page,
             }) => {
                 installUpstreamBundles(install.name);
-                await setCardResourceOrder(install.url, [...order]);
+                const paths: BundlePaths = { fork: pathOf(INSTALLED_URL), upstream: pathOf(install.url) };
+                await setCardResourceOrder(install.url, [first, other(first)]);
                 const errors = recordRegistrationErrors(page);
 
                 await login(page);
+                await holdSecondUntilFirstRuns(page, first, paths);
                 await page.goto("/e2e-element-names/mixed");
                 await waitForHaReady(page);
+                await expectRanInOrder(page, first, paths);
                 await expectCardRendered(page, FORK_TAG);
                 await expectCardRendered(page, LEGACY_TAG);
                 // Upstream owns the legacy name here: the fork must have left it alone.
@@ -367,7 +525,7 @@ test.describe("side by side with the upstream card", () => {
                 // Neither card fell back to Home Assistant's error card.
                 await expectNoErrorCard(page);
                 expect(errors).toEqual([]);
-                await shot(page, `42-element-names-${install.name}-${order.join("-then-")}`);
+                await shot(page, `42-element-names-${install.name}-${first}-first`);
             });
         }
     }
@@ -377,6 +535,10 @@ test.describe("side by side with the upstream card", () => {
         await setCardResourceOrder(UPSTREAM_INSTALLS[0].url, ["upstream", "fork"]);
         const errors = recordRegistrationErrors(page);
         await login(page);
+        await holdSecondUntilFirstRuns(page, "upstream", {
+            fork: pathOf(INSTALLED_URL),
+            upstream: pathOf(UPSTREAM_INSTALLS[0].url),
+        });
         await page.goto("/e2e-element-names/new");
         await waitForHaReady(page);
         await expectCardRendered(page, FORK_TAG);
@@ -393,10 +555,13 @@ test.describe("side by side with the upstream card", () => {
         installUpstreamBundles("manual-local");
         await setCardResources([`${OLD_PATH_URL}?v=e2e-old-path-mixed`, UPSTREAM_INSTALLS[1].url]);
         const errors = recordRegistrationErrors(page);
+        const paths: BundlePaths = { fork: pathOf(OLD_PATH_URL), upstream: pathOf(UPSTREAM_INSTALLS[1].url) };
 
         await login(page);
+        await holdSecondUntilFirstRuns(page, "fork", paths);
         await page.goto("/e2e-element-names/mixed");
         await waitForHaReady(page);
+        await expectRanInOrder(page, "fork", paths);
         await expectCardRendered(page, FORK_TAG);
         await expectCardRendered(page, LEGACY_TAG);
         await expectLegacyOwnedByUpstream(page);
@@ -406,62 +571,64 @@ test.describe("side by side with the upstream card", () => {
         await shot(page, "45-element-names-old-path-with-upstream");
     });
 
-    for (const order of [
-        ["upstream", "fork"],
-        ["fork", "upstream"],
-    ] as const) {
-        test(`leaves the upstream card's stored view and run in its own keys (${order.join("-then-")})`, async ({
+    for (const first of ["fork", "upstream"] as const) {
+        test(`leaves the upstream card's stored view and run in its own keys (${first} bundle first)`, async ({
             page,
         }) => {
             installUpstreamBundles("hacs-folder");
-            await setCardResourceOrder(UPSTREAM_INSTALLS[0].url, [...order]);
+            await setCardResourceOrder(UPSTREAM_INSTALLS[0].url, [first, other(first)]);
             const errors = recordRegistrationErrors(page);
+            const paths: BundlePaths = { fork: pathOf(INSTALLED_URL), upstream: pathOf(UPSTREAM_INSTALLS[0].url) };
             const viewKey = "card-e2e-upstream-state";
             const legacyView = { [viewKey]: { s: 2, x: 12, y: 34, r: 0, ts: 1 } };
             const legacyRun = {
                 "vacuum.fake_vacuum": { entity: "vacuum.fake_vacuum", roomIds: ["16"], startedAt: 1, seenActive: true },
             };
+            await seedLegacyStorage(page, {
+                [LEGACY_VIEW_KEY]: JSON.stringify(legacyView),
+                [LEGACY_RUN_KEY]: JSON.stringify(legacyRun),
+            });
 
             await login(page);
-            await page.addInitScript(
-                value => {
-                    window.localStorage.setItem("xiaomi-vacuum-map-card.map-view", JSON.stringify(value.view));
-                    window.localStorage.setItem("xiaomi-vacuum-map-card.active-room-run", JSON.stringify(value.run));
-                },
-                { view: legacyView, run: legacyRun },
-            );
+            await holdSecondUntilFirstRuns(page, first, paths);
             await page.goto("/e2e-element-names/mixed");
             await waitForHaReady(page);
+            await expectRanInOrder(page, first, paths);
             await expectCardRendered(page, LEGACY_TAG);
             await expectCardRendered(page, FORK_TAG);
 
             // A rendered card does not mean the alias decision has settled; wait for the marker it
             // writes when upstream owns the name before reading the storage it must leave alone.
             await expect
-                .poll(() =>
-                    page.evaluate(() => window.localStorage.getItem("better-xiaomi-vacuum-map-card.upstream-seen")),
-                )
+                .poll(() => page.evaluate(key => window.localStorage.getItem(key), FORK_UPSTREAM_SEEN_KEY))
                 .toBe("1");
 
-            const stored = await page.evaluate(() => ({
-                legacyView: window.localStorage.getItem("xiaomi-vacuum-map-card.map-view"),
-                legacyRun: window.localStorage.getItem("xiaomi-vacuum-map-card.active-room-run"),
-                forkView: window.localStorage.getItem("better-xiaomi-vacuum-map-card.map-view"),
-                forkRun: window.localStorage.getItem("better-xiaomi-vacuum-map-card.active-room-run"),
-                migrated: window.localStorage.getItem("better-xiaomi-vacuum-map-card.storage-migrated"),
-                upstreamSeen: window.localStorage.getItem("better-xiaomi-vacuum-map-card.upstream-seen"),
-            }));
+            const stored = await page.evaluate(
+                (keys: string[]) =>
+                    Object.fromEntries(keys.map(key => [key, window.localStorage.getItem(key)])) as Record<
+                        string,
+                        string | null
+                    >,
+                [
+                    LEGACY_VIEW_KEY,
+                    LEGACY_RUN_KEY,
+                    FORK_VIEW_KEY,
+                    FORK_RUN_KEY,
+                    FORK_MIGRATED_KEY,
+                    FORK_UPSTREAM_SEEN_KEY,
+                ],
+            );
 
             // Untouched: the upstream card keeps using its own keys.
-            expect(JSON.parse(stored.legacyView ?? "{}")).toHaveProperty([viewKey]);
-            expect(JSON.parse(stored.legacyRun ?? "{}")).toEqual(legacyRun);
+            expect(JSON.parse(stored[LEGACY_VIEW_KEY] ?? "{}")).toHaveProperty([viewKey]);
+            expect(JSON.parse(stored[LEGACY_RUN_KEY] ?? "{}")).toEqual(legacyRun);
             // Never copied, and the one-shot migration never marked itself done. The fork's own card
             // on this page may store its own view, but nothing under its key may be upstream's state.
-            expect(stored.forkView ?? "").not.toContain(viewKey);
-            expect(stored.forkRun ?? "").not.toContain("vacuum.fake_vacuum");
-            expect(stored.migrated).toBeNull();
+            expect(stored[FORK_VIEW_KEY] ?? "").not.toContain(viewKey);
+            expect(stored[FORK_RUN_KEY] ?? "").not.toContain("vacuum.fake_vacuum");
+            expect(stored[FORK_MIGRATED_KEY]).toBeNull();
             // The browser now remembers that the legacy name and keys belong to the upstream card.
-            expect(stored.upstreamSeen).toBe("1");
+            expect(stored[FORK_UPSTREAM_SEEN_KEY]).toBe("1");
             expect(errors).toEqual([]);
         });
     }
@@ -475,23 +642,16 @@ test.describe("legacy storage keys", () => {
 
     test("migrates a view stored under the upstream key when the fork is alone", async ({ page }) => {
         await keepOnlyTheForkResource();
-        await login(page);
         const key = "card-e2e-alias";
-        await page.addInitScript(
-            value => {
-                window.localStorage.setItem("xiaomi-vacuum-map-card.map-view", JSON.stringify(value));
-            },
-            { [key]: { s: 2, x: 12, y: 34, r: 0, ts: 1 } },
-        );
+        await seedLegacyStorage(page, {
+            [LEGACY_VIEW_KEY]: JSON.stringify({ [key]: { s: 2, x: 12, y: 34, r: 0, ts: 1 } }),
+        });
+        await login(page);
         await page.goto("/e2e-element-names/new");
         await waitForHaReady(page);
         await waitForCard(page, FORK_TAG);
-        const migrated = await page.evaluate(() => ({
-            view: window.localStorage.getItem("better-xiaomi-vacuum-map-card.map-view"),
-            legacy: window.localStorage.getItem("xiaomi-vacuum-map-card.map-view"),
-        }));
-        expect(JSON.parse(migrated.view ?? "{}")).toHaveProperty([key]);
+        await expect.poll(() => readStoredJson(page, FORK_VIEW_KEY)).toHaveProperty([key]);
         // The upstream key is kept: another card may still be using it.
-        expect(JSON.parse(migrated.legacy ?? "{}")).toHaveProperty([key]);
+        expect(await readStoredJson(page, LEGACY_VIEW_KEY)).toHaveProperty([key]);
     });
 });

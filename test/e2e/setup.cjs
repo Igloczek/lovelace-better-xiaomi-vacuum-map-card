@@ -669,6 +669,7 @@ async function main() {
             state: entity.state,
             attributes: Object.keys(entity.attributes),
         }));
+    fs.mkdirSync(ARTIFACTS, { recursive: true });
     fs.writeFileSync(CARD_ENTITIES, JSON.stringify(summary, null, 2));
     console.log(`dashboards ready: ${dashboards.map(d => d.url_path).join(", ")}`);
     console.log(`entities: ${summary.map(entity => entity.entity_id).join(", ")}`);
