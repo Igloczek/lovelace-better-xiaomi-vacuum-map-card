@@ -151,6 +151,71 @@ describe("the run button", () => {
     });
 });
 
+/**
+ * Home Assistant skips an `unavailable` entity on a service call without an error, so a run sent to
+ * an offline vacuum (a dead battery after a failed dock) "succeeded": the card reported success,
+ * cleared the selection and showed a run that never started.
+ */
+describe("the run button with an unavailable vacuum", () => {
+    async function goOffline(m: Mounted, state = "unavailable"): Promise<void> {
+        await m.card.updateHass(withState(m.card.hass, "vacuum.roborock_s7", { state }).hass);
+    }
+
+    it("sends nothing, reports it and keeps the selection", async () => {
+        const m = await mount();
+        await clickRoom(m.card, "1");
+        await goOffline(m);
+
+        await runSelection(m.card);
+
+        expect(m.card.hass.callService).not.toHaveBeenCalled();
+        expect(m.toast).toHaveBeenCalledWith("popups.vacuum_unavailable", "mdi:robot-vacuum-alert", false);
+        expect(m.toast).not.toHaveBeenCalledWith("popups.success", expect.anything(), true);
+        expect(selectedIds(m.card)).toEqual(["1"]);
+        expect((m.card.element as unknown as XiaomiVacuumMapCard).activeRoomRun).toBeUndefined();
+    });
+
+    it("refuses a run_immediately selection too", async () => {
+        const { state_entity: _, ...plainPoint } = SWITCH_POINT_MODE.predefined_selections[0];
+        const m = await mount({}, [
+            { ...SWITCH_POINT_MODE, run_immediately: true, predefined_selections: [plainPoint] },
+        ]);
+        await goOffline(m);
+
+        const icon = m.card.shadowRoot.querySelector(".predefined-point-icon-wrapper");
+        if (!icon) throw new Error("the point has no icon to tap");
+        icon.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+        await settle(m.card.element, 400);
+
+        expect(m.card.hass.callService).not.toHaveBeenCalled();
+        expect(m.toast).toHaveBeenCalledWith("popups.vacuum_unavailable", "mdi:robot-vacuum-alert", false);
+    });
+
+    it("still sends to a vacuum whose state is unknown", async () => {
+        const m = await mount();
+        await clickRoom(m.card, "1");
+        await goOffline(m, "unknown");
+
+        await runSelection(m.card);
+
+        expect(m.card.hass.callService).toHaveBeenCalledTimes(1);
+        expect(m.toast).toHaveBeenCalledWith("popups.success", "mdi:check", true);
+    });
+
+    it("sends again once the vacuum is back", async () => {
+        const m = await mount();
+        await clickRoom(m.card, "1");
+        await goOffline(m);
+        await runSelection(m.card);
+        await goOffline(m, "docked");
+
+        await runSelection(m.card);
+
+        expect(m.card.hass.callService).toHaveBeenCalledTimes(1);
+        expect(selectedIds(m.card)).toEqual([]);
+    });
+});
+
 describe("fire-and-forget service calls", () => {
     it("reports a failed preset activation", async () => {
         const { card, hass, toast } = await mount({

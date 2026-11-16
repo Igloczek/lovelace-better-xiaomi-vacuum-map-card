@@ -247,7 +247,8 @@
         "success": "Usługa wywołana!",
         "no_selection": "Nie wybrano zaznaczenia",
         "failed": "Błąd wywołania usługi",
-        "in_progress": "Trwa wysyłanie, poczekaj na odpowiedź"
+        "in_progress": "Trwa wysyłanie, poczekaj na odpowiedź",
+        "vacuum_unavailable": "Odkurzacz jest niedostępny, więc nic nie zostało wysłane"
     },
     "editor": {
         "description": {

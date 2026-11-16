@@ -14,6 +14,22 @@ import { selectionChanged } from "./selection";
 import { setCurrentMode } from "./selection";
 
 /**
+ * Refuses a run while the preset's vacuum is missing or `unavailable` (offline, a dead battery after
+ * a failed dock). Home Assistant skips an unavailable entity without an error, so the call would
+ * "succeed", the card would report success, clear the selection and show a run that never started.
+ * `unknown` is not refused: the entity is available and Home Assistant still delivers the call.
+ * Returns true when the run was refused.
+ */
+function refuseUnavailableVacuum(card: XiaomiVacuumMapCard): boolean {
+    const entity = card._getCurrentPreset().entity;
+    const state = card.hass?.states?.[entity];
+    if (state && state.state !== "unavailable") return false;
+    card._showToast("popups.vacuum_unavailable", "mdi:robot-vacuum-alert", false);
+    forwardHaptic("failure");
+    return true;
+}
+
+/**
  * Refuses a ROOM run whose selected rooms would reach the service call as an empty room list, and
  * reports why. The card's warning names the ids; this is the feedback at the moment of the tap, so
  * the run never appears to have been sent. Returns true when the run was refused.
@@ -63,6 +79,8 @@ export async function runSelection(card: XiaomiVacuumMapCard, debug: boolean): P
         forwardHaptic("failure");
     } else {
         const showOnly = debug || (card.config.debug ?? false);
+        // Showing the call (hold, `debug`) sends nothing, so it works while the vacuum is offline.
+        if (!showOnly && refuseUnavailableVacuum(card)) return;
         // One run at a time, from the first tap until Home Assistant answered: a templated mode
         // renders through the websocket first, so a guard placed after the render would let a quick
         // second tap render and send the same run again once the first call finished.
