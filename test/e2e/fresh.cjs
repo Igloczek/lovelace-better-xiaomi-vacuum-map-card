@@ -80,6 +80,9 @@ async function main() {
     step("put this checkout's build in front of the specs");
     run(process.execPath, [path.join(E2E_DIR, "install-local-build.cjs")]);
 
+    step("fetch the pinned upstream release for the side-by-side spec");
+    run(process.execPath, [path.join(E2E_DIR, "fetch-upstream.cjs")]);
+
     step("run the Playwright suite");
     run("npm", ["run", "test:e2e", "--", ...playwrightArgs]);
 

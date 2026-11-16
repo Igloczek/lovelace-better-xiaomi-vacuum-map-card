@@ -124,6 +124,7 @@ node test/e2e/setup.cjs                                       # onboarding + sto
 node test/e2e/connect-github.cjs --restart                    # Marketplace GitHub token
 node test/e2e/marketplace-install.cjs                         # install from the repository URL
 npm run build && node test/e2e/install-local-build.cjs        # put this checkout's build in front
+node test/e2e/fetch-upstream.cjs                              # pinned upstream for the side-by-side spec
 npm run test:e2e
 ```
 
