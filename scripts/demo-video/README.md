@@ -23,6 +23,7 @@ npm run build
 docker compose -f scripts/demo-video/compose.yaml up -d   # Home Assistant 2026.11.0 on :8130
 node scripts/demo-video/setup.cjs                         # onboarding, card resource, dashboard
 node scripts/demo-video/record.cjs                        # writes docs/media/demo.mp4
+docker compose -f scripts/demo-video/compose.yaml down    # do not leave it running
 ```
 
 GitHub does not play a video committed to the repository inside a README, so the README shows an

@@ -10,9 +10,12 @@
  * up the dashboards, connects Marketplace to GitHub, installs the card from the repository, puts
  * this checkout's build in front of the specs, and runs Playwright.
  *
+ * The instance is torn down afterwards, pass or fail. Agents used to leave a Home Assistant
+ * container running for days after their worktree was deleted; keeping one is now the opt-in.
+ *
  * Usage:
  *   npm run test:e2e:fresh
- *   npm run test:e2e:fresh -- --down          # tear the instance down after the suite
+ *   npm run test:e2e:fresh -- --keep          # leave the instance running to inspect or rerun specs
  *   npm run test:e2e:fresh -- --no-build      # reuse an existing dist/ bundle
  *   npm run test:e2e:fresh -- -- specs/foo.spec.ts
  */
@@ -26,7 +29,8 @@ const args = process.argv.slice(2);
 const separator = args.indexOf("--");
 const flags = separator === -1 ? args : args.slice(0, separator);
 const playwrightArgs = separator === -1 ? [] : args.slice(separator + 1);
-const downAfter = flags.includes("--down");
+// `--down` was the old opt-in to teardown; it is the default now and still accepted.
+const downAfter = !flags.includes("--keep");
 const build = !flags.includes("--no-build");
 
 function step(name) {
@@ -89,6 +93,10 @@ async function main() {
     if (downAfter) {
         step("stop this worktree's instance");
         compose(["down", "--remove-orphans"]);
+    } else {
+        console.log(
+            `\nThe instance is still running: ${describeInstance()}. Stop it with \`npm run e2e:down\` when done.`,
+        );
     }
 }
 
@@ -101,6 +109,8 @@ main().catch(error => {
         } catch (teardownError) {
             console.error(`teardown failed: ${teardownError.message}`);
         }
+    } else {
+        console.error(`\nThe instance is still running for inspection. Stop it with \`npm run e2e:down\` when done.`);
     }
     process.exit(1);
 });
