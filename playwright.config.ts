@@ -57,7 +57,12 @@ export default defineConfig({
             caret: "hide",
         },
     },
-    projects: [{ name: "chromium" }],
+    projects: [
+        { name: "chromium" },
+        // The Home Assistant macOS app renders with WebKit. Specs that prove an overlay by its
+        // pixels (not by screenshots against Chromium baselines) run there too.
+        { name: "webkit", use: { browserName: "webkit" }, testMatch: "**/live-path.spec.ts" },
+    ],
     webServer: {
         command: "node test/visual/server.cjs",
         url: `http://127.0.0.1:${VISUAL_PORT}/`,

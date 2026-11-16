@@ -1,0 +1,167 @@
+[
+    {
+        "moment": "docked (before start)",
+        "entity_id": "camera.VACUUM_map",
+        "state": "TIMESTAMP",
+        "last_updated": "2026-11-16T11:41:25.028084+00:00",
+        "attributes": {
+            "vacuum_position": {
+                "x": 9496,
+                "y": 4999,
+                "a": 359
+            },
+            "charger_position": {
+                "x": 9496,
+                "y": 4999,
+                "a": 359
+            },
+            "calibration_points": [
+                {
+                    "vacuum": {
+                        "x": 10000,
+                        "y": 5000
+                    },
+                    "map": {
+                        "x": 850,
+                        "y": 553
+                    }
+                },
+                {
+                    "vacuum": {
+                        "x": 11000,
+                        "y": 5000
+                    },
+                    "map": {
+                        "x": 930,
+                        "y": 553
+                    }
+                },
+                {
+                    "vacuum": {
+                        "x": 10000,
+                        "y": 6000
+                    },
+                    "map": {
+                        "x": 850,
+                        "y": 473
+                    }
+                }
+            ],
+            "map_id": 3,
+            "frame_id": 254,
+            "rotation": 0,
+            "updated_at": null,
+            "omitted": "access_token, entity_picture token, rooms, walls/zones, carpets, furniture, router_position, pictures (privacy)"
+        }
+    },
+    {
+        "moment": "started, still in dock pre-washing mop (position not moving yet)",
+        "entity_id": "camera.VACUUM_map",
+        "state": "TIMESTAMP",
+        "last_updated": "2026-11-16T11:48:41.227639+00:00",
+        "attributes": {
+            "vacuum_position": {
+                "x": 9496,
+                "y": 4999,
+                "a": 359
+            },
+            "charger_position": {
+                "x": 9496,
+                "y": 4999,
+                "a": 359
+            },
+            "calibration_points": [
+                {
+                    "vacuum": {
+                        "x": 10000,
+                        "y": 5000
+                    },
+                    "map": {
+                        "x": 850,
+                        "y": 553
+                    }
+                },
+                {
+                    "vacuum": {
+                        "x": 11000,
+                        "y": 5000
+                    },
+                    "map": {
+                        "x": 930,
+                        "y": 553
+                    }
+                },
+                {
+                    "vacuum": {
+                        "x": 10000,
+                        "y": 6000
+                    },
+                    "map": {
+                        "x": 850,
+                        "y": 473
+                    }
+                }
+            ],
+            "map_id": 3,
+            "frame_id": 257,
+            "rotation": 0,
+            "updated_at": "2026-11-16T12:48:41.019083",
+            "omitted": "access_token, entity_picture token, rooms, walls/zones, carpets, furniture, router_position, pictures (privacy)"
+        }
+    },
+    {
+        "moment": "docked (after return)",
+        "entity_id": "camera.VACUUM_map",
+        "state": "TIMESTAMP",
+        "last_updated": "2026-11-16T11:53:14.232640+00:00",
+        "attributes": {
+            "vacuum_position": {
+                "x": 9493,
+                "y": 4999,
+                "a": 359
+            },
+            "charger_position": {
+                "x": 9493,
+                "y": 4999,
+                "a": 359
+            },
+            "calibration_points": [
+                {
+                    "vacuum": {
+                        "x": 10000,
+                        "y": 5000
+                    },
+                    "map": {
+                        "x": 850,
+                        "y": 737
+                    }
+                },
+                {
+                    "vacuum": {
+                        "x": 11000,
+                        "y": 5000
+                    },
+                    "map": {
+                        "x": 930,
+                        "y": 737
+                    }
+                },
+                {
+                    "vacuum": {
+                        "x": 10000,
+                        "y": 6000
+                    },
+                    "map": {
+                        "x": 850,
+                        "y": 657
+                    }
+                }
+            ],
+            "map_id": 4,
+            "frame_id": 54,
+            "rotation": 0,
+            "updated_at": "2026-11-16T12:53:14.021076",
+            "omitted": "access_token, entity_picture token, rooms, walls/zones, carpets, furniture, router_position, pictures (privacy)"
+        }
+    }
+]

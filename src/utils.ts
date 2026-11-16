@@ -66,6 +66,9 @@ export function getWatchedEntitiesForPreset(config: CardPresetConfig, language: 
     if (config.calibration_source?.entity) {
         watchedEntities.add(config.calibration_source.entity);
     }
+    if (config.live_path && typeof config.live_path === "object" && config.live_path.entity) {
+        watchedEntities.add(config.live_path.entity);
+    }
     (config.conditions ?? [])
         .map(c => c?.entity)
         .forEach(e => {

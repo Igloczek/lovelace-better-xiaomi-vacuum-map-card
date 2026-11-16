@@ -32,6 +32,11 @@
 --map-card-manual-path-point-line-width
 --map-card-manual-path-line-color
 --map-card-manual-path-line-width
+--map-card-live-path-color
+--map-card-live-path-opacity
+--map-card-live-path-width
+--map-card-live-path-robot-color
+--map-card-live-path-robot-outline-color
 --map-card-predefined-rectangle-line-width
 --map-card-predefined-rectangle-line-color
 --map-card-predefined-rectangle-fill-color

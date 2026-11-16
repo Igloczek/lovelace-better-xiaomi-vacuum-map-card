@@ -37,9 +37,6 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 
 ## Later
 
-- **Live path overlay on a static floorplan.** A static image already works as the map source
-  (`map_source.image` plus `transparent_background`); what is missing is drawing the robot's live
-  path on top of such an image.
 - **Templated predefined selections.** Dynamic selections currently come from an entity's state or
   attribute. Supporting Jinja templates would be a large change and needs a concrete use case that
   entity-backed selections cannot serve.
@@ -55,7 +52,6 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 | Item | Why it waits | Unblocks when (data request) |
 |---|---|---|
 | Roborock status/battery tiles | The templates need the integration's real registry entries | A scrubbed Roborock-core registry dump and a status string sample are available ([#53](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/53)) |
-| Live path overlay on a static image | No fixture and no decision on how a path overlays a picture | A path entity fixture and an agreed rendering ([#47](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/47)) |
 | Templated predefined selections | No concrete use case and a large Jinja subscription change | A report that entity-backed selections cannot serve ([#48](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/48)) |
 | Rotated zone rectangles | No platform documented to accept arbitrary points | Vendor documentation or a working service call ([#49](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/49)) |
 | Valetudo JSON map / icons | No Valetudo instance to verify | A captured map fixture or a Valetudo instance ([#50](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/50)) |

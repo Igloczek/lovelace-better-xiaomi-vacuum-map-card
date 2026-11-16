@@ -296,6 +296,7 @@ its content scrolls inside the cell; the map keeps its aspect ratio instead of b
 | `conditions`               | list    | no              | -               | List of [conditions](#condition-options) that need to be (all of them) met for preset to be shown |
 | `clean_selection_on_start` | boolean | no              | `true`          | Allows to disable cleaning selection on cleanup start                                             |
 | `internal_variables`       | object  | no              | -               | Allows to specify default values for internal variables                                           |
+| `live_path`                | boolean or object | no    | `false`         | Draws the robot and the path it drives, see [live path options](#live-path-options)               |
 
 <sup>1</sup> If multiple presets are configured
 
@@ -430,6 +431,50 @@ the run.
 | `bottom` | number | no       | 0       | Image cropping value from the bottom (in pixels) |
 | `left`   | number | no       | 0       | Image cropping value from the left (in pixels)   |
 | `right`  | number | no       | 0       | Image cropping value from the right (in pixels)  |
+
+## Live path options
+
+`live_path` draws the robot's current position, with its heading, and the path it drove on the
+current or last run, over the map: a camera map or a static floorplan picture
+(`map_source.image`). `live_path: true` reads the map camera's `vacuum_position` attribute; a
+mapping names another source.
+
+| Key         | Type   | Required        | Default             | Description                                                                                  |
+|-------------|--------|-----------------|---------------------|----------------------------------------------------------------------------------------------|
+| `entity`    | string | yes<sup>1</sup> | `map_source.camera` | Entity whose attribute holds the robot's position                                            |
+| `attribute` | string | no              | `vacuum_position`   | Attribute with the position as `{x, y, a}` or `[x, y, a]` in vacuum coordinates (`a`: heading) |
+
+<sup>1</sup> When the map source is an `image`
+
+```yaml
+map_source:
+  image: /local/floorplan.png
+calibration_source:
+  calibration_points: # three or four points that place the vacuum's coordinates on the picture
+    - vacuum: { x: 25500, y: 25500 }
+      map: { x: 466, y: 1889 }
+    - vacuum: { x: 26500, y: 26500 }
+      map: { x: 730, y: 1625 }
+    - vacuum: { x: 25500, y: 26500 }
+      map: { x: 466, y: 1625 }
+live_path:
+  entity: camera.vacuum_map
+```
+
+- **Where the position comes from.** Tasshack/dreame-vacuum and the Xiaomi Cloud Map Extractor
+  publish `vacuum_position` on their map camera; any entity attribute in vacuum coordinates works.
+  The position goes through the preset's calibration, so it must be in the same coordinates as the
+  `vacuum` side of the calibration points.
+- **How the path is built.** Integrations publish the position, not the path, so the card records
+  each position it sees while the vacuum is `cleaning`, `paused` or `returning`. A new run starts a
+  new path; after docking the last run's path stays until the next one. The path is kept in this
+  browser, so a reload keeps it, but positions from while no dashboard showed the card are missing.
+- **Look.** A semi-transparent line in the primary colour under the room labels and selections,
+  the same width on screen at any zoom, with the robot as a dot and a chevron pointing where it
+  heads. Colour, opacity and width are [CSS variables](css_variables.md) (`--map-card-live-path-*`).
+- **Camera maps.** A camera image that already paints the path (Dreame) shows both; the card's line
+  follows the camera's calibration on every frame, so it stays on the painted track while the image
+  grows.
 
 ## Calibration source options
 

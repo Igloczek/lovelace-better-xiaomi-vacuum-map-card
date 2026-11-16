@@ -76,6 +76,13 @@ cover the checkmark when the order is off, a dark dashboard with `transparent_ba
 geometry case also takes a screenshot (`room-pill-<theme>-zoom-<z>-rotation-<r>.png`,
 `room-pill-<theme>-checkmark.png`, `room-pill-dark-transparent.png`).
 
+`live-path.spec.ts` covers the live path overlay (`live_path`) and is the one spec that also runs in
+WebKit, the engine of the Home Assistant macOS app, because WebKit has painted map overlays away
+from their layout boxes. It reads no overlay box: at zoom 1 and 2.5 × rotation 0 and 90 it computes
+the screen point of each driven position from the map image's rectangle and the calibration, and
+asserts the screenshot shows the path's and the robot's colours there, nothing in the path's colour
+off the path, the path kept after docking and gone when the next run starts.
+
 `stale-marker.spec.ts` covers the stale-room `!` marker, which a selected room's pill shares a point
 with. It hands the card the label font the way a theme may - `12px`, `1.4rem`, `2em`,
 `calc(10px + 1vw)` and `40px` - and asserts that the marker's rendered size is 1.4 x the font the

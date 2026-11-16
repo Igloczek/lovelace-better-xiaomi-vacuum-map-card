@@ -125,6 +125,15 @@ export interface CardPresetConfig extends ConditionalObjectConfig {
     readonly activate_on_switch?: boolean;
     readonly clean_selection_on_start?: boolean;
     readonly internal_variables?: VariablesStorage;
+    /** Draws the robot's position and the path it drove; `true` reads the camera's `vacuum_position`. */
+    readonly live_path?: boolean | LivePathConfig;
+}
+
+export interface LivePathConfig {
+    /** The entity whose attribute holds the position; defaults to `map_source.camera`. */
+    readonly entity?: string;
+    /** The attribute holding `{x, y, a}` or `[x, y, a]` in vacuum coordinates; defaults to `vacuum_position`. */
+    readonly attribute?: string;
 }
 
 export interface MapSourceConfig {

@@ -6,6 +6,7 @@ import {
     IconActionConfig,
     IconConfig,
     LabelConfig,
+    LivePathConfig,
     Language,
     MapModeConfig,
     MapSourceConfig,
@@ -348,6 +349,25 @@ function validateMapModeConfig(
     return errors;
 }
 
+function validateLivePath(config: CardPresetConfig): TranslatableString[] {
+    const livePath = config.live_path;
+    if (livePath === undefined || livePath === null || livePath === false) return [];
+    if (livePath !== true && !isMapping(livePath)) {
+        return [["validation.preset.live_path.invalid", "{0}", JSON.stringify(livePath)]];
+    }
+    const errors: TranslatableString[] = [];
+    const mapping = livePath === true ? {} : (livePath as LivePathConfig);
+    for (const field of ["entity", "attribute"] as const) {
+        if (mapping[field] !== undefined && typeof mapping[field] !== "string") {
+            errors.push(["validation.preset.live_path.invalid_field", "{0}", field]);
+        }
+    }
+    if (mapping.entity === undefined && !config.map_source?.camera) {
+        errors.push("validation.preset.live_path.missing_entity");
+    }
+    return errors;
+}
+
 function validatePreset(config: CardPresetConfig, nameRequired: boolean, language: Language): TranslatableString[] {
     if (!isMapping(config)) {
         return [notMapping("additional_presets")];
@@ -383,6 +403,7 @@ function validatePreset(config: CardPresetConfig, nameRequired: boolean, languag
         !PlatformGenerator.getPlatforms().includes(PlatformGenerator.getPlatformName(config.vacuum_platform))
     )
         errors.push(["validation.preset.platform.invalid", "{0}", config.vacuum_platform]);
+    validateLivePath(config).forEach(e => errors.push(e));
     validateList(config.icons, "icons", validateIconConfig).forEach(e => errors.push(e));
     validateList(config.tiles, "tiles", validateTileConfig).forEach(e => errors.push(e));
     validateConditions(config.conditions, "conditions").forEach(e => errors.push(e));
