@@ -47,10 +47,9 @@ test("a zone turned with the rotate handle reaches the Viomi as its four turned 
     const target = await card(page);
     await waitForMapImage(target);
 
-    // Add a zone with the card's + control.
-    const add = await centre(target, ".map-actions-item:has(ha-icon[icon='mdi:plus'])");
-    await page.mouse.click(add.x, add.y);
+    // The zone mode opens with one zone on the map, without a + press.
     await expect.poll(() => target.evaluate(element => element.selectedManualRectangles.length)).toBe(1);
+    await expect(target.locator.locator("polygon.manual-rectangle")).toHaveCount(1);
     await nextFrames(page);
     expect(await target.locator.locator(".manual-rectangle-rotate-circle").count()).toBe(1);
 

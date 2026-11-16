@@ -84,8 +84,7 @@ const lerp = (a: { x: number; y: number }, b: { x: number; y: number }, t: numbe
 for (const rotation of [0, 90] as const) {
     test(`a turned zone is painted turned at map rotation ${rotation}`, async ({ page }) => {
         await mount(page, config(rotation));
-        const add = page.locator(CARD).locator(".map-actions-item:has(ha-icon[icon='mdi:plus'])");
-        await add.click();
+        // The zone mode opens with its zone already on the map.
         await expect.poll(() => page.locator(CARD).locator("polygon.manual-rectangle").count()).toBe(1);
 
         // The default fill is faint over the harness's white floor; an opaque one makes every

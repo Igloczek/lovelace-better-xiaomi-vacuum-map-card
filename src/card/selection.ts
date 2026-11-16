@@ -136,6 +136,8 @@ export function setCurrentMode(
         card.selectedManualRectangles = [];
         card.selectedManualPoint = undefined;
         card.selectedManualPath.clear();
+        // A fresh zone selection starts with one zone on the map (see `placeDefaultRectangle`).
+        card.defaultRectanglePending = !!newMode?.isManualRectangleSelection();
     }
     clearSelectionObjects(card);
 
@@ -252,6 +254,7 @@ export function setCurrentMode(
     if (card.builtRoomIdsKey !== undefined) card.roomMetadataSeen = true;
     if (card.selectedMode != newModeIndex && manual) forwardHaptic("selection");
     card.selectedMode = newModeIndex;
+    placeDefaultRectangle(card);
     selectionChanged(card);
     // The selected objects were replaced; without this the map keeps drawing the old ones until
     // an unrelated update arrives.
@@ -466,18 +469,54 @@ export function drawSelection(card: XiaomiVacuumMapCard): SVGTemplateResult | nu
     }
 }
 
+/**
+ * Puts one zone on the map when a zone mode starts a fresh selection, so the user sees what to
+ * drag instead of an empty map with a `+` they have to find first (upstream starts empty). The `+`
+ * adds further zones. The zone is placed once per fresh selection: a mode or preset switch, the
+ * clear action and a run with `clean_selection_on_start` start one; a rebuild keeps the user's
+ * zones, and a zone the user deleted stays deleted until the next fresh selection.
+ *
+ * The zone is sized from the rendered map, so it waits until the image is measured and the
+ * calibration is valid; the image load calls this again.
+ */
+export function placeDefaultRectangle(card: XiaomiVacuumMapCard): void {
+    if (!card.defaultRectanglePending) return;
+    const mode = card._getCurrentMode();
+    if (!mode?.isManualRectangleSelection() || card.selectedManualRectangles.length > 0) {
+        card.defaultRectanglePending = false;
+        return;
+    }
+    if (!card.coordinatesConverter?.calibrated) return;
+    calculateBasicScale(card);
+    if (!(card.realImageWidth > 0) || !(card.realImageHeight > 0) || !(card.realScale > 0)) return;
+    card.defaultRectanglePending = false;
+    pushRectangle(card, mode);
+    selectionChanged(card);
+    card.requestUpdate();
+}
+
 export function addRectangle(card: XiaomiVacuumMapCard): void {
-    const preset = card._getCurrentPreset();
     const currentMode = card._getCurrentMode();
-    const marginTop = preset.map_source.crop?.top ?? 0;
-    const marginBottom = preset.map_source.crop?.bottom ?? 0;
-    const marginLeft = preset.map_source.crop?.left ?? 0;
-    const marginRight = preset.map_source.crop?.right ?? 0;
     calculateBasicScale(card);
     if (!currentMode || card.selectedManualRectangles.length >= currentMode.maxSelections) {
         forwardHaptic("failure");
         return;
     }
+    // The user chose their zones; a late image load must not add the default one on top.
+    card.defaultRectanglePending = false;
+    pushRectangle(card, currentMode);
+    selectionChanged(card);
+    forwardHaptic("selection");
+    card.requestUpdate();
+}
+
+/** A new zone a third of the visible map in size, a third of the way in from its top left. */
+function pushRectangle(card: XiaomiVacuumMapCard, currentMode: MapMode): void {
+    const preset = card._getCurrentPreset();
+    const marginTop = preset.map_source.crop?.top ?? 0;
+    const marginBottom = preset.map_source.crop?.bottom ?? 0;
+    const marginLeft = preset.map_source.crop?.left ?? 0;
+    const marginRight = preset.map_source.crop?.right ?? 0;
     const actualHeight = card.realImageHeight * card.realScale - marginTop - marginBottom;
     const actualWidth = card.realImageWidth * card.realScale - marginLeft - marginRight;
     const name = (card.selectedManualRectangles.length + 1).toString();
@@ -487,7 +526,4 @@ export function addRectangle(card: XiaomiVacuumMapCard): void {
     const height = actualHeight / 3 / card.mapScale;
     const rotatable = currentMode.selectionType === SelectionType.MANUAL_ROTATABLE_RECTANGLE;
     card.selectedManualRectangles.push(new ManualRectangle(x, y, width, height, name, createContext(card), rotatable));
-    selectionChanged(card);
-    forwardHaptic("selection");
-    card.requestUpdate();
 }

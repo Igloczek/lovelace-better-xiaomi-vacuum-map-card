@@ -66,7 +66,7 @@ export default defineConfig({
         {
             name: "webkit",
             use: { browserName: "webkit" },
-            testMatch: ["paint.spec.ts", "live-path.spec.ts", "rotated-zone.spec.ts"],
+            testMatch: ["paint.spec.ts", "live-path.spec.ts", "rotated-zone.spec.ts", "default-zone.spec.ts"],
         },
     ],
     webServer: {

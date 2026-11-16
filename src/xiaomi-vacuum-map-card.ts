@@ -123,6 +123,7 @@ import {
     createContext,
     drawSelection,
     getSelection,
+    placeDefaultRectangle,
     runImmediately,
     selectionChanged,
     setCurrentMode,
@@ -184,6 +185,8 @@ export class XiaomiVacuumMapCard extends LitElement {
     currentPreset!: CardPresetConfig;
     watchedEntities: string[] = [];
     selectedManualRectangles: ManualRectangle[] = [];
+    /** A fresh zone selection still waits for its default zone (see `placeDefaultRectangle`). */
+    defaultRectanglePending = false;
     selectedManualPoint?: ManualPoint;
     selectedManualPath: ManualPath = new ManualPath([], createContext(this));
     selectedPredefinedRectangles: PredefinedMultiRectangle[] = [];
@@ -599,6 +602,7 @@ export class XiaomiVacuumMapCard extends LitElement {
                         calculateBasicScale(this);
                         detectRoomColors(this);
                         this._restoreMapView();
+                        placeDefaultRectangle(this);
                     }}"
                     @error="${() => mapImageSettled(this)}" />
                 <div
@@ -787,6 +791,8 @@ export class XiaomiVacuumMapCard extends LitElement {
         // Covers a card shown by a render rather than by a resize (a modal opening, a conditional
         // card switched on): the reset fired while hidden applies as soon as the map has a box.
         applyPendingMapViewReset(this);
+        // A calibration that arrives after the image (a later hass update) still gets the zone.
+        placeDefaultRectangle(this);
     }
 
     public _getCurrentPreset(): CardPresetConfig {
