@@ -13,6 +13,29 @@ import { getUnsendableRoomIds } from "./rooms";
 import { selectionChanged } from "./selection";
 import { setCurrentMode } from "./selection";
 
+/** What the run button shows: the call is out, it was accepted, or the run was refused or failed. */
+export type RunFeedback = "busy" | "success" | "failure";
+
+/** How long the run button keeps showing the outcome, in ms. */
+export const RUN_FEEDBACK_MS = 2000;
+
+/**
+ * Shows the outcome of a run on the run button, where the user tapped, so it is not missed at the
+ * bottom of a tall card. "busy" stays until the outcome replaces it; an outcome goes back to the
+ * play icon after `RUN_FEEDBACK_MS`. The words (why a run was refused) are in the notification.
+ */
+export function setRunFeedback(card: XiaomiVacuumMapCard, feedback: RunFeedback | undefined): void {
+    if (card.runFeedbackTimer !== undefined) window.clearTimeout(card.runFeedbackTimer);
+    card.runFeedbackTimer = undefined;
+    card.runFeedback = feedback;
+    if (feedback === "success" || feedback === "failure") {
+        card.runFeedbackTimer = window.setTimeout(() => {
+            card.runFeedbackTimer = undefined;
+            card.runFeedback = undefined;
+        }, RUN_FEEDBACK_MS);
+    }
+}
+
 /**
  * Refuses a run while the preset's vacuum is missing or `unavailable` (offline, a dead battery after
  * a failed dock). Home Assistant skips an unavailable entity without an error, so the call would
@@ -76,15 +99,22 @@ export async function runSelection(card: XiaomiVacuumMapCard, debug: boolean): P
     const currentMode = card._getCurrentMode();
     // A ROOM mode whose whole selection is unavailable sends nothing: refuse before the template
     // render or the service call, and keep the selection so the user can see what happened.
-    if (refuseUnsendableRoomSelection(card, currentMode)) return;
+    if (refuseUnsendableRoomSelection(card, currentMode)) {
+        setRunFeedback(card, "failure");
+        return;
+    }
     const { selection, variables } = card._getSelection(currentMode);
     if ((selection as any[]).length == 0 || !currentMode) {
         card._showToast("popups.no_selection", "mdi:close", false);
         forwardHaptic("failure");
+        setRunFeedback(card, "failure");
     } else {
         const showOnly = debug || (card.config.debug ?? false);
         // Showing the call (hold, `debug`) sends nothing, so it works while the vacuum is offline.
-        if (!showOnly && refuseUnavailableVacuum(card)) return;
+        if (!showOnly && refuseUnavailableVacuum(card)) {
+            setRunFeedback(card, "failure");
+            return;
+        }
         // One run at a time, from the first tap until Home Assistant answered: a templated mode
         // renders through the websocket first, so a guard placed after the render would let a quick
         // second tap render and send the same run again once the first call finished.
@@ -93,12 +123,20 @@ export async function runSelection(card: XiaomiVacuumMapCard, debug: boolean): P
             forwardHaptic("failure");
             return;
         }
-        if (!showOnly) card.serviceCallInFlight = true;
-        try {
-            if (!(await sendSelection(card, currentMode, selection, variables, showOnly))) return;
-        } finally {
-            if (!showOnly) card.serviceCallInFlight = false;
+        if (!showOnly) {
+            card.serviceCallInFlight = true;
+            setRunFeedback(card, "busy");
         }
+        let sent = false;
+        try {
+            sent = await sendSelection(card, currentMode, selection, variables, showOnly);
+        } finally {
+            if (!showOnly) {
+                card.serviceCallInFlight = false;
+                setRunFeedback(card, sent ? "success" : "failure");
+            }
+        }
+        if (!sent) return;
     }
     if (currentPreset.clean_selection_on_start ?? true) {
         setCurrentMode(card, card.selectedMode);
@@ -138,7 +176,6 @@ async function sendSelection(
     }
     if (showOnly) {
         const message = JSON.stringify(serviceCalls.length === 1 ? serviceCalls[0] : serviceCalls, null, 2);
-        card._showToast("popups.success", "mdi:check", true);
         console.log(message);
         window.alert(message);
         forwardHaptic("success");
@@ -158,7 +195,8 @@ async function sendSelection(
         );
         if (!accepted) return false;
     }
-    card._showToast("popups.success", "mdi:check", true);
+    // Accepted: the run button shows it (`setRunFeedback`), right where the user tapped. A
+    // notification for every run would only be noise; the refusals and failures carry a reason.
     forwardHaptic("success");
     if (run) startActiveRoomRun(card, run);
     return true;

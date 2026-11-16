@@ -98,10 +98,18 @@
 --map-card-room-pill-text-color
 --map-card-room-pill-badge-color
 --map-card-room-pill-badge-text-color
+--map-card-run-failure-color
+--map-card-run-success-color
 --map-card-toast-successful-icon-color
 --map-card-toast-unsuccessful-icon-color
 --map-card-transitions-duration
 ```
+
+The run button turns `--map-card-run-success-color` (default: the theme's `--success-color`) with a
+check when Home Assistant accepts a run, and `--map-card-run-failure-color` (default: the theme's
+`--error-color`) with a cross when the run is refused or fails; the reason is in Home Assistant's
+notification. The `--map-card-toast-*` colours apply only where the card is shown outside Home
+Assistant, which then uses the card's own toast.
 
 Every map label is a pill coloured by the `--map-card-room-pill-*` variables; the
 `*-label-font-size` variables set the size of each kind of label. The room label outline variables
