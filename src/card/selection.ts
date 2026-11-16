@@ -84,6 +84,10 @@ export function clearPresetSelection(card: XiaomiVacuumMapCard): void {
     card.selectedManualPoint = undefined;
     card.selectedManualPath.clear();
     clearSelectionObjects(card);
+    // A selection held while the preset being left had no room metadata belongs to that preset. A
+    // rebuild before the new preset's icons and tiles load would otherwise restore it there, and
+    // multi-floor maps reuse room ids, so it would select (and send) a room the user never tapped.
+    card.heldSelection = undefined;
 }
 
 /**
