@@ -40,6 +40,8 @@
 - Run `npm run build` for linting (oxlint) and the production bundle (Rolldown); `npx tsc --noEmit` is an additional type check.
 - Run `npm run format` (oxfmt) before committing; CI fails on unformatted files. Lit template contents are deliberately not formatted.
 - Use `npm start` for the development bundle. `CONTRIBUTING.md` documents loading it into a Home Assistant instance.
+- Run each check once per head. When a check has already passed locally on the exact commit (unit tests, build, the visual suite in the CI image, the real-HA e2e suite), merge without waiting for CI's copy of it, and say which local run it rests on. Wait only for checks that ran nowhere else; the HACS and manifest `validate` jobs take under a minute.
+- The visual suite needs the CI Docker image only to regenerate baselines (`test/visual/README.md`). On Apple Silicon that image is emulated and takes about five minutes a pass, so regenerate and prove stability in one container invocation, and run the cheap checks (`npm test`, `npx playwright test --ignore-snapshots`, a single spec on the host) first, so a wrong assertion fails in seconds instead of costing an emulated pass. When no baseline changes, the `visual` label's CI run (about two minutes) is enough on its own.
 
 ## GitHub releases
 
