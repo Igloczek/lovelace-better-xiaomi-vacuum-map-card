@@ -200,6 +200,34 @@ test.describe("the run after Start, with a misbehaving vacuum", () => {
         expect(await running(target)).toEqual([]);
     });
 
+    test("Start on an unavailable vacuum sends nothing and keeps the selection", async ({ loggedIn: page }) => {
+        // A vacuum that died away from the dock is `unavailable`; Home Assistant skips it without
+        // an error, so the card must not report a run that never started.
+        await resetVacuum();
+        const target = await openRunCard(page);
+        await tapRoom(page, target, "1");
+        await configure({ available: false });
+        await expect.poll(() => shownState(page)).toBe("unavailable");
+
+        await pressStart(page, target);
+
+        expect(
+            await target.evaluate(element => element.shadowRoot.getElementById("map-card-toast-text")?.innerText ?? ""),
+        ).toContain("vacuum is unavailable");
+        expect(await selected(target)).toEqual(["1"]);
+        expect(await running(target)).toEqual([]);
+        expect(
+            await page.evaluate(() => window.localStorage.getItem("better-xiaomi-vacuum-map-card.active-room-run")),
+        ).toBeNull();
+
+        // Back online, nothing reached the vacuum, and Start sends the kept selection.
+        await configure({ available: true });
+        await expect.poll(() => shownState(page)).toBe("docked");
+        expect(await attribute(page, "commands")).toEqual([]);
+        await pressStart(page, target);
+        await expect.poll(() => attribute(page, "commands")).toEqual([["1"]]);
+    });
+
     test("a room command the vacuum ignores while heading home does not lock the rooms", async ({ loggedIn: page }) => {
         await resetVacuum();
         await configure({ return_seconds: 25 });
