@@ -72,6 +72,7 @@ export class MapMode {
         }
     }
 
+    /** The first service call of the run; a mode with a single call has only this one. */
     public async getServiceCall(
         hass: HomeAssistantFixed,
         entityId: string,
@@ -79,7 +80,35 @@ export class MapMode {
         repeats: number,
         selectionVariables: VariablesStorage,
     ): Promise<ServiceCall> {
-        const schema = this.getServiceCallSchema(hass?.config?.version);
+        return (await this.getServiceCalls(hass, entityId, selection, repeats, selectionVariables))[0];
+    }
+
+    /**
+     * Every service call of the run, in the order they are sent. A `service_call_schema` list gives
+     * one call per entry; all of them are filled from the same selection.
+     */
+    public async getServiceCalls(
+        hass: HomeAssistantFixed,
+        entityId: string,
+        selection: unknown[],
+        repeats: number,
+        selectionVariables: VariablesStorage,
+    ): Promise<ServiceCall[]> {
+        const calls: ServiceCall[] = [];
+        for (const step of this.getServiceCallSchema(hass?.config?.version).steps) {
+            calls.push(await this._buildServiceCall(step, hass, entityId, selection, repeats, selectionVariables));
+        }
+        return calls;
+    }
+
+    private async _buildServiceCall(
+        schema: ServiceCallSchema,
+        hass: HomeAssistantFixed,
+        entityId: string,
+        selection: unknown[],
+        repeats: number,
+        selectionVariables: VariablesStorage,
+    ): Promise<ServiceCall> {
         let serviceCall = this._applyData(schema, entityId, selection, repeats, selectionVariables);
         if (schema.evaluateDataAsTemplate) {
             // A failed evaluation throws: sending the unevaluated `{{ }}` text to the vacuum would be
@@ -226,6 +255,14 @@ export class MapMode {
                 schema: new ServiceCallSchema(entry.service_call_schema),
             }))
             .sort((a, b) => (isHaVersionBefore(a.beforeHaVersion, b.beforeHaVersion) ? -1 : 1));
+    }
+
+    /** True for the free-drawn zone types: the plain rectangle and the rotatable one. */
+    public isManualRectangleSelection(): boolean {
+        return (
+            this.selectionType === SelectionType.MANUAL_RECTANGLE ||
+            this.selectionType === SelectionType.MANUAL_ROTATABLE_RECTANGLE
+        );
     }
 
     /** True for the selection types whose selection is one point, `[x, y]` or `[x, y, repeats]`. */

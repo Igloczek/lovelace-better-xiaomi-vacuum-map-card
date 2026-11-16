@@ -76,6 +76,20 @@ its own route and a selected room shows a checkmark instead of a number. A mode 
 upstream, so platform requests go to the
 [upstream tracker](https://github.com/PiotrMachowski/lovelace-xiaomi-vacuum-map-card/issues/new?labels=new+platform&template=new_platform_request.yml).
 
+## Rotated zones per platform
+
+A zone can be turned (`vacuum_clean_zone_rotatable`, selection type
+[`MANUAL_ROTATABLE_RECTANGLE`](configuration.md#supported-selection-types)) only where the robot
+cleans the four corners it is given. The card keeps every other platform on axis-aligned zones.
+
+| Template | Rotatable | Why |
+|---|---|---|
+| `tykarol/ViomiVacuumV8` | yes | `viomi_vacuum_v8.clean_area` passes the four corners to the robot |
+| `KrzysztofHajdamowicz/miio2`, `marotoweb/viomi SE`, `al-one/Xiaomi MIoT` (Viomi models) | yes | The robot's own `set_zone` takes four corners; the card sends it through `vacuum.send_command`. Verified on a Viomi V8 (`viomi.vacuum.v8`) through al-one/Xiaomi MIoT |
+| `Tasshack/dreame-vacuum` | no | `vacuum_clean_zone` takes `[x1, y1, x2, y2]` and sorts it into a box |
+| `Hypfer/Valetudo` | no | Every robot backend (Viomi included) uses only two of the four points and rebuilds a box |
+| Roborock-based templates and the rest | no | The zone command is a box |
+
 ## Getting coordinates
 
 Setup platforms make it easier to retrieve vacuum coordinates for zones, points and room outlines

@@ -50,9 +50,9 @@ export async function handleServiceCallGet(card: XiaomiVacuumMapCard): Promise<v
         card._showToast("popups.no_selection", "mdi:close", false);
         forwardHaptic("failure");
     } else {
-        let serviceCall: ServiceCall;
+        let serviceCalls: ServiceCall[];
         try {
-            serviceCall = await currentMode.getServiceCall(card.hass, currentPreset.entity, selection, card.repeats, {
+            serviceCalls = await currentMode.getServiceCalls(card.hass, currentPreset.entity, selection, card.repeats, {
                 ...card.internalVariables,
                 ...variables,
             });
@@ -62,7 +62,11 @@ export async function handleServiceCallGet(card: XiaomiVacuumMapCard): Promise<v
             return;
         }
         const event = new Event(EVENT_SERVICE_CALL);
-        (event as any).serviceCall = JSON.stringify(serviceCall, null, 2);
+        (event as any).serviceCall = JSON.stringify(
+            serviceCalls.length === 1 ? serviceCalls[0] : serviceCalls,
+            null,
+            2,
+        );
         window.dispatchEvent(event);
     }
 }
@@ -121,9 +125,9 @@ async function sendSelection(
         currentMode.selectionType === SelectionType.ROOM
             ? getUsableSelectedRooms(card, currentMode).map(room => String(room.toVacuum()))
             : [];
-    let serviceCall: ServiceCall;
+    let serviceCalls: ServiceCall[];
     try {
-        serviceCall = await currentMode.getServiceCall(card.hass, entity, selection, card.repeats, {
+        serviceCalls = await currentMode.getServiceCalls(card.hass, entity, selection, card.repeats, {
             ...card.internalVariables,
             ...variables,
         });
@@ -133,7 +137,7 @@ async function sendSelection(
         return false;
     }
     if (showOnly) {
-        const message = JSON.stringify(serviceCall, null, 2);
+        const message = JSON.stringify(serviceCalls.length === 1 ? serviceCalls[0] : serviceCalls, null, 2);
         card._showToast("popups.success", "mdi:check", true);
         console.log(message);
         window.alert(message);
@@ -142,14 +146,18 @@ async function sendSelection(
     }
     // The run's baseline is the state shown when the call goes out, not when it is answered.
     const run = runRoomIds.length > 0 ? prepareActiveRoomRun(card, entity, runRoomIds, currentMode) : undefined;
-    const accepted = await callServiceReported(
-        card,
-        serviceCall.domain,
-        serviceCall.service,
-        serviceCall.serviceData,
-        serviceCall.target,
-    );
-    if (!accepted) return false;
+    // A sequence goes out one call at a time, each after Home Assistant accepted the one before; a
+    // failed step stops the rest, so a vacuum never gets a start without the zone it was given.
+    for (const serviceCall of serviceCalls) {
+        const accepted = await callServiceReported(
+            card,
+            serviceCall.domain,
+            serviceCall.service,
+            serviceCall.serviceData,
+            serviceCall.target,
+        );
+        if (!accepted) return false;
+    }
     card._showToast("popups.success", "mdi:check", true);
     forwardHaptic("success");
     if (run) startActiveRoomRun(card, run);

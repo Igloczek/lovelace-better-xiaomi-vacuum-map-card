@@ -8,6 +8,7 @@ import {
     contractCases,
     CONTRACTS,
     isExpectedToPass,
+    isUserConfigured,
     USER_CONFIGURED,
 } from "./contract/service-contracts";
 
@@ -40,9 +41,9 @@ describe("service-call contract matrix", () => {
         expect(missing).toEqual([]);
     });
 
-    const plain = cases.filter(c => !c.templated && !USER_CONFIGURED[c.platform]);
+    const plain = cases.filter(c => !c.templated && !isUserConfigured(c));
     it.each(plain.filter(isExpectedToPass).map(c => [c.name, c] as const))("%s", async (_name, testCase) => {
-        const call = await buildServiceCall(testCase, noRender);
-        expect(checkContract(testCase, call), JSON.stringify(call)).toEqual([]);
+        const calls = await buildServiceCall(testCase, noRender);
+        expect(checkContract(testCase, calls), JSON.stringify(calls)).toEqual([]);
     });
 });

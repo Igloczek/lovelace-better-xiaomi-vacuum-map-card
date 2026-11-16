@@ -196,8 +196,9 @@ export class PlatformGenerator {
     public static isSelfContainedTemplate(platform: string, template: string): boolean {
         if (this.ROOM_TEMPLATES_BY_NAME.includes(platform)) return false;
         const mode = this.getModeTemplate(platform, template);
-        const schema = mode?.service_call_schema;
-        if (!schema?.service || !schema.service_data) return false;
+        const steps = mode?.service_call_schema;
+        const schemas = Array.isArray(steps) ? steps : steps ? [steps] : [];
+        if (schemas.length === 0 || schemas.some(schema => !schema?.service || !schema.service_data)) return false;
         const known = new Set<string>([
             ...Object.values(TemplatableValue),
             "jsonify",
@@ -205,7 +206,7 @@ export class PlatformGenerator {
             ...Object.keys(this.getPlatformTemplate(platform).internal_variables ?? {}),
             ...Object.keys(mode.variables ?? {}),
         ]);
-        const text = JSON.stringify([schema.service_data, schema.target ?? null]);
+        const text = JSON.stringify(schemas.map(schema => [schema.service_data, schema.target ?? null]));
         return [...text.matchAll(/\[\[([A-Za-z0-9_]+)\]\]/g)].every(match => known.has(match[1]));
     }
 

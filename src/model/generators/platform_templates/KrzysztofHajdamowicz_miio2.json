@@ -34,6 +34,43 @@
                     }
                 }
             },
+            "vacuum_clean_zone_rotatable": {
+                "name": "map_mode.vacuum_clean_zone_rotatable",
+                "icon": "mdi:rotate-right",
+                "selection_type": "MANUAL_ROTATABLE_RECTANGLE",
+                "coordinates_rounding": false,
+                "coordinates_to_meters_divider": 1,
+                "max_selections": 5,
+                "repeats_type": "EXTERNAL",
+                "max_repeats": 3,
+                "service_call_schema": [
+                    {
+                        "service": "vacuum.send_command",
+                        "service_data": {
+                            "command": "set_uploadmap",
+                            "params": [1],
+                            "entity_id": "[[entity_id]]"
+                        }
+                    },
+                    {
+                        "service": "vacuum.send_command",
+                        "service_data": {
+                            "command": "set_zone",
+                            "params": "{%set s='[[selection]]'|from_json%}{%set n=[[repeats]]%}{%set ns=namespace(i=0,out=[])%}{%for z in s%}{%for r in range(n)%}{%set ns.out=ns.out+[ns.i~'_0_'~(z|map('round',3)|join('_'))]%}{%set ns.i=ns.i+1%}{%endfor%}{%endfor%}{{([ns.i]+ns.out)|to_json}}|[[jsonify_jinja]]",
+                            "entity_id": "[[entity_id]]"
+                        },
+                        "evaluate_data_as_template": true
+                    },
+                    {
+                        "service": "vacuum.send_command",
+                        "service_data": {
+                            "command": "set_mode",
+                            "params": [3, 1],
+                            "entity_id": "[[entity_id]]"
+                        }
+                    }
+                ]
+            },
             "vacuum_clean_zone_predefined": {
                 "name": "map_mode.vacuum_clean_zone_predefined",
                 "icon": "mdi:floor-plan",

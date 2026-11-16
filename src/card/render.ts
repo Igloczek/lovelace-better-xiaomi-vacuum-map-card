@@ -16,7 +16,7 @@ export function createMapControls(card: XiaomiVacuumMapCard): TemplateResult[] {
     if (!currentMode) {
         return [];
     }
-    if (currentMode.selectionType === SelectionType.MANUAL_RECTANGLE) {
+    if (currentMode.isManualRectangleSelection()) {
         controls.push(html`
             <paper-button class="map-actions-item clickable ripple" @click="${(): void => addRectangle(card)}">
                 <ha-icon icon="mdi:plus"></ha-icon>

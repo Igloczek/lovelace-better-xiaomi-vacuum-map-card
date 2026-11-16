@@ -83,6 +83,10 @@ class FakeVacuum(StateVacuumEntity):
         # card sent nothing" from "the card sent an empty room list", which look identical in
         # `job_rooms` because a robot handed no rooms starts and stops at once.
         self._commands: list[list[str]] = []
+        # The Viomi zone protocol (set_uploadmap, set_zone, set_mode), as the robot parses it: every
+        # command in arrival order, and the zones `set_zone` gave, each as its four corners.
+        self._viomi_commands: list[list[Any]] = []
+        self._viomi_zones: list[list[float]] = []
 
     async def async_added_to_hass(self) -> None:
         self._start_polling()
@@ -125,6 +129,7 @@ class FakeVacuum(StateVacuumEntity):
         self._cancel_job()
         self._job, self._cleaned, self._current_room = [], [], None
         self._commands = []
+        self._viomi_commands, self._viomi_zones = [], []
         self._true_activity = VacuumActivity(activity)
         self._reported = self._snapshot()
         self._available = True
@@ -144,6 +149,8 @@ class FakeVacuum(StateVacuumEntity):
         attributes = {key: value for key, value in self._reported.items() if key != "activity"}
         attributes["polled"] = self._polled
         attributes["commands"] = [list(command) for command in self._commands]
+        attributes["viomi_commands"] = [list(command) for command in self._viomi_commands]
+        attributes["viomi_zones"] = [list(zone) for zone in self._viomi_zones]
         return attributes
 
     def _snapshot(self) -> dict[str, Any]:
@@ -216,8 +223,40 @@ class FakeVacuum(StateVacuumEntity):
             self.fail_next = False
             raise HomeAssistantError("Fake vacuum did not answer")
 
+    def _viomi_command(self, command: str, params: Any) -> None:
+        """
+        A Viomi V8 zone clean, as the robot takes it: `set_zone` is `[count, "i_0_x1_y1_..._x4_y4",
+        ...]` (python-miio raw command; tykarol's `async_clean_area` and Valetudo's
+        ViomiZoneCleaningCapability build the same strings), then `set_mode [3, 1]` starts the zones.
+        A malformed zone is an error, as it would be a zone the robot misreads.
+        """
+        if not isinstance(params, list):
+            raise HomeAssistantError(f"{command}: params must be a list, got {params!r}")
+        if command == "set_zone":
+            count, entries = params[0], params[1:]
+            if not isinstance(count, int) or count != len(entries):
+                raise HomeAssistantError(f"set_zone: count {count!r} does not match {len(entries)} zones")
+            zones = []
+            for index, entry in enumerate(entries):
+                fields = str(entry).split("_")
+                if len(fields) != 10 or fields[0] != str(index) or fields[1] != "0":
+                    raise HomeAssistantError(f"set_zone: malformed zone {entry!r}")
+                zones.append([float(value) for value in fields[2:]])
+            self._viomi_zones = zones
+        if command == "set_mode" and params == [3, 1]:
+            if not self._viomi_zones:
+                raise HomeAssistantError("set_mode [3, 1] without zones")
+            self._true_activity = VacuumActivity.CLEANING
+            self._changed()
+            self._schedule(self.room_seconds, self._next_room)
+        self._viomi_commands.append([command, params])
+        self.async_write_ha_state()
+
     async def async_send_command(self, command: str, params: Any = None, **kwargs: Any) -> None:
         self._check_fail()
+        if command in ("set_uploadmap", "set_zone", "set_mode"):
+            self._viomi_command(command, params)
+            return
         if command not in ("app_segment_clean", "clean_rooms"):
             raise HomeAssistantError(f"Unknown command: {command}")
         if self._true_activity == VacuumActivity.RETURNING:

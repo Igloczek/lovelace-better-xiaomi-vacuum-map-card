@@ -615,7 +615,7 @@ sensor whose display unit was changed in Home Assistant still shows the right nu
 | `name`                  | string  | yes<sup>2</sup> | -       | Name of map mode                                                                     |
 | `icon`                  | string  | yes<sup>2</sup> | -       | Icon of map mode ([mdi](https://materialdesignicons.com/))                           |
 | `selection_type`        | string  | yes<sup>2</sup> | -       | Type of selection, one of [supported ones](#supported-selection-types)               |
-| `service_call_schema`   | object  | yes<sup>2</sup> | -       | [Service call schema](#service-call-schema-options) that should be used in this mode |
+| `service_call_schema`   | object or list | yes<sup>2</sup> | -       | [Service call schema](#service-call-schema-options) that should be used in this mode; a list of them is sent in order |
 | `run_immediately`       | boolean | no              | `false` | Enables calling service immediately after choosing a selection                       |
 | `coordinates_rounding`  | boolean | no              | `true`  | Enables coordinates rounding                                                         |
 | `max_selections`        | integer | no              | 1       | Maximal number of selections                                                         |
@@ -654,6 +654,14 @@ Following selection types are supported at this moment:
   https://user-images.githubusercontent.com/6118709/141666913-d95f082d-f5bf-4ab5-a478-ba44effe6f34.mp4
 
   </details>
+- `MANUAL_ROTATABLE_RECTANGLE`: Free-drawn zones like `MANUAL_RECTANGLE`, with a rotate handle on
+  the corner next to the description. A drag of the handle turns the zone around its centre, in whole
+  degrees, snapping onto multiples of 45° within 3°. Each zone is sent as its four corners,
+  `[x1, y1, x2, y2, x3, y3, x4, y4]`: the corners `(min x, max y) (min x, min y) (max x, min y)
+  (max x, max y)` of the unturned zone, each turned around its centre, so a zone that is not turned
+  gives the corners of the same box `MANUAL_RECTANGLE` sends. Only vacuums that clean four arbitrary
+  corners can use it; the Viomi templates offer it as `vacuum_clean_zone_rotatable`
+  ([platforms](platforms.md#rotated-zones-per-platform)).
 - `PREDEFINED_RECTANGLE`: Rectangular zones that can be selected on the map from `predefined_selections`
   <details>
   <summary>Example video</summary>
@@ -698,6 +706,20 @@ Following selection types are supported at this moment:
 | `service_data`              | object  | no       | -       | Data that should be passed to service call           |
 | `target`                    | object  | no       | -       | Target that should be passed to service call         |
 | `evaluate_data_as_template` | boolean | no       | `false` | Enables support for jinja templates in service calls |  
+
+`service_call_schema` can also be a list of these. A run then sends each call in order, every one
+filled from the same selection, and the next is sent only after Home Assistant accepted the one
+before; a refused call stops the rest. A Viomi zone clean is three raw commands, for example:
+
+```yaml
+service_call_schema:
+  - service: vacuum.send_command
+    service_data: { entity_id: "[[entity_id]]", command: set_uploadmap, params: [1] }
+  - service: vacuum.send_command
+    service_data: { entity_id: "[[entity_id]]", command: set_zone, params: ... }
+  - service: vacuum.send_command
+    service_data: { entity_id: "[[entity_id]]", command: set_mode, params: [3, 1] }
+```
 
 It is possible to use several built-in placeholders in `service_data` section. They will be replaced by:
 

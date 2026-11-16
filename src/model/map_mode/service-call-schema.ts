@@ -3,17 +3,36 @@ import { TemplatableValue } from "./templatable-value";
 import { ServiceCall } from "./service-call";
 import { getFilledTemplate } from "../../utils";
 
+/**
+ * One service call, or a sequence of them when the configuration is a list: a vacuum whose zone
+ * clean takes several commands (a Viomi needs `set_uploadmap`, `set_zone` and `set_mode`) gets them
+ * in order from one run. This object is the first step; `next` holds the steps after it.
+ */
 export class ServiceCallSchema {
     public readonly evaluateDataAsTemplate: boolean;
+    /** The steps after this one, in order. Empty for a single call. */
+    public readonly next: ServiceCallSchema[];
     private readonly service: string;
     private readonly serviceData?: Record<string, unknown>;
     private readonly target?: Record<string, unknown>;
 
-    constructor(public readonly config: ServiceCallSchemaConfig) {
-        this.service = config.service;
-        this.serviceData = config.service_data;
-        this.target = config.target;
-        this.evaluateDataAsTemplate = config.evaluate_data_as_template ?? false;
+    constructor(public readonly config: ServiceCallSchemaConfig | ServiceCallSchemaConfig[]) {
+        const [first, ...rest] = Array.isArray(config) ? config : [config];
+        this.service = first?.service ?? "";
+        this.serviceData = first?.service_data;
+        this.target = first?.target;
+        this.evaluateDataAsTemplate = first?.evaluate_data_as_template ?? false;
+        this.next = rest.map(step => new ServiceCallSchema(step));
+    }
+
+    /** Every step, this one first. */
+    public get steps(): ServiceCallSchema[] {
+        return [this, ...this.next];
+    }
+
+    /** Whether any step renders its data through Home Assistant's template engine. */
+    public get anyEvaluatedAsTemplate(): boolean {
+        return this.steps.some(step => step.evaluateDataAsTemplate);
     }
 
     public apply(

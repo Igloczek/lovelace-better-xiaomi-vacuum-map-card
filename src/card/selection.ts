@@ -369,6 +369,7 @@ export function getSelection(
     });
     switch (mode.selectionType) {
         case SelectionType.MANUAL_RECTANGLE:
+        case SelectionType.MANUAL_ROTATABLE_RECTANGLE:
             selection = card.selectedManualRectangles.map(r => r.toVacuum(repeats));
             variables = variablesExtractor(card.selectedManualRectangles);
             break;
@@ -446,6 +447,7 @@ export function selectionChanged(card: XiaomiVacuumMapCard): void {
 export function drawSelection(card: XiaomiVacuumMapCard): SVGTemplateResult | null {
     switch (card._getCurrentMode()?.selectionType) {
         case SelectionType.MANUAL_RECTANGLE:
+        case SelectionType.MANUAL_ROTATABLE_RECTANGLE:
             return svg`${card.selectedManualRectangles.map(r => r.render())}`;
         case SelectionType.PREDEFINED_RECTANGLE:
             return svg`${card.selectablePredefinedRectangles.map(r => r.render())}`;
@@ -483,7 +485,8 @@ export function addRectangle(card: XiaomiVacuumMapCard): void {
     const y = (actualHeight / 3 + marginTop - card.mapY) / card.mapScale;
     const width = actualWidth / 3 / card.mapScale;
     const height = actualHeight / 3 / card.mapScale;
-    card.selectedManualRectangles.push(new ManualRectangle(x, y, width, height, name, createContext(card)));
+    const rotatable = currentMode.selectionType === SelectionType.MANUAL_ROTATABLE_RECTANGLE;
+    card.selectedManualRectangles.push(new ManualRectangle(x, y, width, height, name, createContext(card), rotatable));
     selectionChanged(card);
     forwardHaptic("selection");
     card.requestUpdate();
