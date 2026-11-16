@@ -41,13 +41,24 @@ suite passes against the release candidate; screenshots are written to the gitig
 
 ## Isolation between worktrees
 
-Every script resolves the instance the same way. `E2E_HA_URL` wins; otherwise the URL is
-`http://localhost:$E2E_HA_PORT` (default `8123`). `E2E_CONTAINER` names the container (default
-`xvmc-e2e-ha`), and a custom container derives its own compose project, so the default
-`npm run test:e2e:fresh` sequence in **another checkout** cannot stop, restart or install into this
-one. Set `COMPOSE_PROJECT_NAME` explicitly to override the derived project. This closes the old
-limitation where `connect-github.cjs --restart` targeted the default project while the container had
-been renamed.
+Every script and spec resolves the instance through `support/harness.cjs` (the TypeScript specs load
+the same module), so they agree on one instance. `E2E_HA_URL` wins for the URL; otherwise the URL is
+`http://localhost:$E2E_HA_PORT` (default `8123`). The container and the compose project come from
+these rules, in order:
+
+| Environment set | Container | Compose project |
+|---|---|---|
+| `COMPOSE_PROJECT_NAME` | as below | `COMPOSE_PROJECT_NAME` |
+| `E2E_CONTAINER=C` | `C` | `C` |
+| only a custom port (`E2E_HA_PORT`, or the port of `E2E_HA_URL`) | `xvmc-e2e-ha-<port>` | `xvmc-e2e-<port>` |
+| nothing, or the default port `8123` | `xvmc-e2e-ha` | compose's default (`e2e`) |
+
+The rule: **a checkout that runs on its own port derives its own container and project from it**,
+so `test:e2e:fresh`'s `compose down` and `connect-github.cjs --restart` can never stop or restart the
+default instance another worktree is using. Two checkouts must not share a port, a container or a
+project; set `E2E_HA_PORT` (and, for an explicit name, `E2E_CONTAINER` and `COMPOSE_PROJECT_NAME`).
+A manual `docker compose -f test/e2e/compose.yaml` reads the same variables and uses the default
+names unless they are exported too, so prefer the scripts.
 
 ## Stale state and sessions
 
@@ -55,13 +66,24 @@ been renamed.
 switch or a recreated container. A saved session that no longer matches the instance used to leave
 every spec on the login page until its own timeout.
 
-The harness now validates the session before the suite and again before each worker seeds it:
+`ensureSession` (used by `setup.cjs` and by global setup) resolves the session in this order:
 
-- a token the instance accepts is reused (the short-lived access token is refreshed first);
-- a token the instance rejects is discarded and the session is re-created from the instance's refresh
-  token or the e2e credentials, which is the self-heal path for a stale file;
-- an instance with no e2e dashboards, no card resource, or a resource that is not served fails
-  immediately with the command that rebuilds it.
+1. the saved **refresh token** is exchanged at the instance, as the frontend does, and the new access
+   token is written back to `token.json`;
+2. if that is refused, the saved **access token** is checked against `GET /api/`;
+3. if both are refused, the file is dropped and the session is re-created with the e2e credentials:
+   an instance that is not yet onboarded gets its owner created, an onboarded one signs in. Credentials
+   the instance refuses fail with the command that rebuilds it.
+
+The websocket helpers the specs use (`freshAccessToken`) run steps 1 and 2 only: they never create or
+replace a session, so a rejected session fails the test run with the reset command.
+
+Global setup also fails the run, with the rebuild command, when:
+
+- the instance has no e2e dashboards or no card resource (a recreated instance);
+- the bundle Home Assistant serves at the card's resource URL is not byte-identical to `dist/`
+  (SHA-256 compared over HTTP), which is what a run without `install-local-build.cjs` looks like: the
+  Marketplace release would otherwise be tested in place of this checkout.
 
 `npm run test:e2e:fresh` does the whole documented sequence from a clean state: reset the ignored
 runtime files, recreate the container, wait for `/api/`, onboard, connect Marketplace, install from
@@ -74,8 +96,10 @@ Home Assistant 2026.11 ships the core **marketplace** integration and blocks the
 integration (`loader.py`: built into Home Assistant as the Marketplace); upgrading migrates an
 existing HACS install. `marketplace-install.cjs` therefore installs from the repository URL through
 Marketplace, and `install-local-build.cjs` then overlays the branch build so the behaviour specs test
-the pull request rather than the last release (it also removes the installer's stale `.gz`/`.br`
-siblings, which Home Assistant would otherwise serve instead).
+the pull request rather than the last release. It copies `dist/xiaomi-vacuum-map-card.js` over the
+installed file, removes the installer's stale `.gz`/`.br` siblings (Home Assistant would serve them
+instead), checks the copy's SHA-256 and gives the resource a branch cache-buster. Global setup then
+verifies the bytes Home Assistant actually serves, so the overlay cannot be skipped silently.
 
 ## Running it
 

@@ -1,23 +1,12 @@
 /**
  * The Home Assistant instance the Playwright project drives.
  *
- * `E2E_HA_URL` is authoritative when set. Otherwise the port is taken from `E2E_HA_PORT` (or the
- * URL's own port), so a worktree that only publishes another port does not silently drive the
- * default `:8123` instance of another checkout.
+ * `support/harness.cjs` decides it for every script and spec: `E2E_HA_URL` is authoritative when
+ * set, otherwise the port is `E2E_HA_PORT` (or the URL's own port). The specs import it from here so
+ * there is one definition; `E2E_HA_PORT` alone is enough to point a checkout at its own instance.
  */
-export function haPort(): string {
-    if (process.env.E2E_HA_PORT) return process.env.E2E_HA_PORT;
-    if (process.env.E2E_HA_URL) {
-        try {
-            const url = new URL(process.env.E2E_HA_URL);
-            return url.port || (url.protocol === "https:" ? "443" : "80");
-        } catch {
-            // fall through to the documented default
-        }
-    }
-    return "8123";
-}
+// The harness is CommonJS and shared with the Node scripts; Playwright loads both.
+const harness: { haPort: () => string; haUrl: () => string } = require("./harness.cjs");
 
-export function haUrl(): string {
-    return (process.env.E2E_HA_URL || `http://localhost:${haPort()}`).replace(/\/+$/, "");
-}
+export const haPort: () => string = harness.haPort;
+export const haUrl: () => string = harness.haUrl;

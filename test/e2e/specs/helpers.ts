@@ -189,17 +189,6 @@ export async function waitForRoomId(
         .toBe(true);
 }
 
-/** Waits until the rendered room ids contain every id, leaving kept stale rooms alone. */
-export async function waitForRoomsToContain(
-    target: CardHandle,
-    ids: string[],
-    { timeout = 60_000 }: { timeout?: number } = {},
-): Promise<void> {
-    await expect
-        .poll(async () => await roomIds(target), { timeout, message: `rooms ${ids.join(", ")} must be rendered` })
-        .toEqual(expect.arrayContaining(ids));
-}
-
 /** Waits until the camera snapshot is decoded; room colour detection runs on its load event. */
 export async function waitForMapImage(target: CardHandle, { timeout = 60_000 } = {}): Promise<void> {
     await expect

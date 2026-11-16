@@ -8,7 +8,7 @@ import {
     serviceCall,
     test,
     waitForCard,
-    waitForRoomsToContain,
+    waitForRooms,
     type CardHandle,
 } from "./helpers";
 
@@ -23,6 +23,22 @@ import {
  * visible (Home Assistant's warning clips its slot to one line), and a selected room's pill must
  * not land on the stale marker above the same geometry.
  */
+
+/** The configured rooms: the ids the fixture publishes before a re-map. */
+const CONFIGURED_IDS = ["0", "1", "2"];
+
+/**
+ * Waits for the exact rendered room ids once the fixture is back to its configured numbers: the
+ * configured rooms, plus any room still selected when the re-map removed it (the card keeps a
+ * selected room on the map as stale, see `empty-room-selection.spec.ts`). Exact equality, so a stray
+ * or a missing room fails here instead of passing a containment check.
+ */
+async function waitForConfiguredRooms(target: CardHandle): Promise<void> {
+    const selected = await target.evaluate(element =>
+        (element.selectedRooms as Array<{ toVacuum: () => unknown }>).map(room => String(room.toVacuum())),
+    );
+    await waitForRooms(target, [...new Set([...CONFIGURED_IDS, ...selected])]);
+}
 
 /** The room ids the card renders and how many of them it marks stale, plus its warning text. */
 function roomsOf(target: CardHandle) {
@@ -180,7 +196,7 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
 
     // Start from the original metadata even if an earlier run aborted before restoring it.
     await setRoomMetadata("reset");
-    await waitForRoomsToContain(target, ["0", "1", "2"]);
+    await waitForConfiguredRooms(target);
     expect((await roomsOf(target)).warning).toBe("");
 
     try {
@@ -236,7 +252,7 @@ test("a re-mapped camera marks stale rooms and refuses them", async ({ loggedIn:
         // again and the card keeps it on the map as a stale warning (see `empty-room-selection.spec`):
         // the original ids are what proves the fixture is back.
         await setRoomMetadata("reset");
-        await waitForRoomsToContain(target, ["0", "1", "2"]);
+        await waitForConfiguredRooms(target);
         // The configured ids are live again, so the stale configured-id warning is gone. The
         // selected room 7 is the one the reset removed, and it stays as its own warning.
         expect((await roomsOf(target)).warning).toBe("");
@@ -252,7 +268,7 @@ test("a phone-width card shows every stale id and keeps the marker clear of the 
     const target = await card(page);
 
     await setRoomMetadata("reset");
-    await waitForRoomsToContain(target, ["0", "1", "2"]);
+    await waitForConfiguredRooms(target);
 
     try {
         await setRoomMetadata("shift");
@@ -292,7 +308,7 @@ test("a phone-width card shows every stale id and keeps the marker clear of the 
         await shot(page, "16-stale-rooms-phone");
     } finally {
         await setRoomMetadata("reset");
-        await waitForRoomsToContain(target, ["0", "1", "2"]);
+        await waitForConfiguredRooms(target);
     }
 });
 
@@ -303,7 +319,7 @@ test("a narrow sections-view column wraps the stale warning instead of truncatin
     const target = await card(page);
 
     await setRoomMetadata("reset");
-    await waitForRoomsToContain(target, ["0", "1", "2"]);
+    await waitForConfiguredRooms(target);
 
     try {
         await setRoomMetadata("shift");
@@ -321,6 +337,6 @@ test("a narrow sections-view column wraps the stale warning instead of truncatin
         await shot(page, "16-stale-rooms-sections-cell");
     } finally {
         await setRoomMetadata("reset");
-        await waitForRoomsToContain(target, ["0", "1", "2"]);
+        await waitForConfiguredRooms(target);
     }
 });

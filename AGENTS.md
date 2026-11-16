@@ -34,7 +34,7 @@
 
 ## Local checks
 
-- Run `npm test` (Vitest with a happy-dom harness) for unit and DOM tests, and `npm run test:e2e:fresh` for the real-Home-Assistant suite (see `test/e2e/README.md`). The fresh runner resets the gitignored HA state, recreates the instance and runs the whole documented sequence; `npm run test:e2e` alone targets an already prepared instance and re-authenticates a stale saved token (or fails fast with the reset command). Give parallel worktrees their own `E2E_CONTAINER`, `E2E_HA_PORT` and `COMPOSE_PROJECT_NAME`; a custom container derives its own compose project, so scripts never touch another checkout's instance.
+- Run `npm test` (Vitest with a happy-dom harness) for unit and DOM tests, and `npm run test:e2e:fresh` for the real-Home-Assistant suite (see `test/e2e/README.md`). The fresh runner resets the gitignored HA state, recreates the instance and runs the whole documented sequence; `npm run test:e2e` alone targets an already prepared instance and re-authenticates a stale saved token (or fails fast with the reset command). Give parallel worktrees their own `E2E_CONTAINER`, `E2E_HA_PORT` and `COMPOSE_PROJECT_NAME`; a custom port (or container) derives its own container and compose project, so scripts never touch another checkout's instance (see the isolation table in `test/e2e/README.md`).
 - Run `npm run check:map-scale` for the zoom/rotation scale regression check and `npm run check:docs` for documentation links.
 - Run `npm run build` for linting (oxlint) and the production bundle (Rolldown); `npx tsc --noEmit` is an additional type check.
 - Run `npm run format` (oxfmt) before committing; CI fails on unformatted files. Lit template contents are deliberately not formatted.
