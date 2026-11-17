@@ -1,5 +1,8 @@
 # README demo video
 
+Every release that touches the card's UI re-records this video before it is tagged; `npm run
+check:demo-video` enforces it (see "GitHub releases" in [`AGENTS.md`](../../AGENTS.md)).
+
 `docs/media/demo.mp4` (and the `demo.webp` the README shows) is recorded from a real Home Assistant frontend driving the built card. The
 vacuum and maps are simulated, so the video can show two floors, every map mode and a moving robot
 without a real robot or a real home.

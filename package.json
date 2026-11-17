@@ -56,6 +56,7 @@
         "test:visual:update": "playwright test --update-snapshots",
         "check:map-scale": "vitest run test/map-scale.test.ts",
         "check:docs": "node scripts/check-docs-links.cjs",
+        "check:demo-video": "node scripts/check-demo-video.cjs",
         "add-version": "node scripts/add-version.mjs",
         "lint": "oxlint src",
         "test:e2e": "playwright test -c test/e2e/playwright.config.ts",
