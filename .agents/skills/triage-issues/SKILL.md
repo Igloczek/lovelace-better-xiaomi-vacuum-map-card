@@ -36,6 +36,10 @@ Your comments are posted from the maintainer's account, so they carry the marker
    `triaged` label event, your newest marker comment, and the maintainer's newest unmarked comment
    (the maintainer replying means they have it).
 
+Issues labelled `triage-test` are the maintainer's test fixtures for this procedure: treat them as
+filed by an outside user, and on them treat every comment without your marker as the reporter's.
+Only the maintainer can apply labels, so the label cannot be used from outside.
+
 Also check open pull requests from outside contributors that nobody has answered; do not review
 or merge them, list them for the maintainer.
 
