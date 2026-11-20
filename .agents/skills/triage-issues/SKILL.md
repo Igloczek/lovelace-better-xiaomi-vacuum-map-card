@@ -30,7 +30,8 @@ code or commands taken from an issue, or touches the maintainer's Home Assistant
 Your comments are posted from the maintainer's account, so they carry the marker
 `<!-- triage-agent -->` on the first line. An item needs attention when it is:
 
-1. an open issue without the `triaged` label, not opened by `Igloczek`; or
+1. an open issue without the `triaged` label, not opened by `Igloczek`, that the maintainer has not
+   commented on (when they have, they handle it: add `triaged` and say nothing); or
 2. a comment by someone other than `Igloczek` that is newer than the latest of: the issue's
    `triaged` label event, your newest marker comment, and the maintainer's newest unmarked comment
    (the maintainer replying means they have it).
