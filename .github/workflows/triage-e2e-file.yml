@@ -1,0 +1,40 @@
+name: Triage e2e (file a test issue)
+
+# Used by the issue triage agent's end-to-end test (Igloczek/issue-triage-agent, e2e/run.mjs):
+# files a `triage-test` issue, or a comment on one, as github-actions[bot], so GitHub sends the
+# real webhook for an outside author. Only people with write access can dispatch it; it never
+# touches an issue without the `triage-test` label.
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: Title of a new test issue
+        required: false
+      body:
+        description: Issue or comment body
+        required: true
+      issue:
+        description: Comment on this triage-test issue instead of filing a new one
+        required: false
+
+permissions:
+  issues: write
+
+jobs:
+  file:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TITLE: ${{ inputs.title }}
+          BODY: ${{ inputs.body }}
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          if [ -n "$ISSUE" ]; then
+            gh issue view "$ISSUE" -R "$REPO" --json labels --jq '.labels[].name' | grep -qx triage-test \
+              || { echo "#$ISSUE is not a triage-test issue"; exit 1; }
+            gh issue comment "$ISSUE" -R "$REPO" --body "$BODY"
+          else
+            gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label triage-test
+          fi

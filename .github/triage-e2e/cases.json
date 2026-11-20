@@ -1,0 +1,52 @@
+{
+    "cases": [
+        {
+            "key": "room-names-twice",
+            "title": "Room names shown twice on the map",
+            "body": "room-names-twice.md",
+            "expect": { "mentions": ["room_labels"] },
+            "followUp": { "body": "That did it, thanks!", "expectReply": false }
+        },
+        {
+            "key": "existing-rotation",
+            "title": "Rotate the map",
+            "body": "existing-rotation.md",
+            "expect": { "mentions": ["map_rotation"] }
+        },
+        {
+            "key": "new-feature",
+            "title": "Show when each room was last cleaned",
+            "body": "new-feature.md",
+            "expect": { "labels": ["enhancement"], "state": "open" }
+        },
+        {
+            "key": "duplicate-of-77",
+            "title": "Use my own room outlines instead of detected ones",
+            "body": "duplicate-of-77.md",
+            "expect": { "labels": ["duplicate"], "state": "closed", "mentions": ["#77"] }
+        },
+        {
+            "key": "supported-platform",
+            "title": "Support for Dreame (Tasshack/dreame-vacuum)",
+            "body": "supported-platform.md",
+            "expect": { "state": "closed", "mentions": ["Tasshack/dreame-vacuum", "vacuum_platform"] }
+        },
+        {
+            "key": "card-not-loading",
+            "title": "Card stopped working after update",
+            "body": "card-not-loading.md",
+            "expect": { "labels": ["bug"], "state": "open", "mentions": ["report-problem"] },
+            "followUp": {
+                "body": "Card version is 1.10.0. It shows a red box saying \"Custom element doesn't exist: custom:better-xiaomi-vacuum-map-card\". Console says:\n```\nUncaught (in promise) Error: Failed to load resource: /hacsfiles/lovelace-xiaomi-vacuum-map-card/xiaomi-vacuum-map-card.js 404 (Not Found)\n```\nI use the built-in roborock integration.",
+                "expectReply": true,
+                "mentions": ["resource"]
+            }
+        },
+        {
+            "key": "leaked-token-in-config",
+            "title": "Map image not loading, empty card",
+            "body": "leaked-token-in-config.md",
+            "expect": { "mentions": ["revoke"], "secretRemoved": true }
+        }
+    ]
+}

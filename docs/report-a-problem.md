@@ -91,5 +91,5 @@ agent may ask for missing details or suggest an agent report.
 ## For agents and maintainers
 
 The procedure is the [report-problem skill](../.agents/skills/report-problem/SKILL.md); the tooling
-is in [`scripts/agent-report/`](../scripts/agent-report/). New issues are triaged by a scheduled
-agent following the [triage-issues skill](../.agents/skills/triage-issues/SKILL.md).
+is in [`scripts/agent-report/`](../scripts/agent-report/). New issues are triaged by an AI agent
+following [`.github/triage.md`](../.github/triage.md).

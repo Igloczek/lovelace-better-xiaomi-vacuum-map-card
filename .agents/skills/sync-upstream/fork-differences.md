@@ -46,7 +46,7 @@ that merges cleanly but breaks a row here is a failed sync.
 | [Repository rename](../../../FORK.md#r2-repository-rename) | `package.json` repository/homepage/bugs, README links, issue forms, `origin` | `gh repo view`; `npm run check:docs` |
 | [Card module layout](../../../FORK.md#card-module-layout) | `src/xiaomi-vacuum-map-card.ts`, `src/card/*.ts` | `npx tsc --noEmit`, `npm test`, visual suite screenshots unchanged |
 | [Upstream sync skill](../../../FORK.md#upstream-sync-skill) | `.agents/skills/sync-upstream/` | This file and `SKILL.md` still present and referenced by `AGENTS.md` |
-| [Agent problem reports](../../../FORK.md#agent-reports) | `.agents/skills/report-problem/`, `scripts/agent-report/`, `.agents/skills/triage-issues/`, `.github/ISSUE_TEMPLATE/agent_report.yml`, `docs/report-a-problem.md` | `test/agent-report.test.ts`; issue forms keep the agent-report entry |
+| [Agent problem reports](../../../FORK.md#agent-reports) | `.agents/skills/report-problem/`, `scripts/agent-report/`, `.github/triage.md`, `.github/ISSUE_TEMPLATE/agent_report.yml`, `docs/report-a-problem.md` | `test/agent-report.test.ts`; issue forms keep the agent-report entry |
 
 ## Rules for a clean merge
 
