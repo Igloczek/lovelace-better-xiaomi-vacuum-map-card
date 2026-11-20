@@ -55,7 +55,7 @@ Read the whole thread, then decide what kind it is:
   report-problem prompt from [`docs/report-a-problem.md`](../../../docs/report-a-problem.md).
   When it is a configuration mistake, answer with the fix and a link to the docs section.
 - **Feature request.** Say whether the card already does it (and how), whether it is on
-  [`ROADMAP.md`](../../../ROADMAP.md), or that the maintainer will decide. Do not promise it.
+  [`ROADMAP.md`](../../../ROADMAP.md), or neither. Do not promise it or say anyone will decide.
 - **New platform request.** Platform templates come from upstream
   ([`docs/platforms.md`](../../../docs/platforms.md)); say what the card can already do with the
   generic setup and what the request still needs.
@@ -78,16 +78,27 @@ Say only what you checked. A diagnosis you verified in the code, docs or release
 plainly; one you inferred (a cause that fits the symptom) is "most likely", with the check that
 tells. A confident wrong answer costs the user more than a question.
 
-Write like the maintainer would: plain, friendly, no filler, no "Thanks for the report" opener,
-the user's language when they did not write English. End every comment with
-`<sub>Triaged by an AI agent; the maintainer reads every issue.</sub>`.
+Every comment starts, right after the marker, with this line, so nobody mistakes it for the
+maintainer's own words even though it is posted from their account:
+
+```markdown
+> 🤖 **AI agent reply.** This is automated triage, not the maintainer. They may check this issue later.
+```
+
+This is a side project run with AI agents. Promise nothing on the maintainer's behalf: no "will be
+fixed", "will be looked at", "will be reopened", "the maintainer will decide" or "reads every
+issue", and no dates. Say what is true now (what the card does, what is on the roadmap, what you
+need from them) and what the user can do themselves.
+
+Write plainly and friendly, no filler, no "Thanks for the report" opener, in the user's language
+when they did not write English.
 
 ## Bugs you can reproduce
 
 When a bug is clear and reproduces here (unit test, visual harness or e2e instance; give the
 instance its own port per `test/e2e/README.md` and stop it after), start a new T3 thread in a
 worktree from `origin/master` with the task: fix the issue under `AGENTS.md`, red test first, and
-link the issue. Say on the issue that a fix is being worked on. One thread per issue: check
+link the issue. Say on the issue only that you reproduced it, not that a fix is coming. One thread per issue: check
 `t3_thread_list` first.
 
 ## Report
