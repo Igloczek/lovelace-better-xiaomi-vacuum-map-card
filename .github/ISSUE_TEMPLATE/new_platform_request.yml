@@ -1,9 +1,5 @@
 name: Request support for a new vacuum platform
 description: Request support for a new vacuum platform in Better Xiaomi Vacuum Map Card.
-labels:
-  - new platform
-  - enhancement
-assignees: 'Igloczek'
 body:
   - type: markdown
     attributes:

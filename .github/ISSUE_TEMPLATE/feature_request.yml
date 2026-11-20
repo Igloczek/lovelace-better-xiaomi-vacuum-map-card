@@ -1,7 +1,5 @@
 name: Request a feature in Better Xiaomi Vacuum Map Card
 description: Request a feature in Better Xiaomi Vacuum Map Card (this fork).
-labels: enhancement
-assignees: 'Igloczek'
 body:
   - type: markdown
     attributes:

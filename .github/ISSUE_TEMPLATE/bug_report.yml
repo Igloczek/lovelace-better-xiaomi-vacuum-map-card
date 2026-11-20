@@ -1,7 +1,5 @@
 name: Report an issue with Better Xiaomi Vacuum Map Card
 description: Report a bug in Better Xiaomi Vacuum Map Card (this fork).
-labels: bug
-assignees: 'Igloczek'
 body:
   - type: markdown
     attributes:
