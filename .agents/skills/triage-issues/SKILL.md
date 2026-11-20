@@ -72,6 +72,10 @@ Read the whole thread, then decide what kind it is:
 Label with the existing labels (`bug`, `enhancement`, `question`, `documentation`, `duplicate`,
 `invalid`) and add `triaged` once handled. Create the `triaged` label if it does not exist.
 
+Say only what you checked. A diagnosis you verified in the code, docs or releases can be stated
+plainly; one you inferred (a cause that fits the symptom) is "most likely", with the check that
+tells. A confident wrong answer costs the user more than a question.
+
 Write like the maintainer would: plain, friendly, no filler, no "Thanks for the report" opener,
 the user's language when they did not write English. End every comment with
 `<sub>Triaged by an AI agent; the maintainer reads every issue.</sub>`.
