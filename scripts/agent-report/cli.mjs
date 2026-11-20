@@ -4,7 +4,7 @@
 //   HA_URL=http://homeassistant.local:8123 HA_TOKEN=... node cli.mjs collect --out report.json
 //   node cli.mjs collect --raw browser-snapshot.json --out report.json
 //   node cli.mjs render report.json > issue.md      # also prints the title to stderr
-//   node cli.mjs check issue.md                     # the same check the issue workflow runs
+//   node cli.mjs check issue.md                     # validates an agent report (used in triage)
 //
 // See .agents/skills/report-problem/SKILL.md for the full procedure.
 

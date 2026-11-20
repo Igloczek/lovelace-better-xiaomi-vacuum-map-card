@@ -7,6 +7,7 @@
 - Add every intentional fork-only feature or fix to `FORK.md`, including what it changes and why. When upstream absorbs it, prove equivalence with the tests and move the row to **Superseded differences** with the upstream commit.
 - [`ROADMAP.md`](ROADMAP.md) holds planned work and postponed items; [`CHANGELOG.md`](CHANGELOG.md) holds released changes. Do not keep a record of completed work in a standing document.
 - For an upstream sync, follow [`.agents/skills/sync-upstream/SKILL.md`](.agents/skills/sync-upstream/SKILL.md). Its [fork-differences checklist](.agents/skills/sync-upstream/fork-differences.md) maps each active difference to the files that implement it and the test that proves it. Never delete a fork test, `FORK.md` row, a documentation anchor, or the sync skill to make an import pass.
+- The issue tracker is triaged by a scheduled agent following [`.agents/skills/triage-issues/SKILL.md`](.agents/skills/triage-issues/SKILL.md). No workflow comments on or edits issues.
 - In a fresh clone, configure the original repository as `upstream` before attempting a sync; this checkout already has that remote configured.
 
 ## Project map

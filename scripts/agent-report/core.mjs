@@ -1,6 +1,6 @@
 // Agent problem reports: collection, redaction, rendering and validation.
 //
-// Pure functions only. The CLI (cli.mjs) and the issue workflow (ci-issue.mjs) do the I/O, so the
+// Pure functions only. The CLI (cli.mjs) does the I/O, so the
 // redaction rules that make an unattended report safe to publish are tested in one place
 // (test/agent-report.test.ts).
 
@@ -14,9 +14,6 @@ export const REPO = "Igloczek/lovelace-better-xiaomi-vacuum-map-card";
 export const MARKER = "<!-- agent-report:v1 -->";
 export const DATA_START = "<!-- agent-report-data:start -->";
 export const DATA_END = "<!-- agent-report-data:end -->";
-export const AGENT_LABEL = "agent-report";
-export const INCOMPLETE_LABEL = "agent-report-incomplete";
-export const REDACTED_LABEL = "auto-redacted";
 
 const ENTITY_ID = /\b([a-z_]+)\.([a-z0-9_]+)\b/g;
 const LOG_LIMIT = 20;
@@ -536,7 +533,7 @@ export function parseIssueBody(body) {
     }
 }
 
-// Decision for the issue workflow: which labels to add/remove, whether to rewrite the body.
+// Validates an issue body: whether it is an agent report, whether it is complete, and leaked secrets.
 export function reviewIssue(body) {
     const scrub = scrubSecrets(body);
     const parsed = parseIssueBody(scrub.text);

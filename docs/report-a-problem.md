@@ -79,18 +79,17 @@ It never contains:
 - the map image.
 
 The agent does not change anything in Home Assistant. The removal of private data is done by the
-report tool, not left to the agent's judgement, and the repository checks every issue for leaked
-tokens and removes them.
+report tool, not left to the agent's judgement.
 
 ## No agent?
 
 Use the [bug form](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/new?template=bug_report.yml).
 It asks for the card and Home Assistant versions, the vacuum integration, the card configuration
-and the browser console errors. Hand-written reports take longer to reproduce, so expect a bot to
-suggest an agent report.
+and the browser console errors. Hand-written reports take longer to reproduce, so the triage
+agent may ask for missing details or suggest an agent report.
 
 ## For agents and maintainers
 
 The procedure is the [report-problem skill](../.agents/skills/report-problem/SKILL.md); the tooling
-is in [`scripts/agent-report/`](../scripts/agent-report/), and the issue workflow is
-[`agent-report.yml`](../.github/workflows/agent-report.yml).
+is in [`scripts/agent-report/`](../scripts/agent-report/). New issues are triaged by a scheduled
+agent following the [triage-issues skill](../.agents/skills/triage-issues/SKILL.md).
