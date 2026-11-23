@@ -11,6 +11,9 @@ real setup showed and that the card has to survive:
 - After a job the robot returns and docks.
 - `fail_next` makes the next command raise, like a device that does not answer.
 - `available: false` makes the entity unavailable, like a polling integration losing the device.
+- It reports its segments and cleans them through Home Assistant's `vacuum.clean_area`, which maps
+  each area to the segments the user assigned it (issue #120). A segment clean is recorded in
+  `commands` like a room command.
 - Every `poll_seconds` it rewrites the state object with a new `polled` attribute and the same
   activity, like a polling integration whose battery or area attribute changed: `last_updated`
   moves, `last_changed` does not.
@@ -22,7 +25,7 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from homeassistant.components.vacuum import StateVacuumEntity, VacuumActivity, VacuumEntityFeature
+from homeassistant.components.vacuum import Segment, StateVacuumEntity, VacuumActivity, VacuumEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -58,6 +61,7 @@ class FakeVacuum(StateVacuumEntity):
         | VacuumEntityFeature.RETURN_HOME
         | VacuumEntityFeature.SEND_COMMAND
         | VacuumEntityFeature.STATE
+        | VacuumEntityFeature.CLEAN_AREA
     )
 
     def __init__(self, hass: HomeAssistant, name: str) -> None:
@@ -251,6 +255,20 @@ class FakeVacuum(StateVacuumEntity):
             self._schedule(self.room_seconds, self._next_room)
         self._viomi_commands.append([command, params])
         self.async_write_ha_state()
+
+    async def async_get_segments(self) -> list[Segment]:
+        """The fixture map's rooms, which Home Assistant's area mapping assigns to areas."""
+        return [Segment(id=room_id, name=room["name"]) for room_id, room in FIXTURE_ROOMS.items()]
+
+    async def async_clean_segments(self, segment_ids: list[str], **kwargs: Any) -> None:
+        """`vacuum.clean_area`, after Home Assistant resolved the areas to these segments."""
+        self._check_fail()
+        if self._true_activity == VacuumActivity.RETURNING:
+            _LOGGER.info("fake vacuum ignores a segment clean while returning")
+            return
+        rooms = [str(room) for room in segment_ids]
+        self._commands.append(rooms)
+        self._start_job([room for room in rooms if room in FIXTURE_ROOMS])
 
     async def async_send_command(self, command: str, params: Any = None, **kwargs: Any) -> None:
         self._check_fail()

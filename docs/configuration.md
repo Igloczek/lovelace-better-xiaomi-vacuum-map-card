@@ -804,7 +804,7 @@ Format of data depends on selected `selection_type`:
 
  | Key             | Type                    | Required | Default      | Description                                                                                     |
  |-----------------|-------------------------|----------|--------------|-------------------------------------------------------------------------------------------------|
- | `id`            | string or number        | yes      | -            | Room's identifier                                                                               |
+ | `id`            | string or number        | yes      | -            | Room's identifier: the vacuum's segment id, or a Home Assistant area id ([cleaning areas](#cleaning-home-assistant-areas)) |
  | `outline`       | list                    | no       | -            | List of points forming an outline of a room (e.g. `[[25500,25500],[26500,25500],[25500,26500]]` |
  | `icon`          | object                  | no       | -            | [Icon definition](#icon-options)                                                                |
  | `label`         | object                  | no       | -            | [Label definition](#label-options)                                                              |
@@ -815,6 +815,43 @@ Format of data depends on selected `selection_type`:
   > See [this page](templates/setup.md#getting-coordinates) to check how to easily create outline.
 
   `predefined_selections` may be omitted when the map camera provides a `rooms` attribute. The card will use the names and identifiers from that attribute and, when the image has distinct room fill colors, detect the room shapes and centers from the image.
+
+  <a id="cleaning-home-assistant-areas"></a>
+  **Cleaning Home Assistant areas**
+
+  Home Assistant's `vacuum.clean_area` cleans areas: it takes area ids and sends the robot the
+  segments you assigned to each area in the vacuum's settings. A `ROOM` mode can use it with the area
+  ids as the room ids:
+
+  ```yaml
+  map_modes:
+    - name: Rooms
+      icon: mdi:broom
+      selection_type: ROOM
+      max_selections: 10
+      service_call_schema:
+        service: vacuum.clean_area
+        service_data:
+          entity_id: "[[entity_id]]"
+          cleaning_area_id: "[[selection]]"
+      predefined_selections:
+        - id: living_room
+          icon: { name: mdi:sofa, x: 25300, y: 28000 }
+        - id: kitchen
+          icon: { name: mdi:silverware-variant, x: 24000, y: 28500 }
+  ```
+
+  The card decides what each configured id is on its own. An id that is an area in Home Assistant
+  (Settings → Areas, the id in the area's URL) is an area id: it is not compared with the camera's
+  room ids, and it is usable as long as the area exists. Every other id is a segment id and is
+  checked against the camera's `rooms` metadata, as below. A mode with at least one area id shows
+  only its configured rooms, because the camera's rooms are named by segment ids, which an area
+  service does not take; tap a room's icon (or its configured `outline`) to select it.
+
+  An id that is neither an area nor a room on the camera map is stale: a deleted area, or a segment
+  a re-map renumbered. One exception follows from deciding by the id: an area whose id is also a
+  segment id (an area named after a number, such as `16`) counts as an area, so a renumbered segment
+  `16` is not reported while that area exists.
 
 ### Selection lifetime
 
@@ -840,6 +877,8 @@ selected items and their order, which is the cleaning order.
   `state_entity` item that turns on beyond the limit is not added (its entity stays on), and a
   configuration that lowers the limit keeps the first items. A `PREDEFINED_POINT` mode keeps one
   point, as a tap does.
+- A configured room id that is neither a Home Assistant area nor in the camera `rooms` metadata is
+  stale: the card names it in a warning, draws it stale and never sends it.
 - A selected room whose id disappears from the camera `rooms` metadata (a re-map) can no longer be
   cleaned: the card leaves it out of the service call, draws it stale and, while it was the whole
   selection, names it in a warning and refuses the run instead of calling the service with an empty
