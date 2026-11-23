@@ -163,7 +163,8 @@ export function showUnsendableRoomsWarning(card: XiaomiVacuumMapCard, roomIds: s
 }
 
 /**
- * The warning that names the configured ROOM ids the camera no longer reports (issue #928).
+ * The warning that names the configured ROOM ids the camera no longer reports (issue #928). An id
+ * that is a Home Assistant area is never named (issue #120).
  *
  * The message is a block of its own instead of a bare text node: a `hui-warning` lays its slot out
  * on a single line (Home Assistant 2026.11 sets `white-space: nowrap` and an ellipsis on the alert's
@@ -171,12 +172,15 @@ export function showUnsendableRoomsWarning(card: XiaomiVacuumMapCard, roomIds: s
  * makes `.room-config-warning-text` wrap, which keeps every id readable at phone width and in a
  * narrow sections cell.
  */
-export function showStaleRoomsWarning(card: XiaomiVacuumMapCard, staleRoomIds: string[]): TemplateResult {
-    const message = card._localize(["validation.stale_rooms", "{0}", staleRoomIds.join(", ")] as [
-        string,
-        string,
-        string,
-    ]);
+export function showStaleRoomsWarning(
+    card: XiaomiVacuumMapCard,
+    staleRoomIds: string[],
+    targetsAreas = false,
+): TemplateResult {
+    // In a mode that cleans Home Assistant areas (#120), a stale id is either a deleted area or a
+    // segment the camera no longer reports; the card cannot tell which, so the message names both.
+    const key = targetsAreas ? "validation.stale_rooms_or_areas" : "validation.stale_rooms";
+    const message = card._localize([key, "{0}", staleRoomIds.join(", ")] as [string, string, string]);
     return html`
         <hui-warning class="room-config-warning">
             <span class="room-config-warning-text">${message}</span>

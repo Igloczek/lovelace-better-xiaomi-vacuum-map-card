@@ -53,7 +53,40 @@ export interface MockHassOptions {
      * signature. Set it to an older version to exercise a version gate.
      */
     configVersion?: string;
+    /**
+     * Home Assistant's area registry as the frontend exposes it (`hass.areas`, keyed by area id). Real
+     * Home Assistant always has it, so the mock does too: `DEFAULT_AREAS` unless a test passes its
+     * own. A ROOM mode that targets areas (`vacuum.clean_area`) audits its ids against it (#120).
+     */
+    areas?: Record<string, MockArea>;
 }
+
+/** The fields of a `hass.areas` entry the card reads. */
+export interface MockArea {
+    area_id: string;
+    name: string;
+    floor_id?: string | null;
+    icon?: string | null;
+}
+
+/** Builds a `hass.areas` record from `[area_id, name]` pairs. */
+export function areaRegistry(entries: Array<[string, string]>): Record<string, MockArea> {
+    return Object.fromEntries(
+        entries.map(([area_id, name]) => [area_id, { area_id, name, floor_id: null, icon: null }]),
+    );
+}
+
+/**
+ * The areas every mock hass has unless a test passes its own: a home's usual rooms, the way a fresh
+ * Home Assistant onboarding creates them. A test that never thinks about areas still runs against a
+ * hass that has some, as every real one does. No fixture entity sits in one of them (the fixtures
+ * use `kitchen`), so entity and tile names stay what those tests expect.
+ */
+export const DEFAULT_AREAS = areaRegistry([
+    ["living_room", "Living Room"],
+    ["hallway", "Hallway"],
+    ["bedroom", "Bedroom"],
+]);
 
 export interface MockHass extends HomeAssistantFixed {
     /** Every websocket message passed to `callWS`, in call order. */
@@ -223,6 +256,7 @@ export function mockHass(options: MockHassOptions = {}): MockHass {
     const hass = {
         states,
         entities: toDisplayRegistry(registryEntries),
+        areas: options.areas ?? DEFAULT_AREAS,
         // Only `version` is populated: it is the one field of `hass.config` the card reads.
         config: { version: options.configVersion ?? DEFAULT_HA_VERSION },
         connected: true,

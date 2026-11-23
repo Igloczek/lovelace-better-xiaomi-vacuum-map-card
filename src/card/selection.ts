@@ -17,7 +17,8 @@ import type { XiaomiVacuumMapCard } from "../xiaomi-vacuum-map-card";
 import { calculateBasicScale } from "./map-view";
 import { dismissActiveRoomRun } from "./active-run";
 import { getActiveRoomOrder, isActiveRoomRunShownLocked } from "./active-run";
-import { getLiveRoomIds } from "./rooms";
+import { isAreaId } from "../model/room-config";
+import { configuredRoomIds, getAreas, getLiveRoomIds, isRoomIdSendable, modeTargetsAreas } from "./rooms";
 import { getRoomsConfig } from "./rooms";
 import { getStaleRoomIds } from "./rooms";
 import { captureSelection, restoreSelection, SelectionSnapshot } from "../model/selection-rebuild";
@@ -52,9 +53,8 @@ export function createContext(card: XiaomiVacuumMapCard): Context {
         () => card.roomPillPalette,
         roomId => {
             // No metadata is "unknown", not "every room is gone": the configured rooms stay the
-            // documented fallback.
-            const liveRoomIds = getLiveRoomIds(card);
-            return !liveRoomIds || liveRoomIds.has(roomId);
+            // documented fallback. A Home Assistant area id is live while the area exists (#120).
+            return isRoomIdSendable(card, roomId);
         },
         () => card.mapRotation,
         () => card._getCurrentPreset()?.map_source?.room_labels !== false,
@@ -159,7 +159,11 @@ export function setCurrentMode(
             break;
         case SelectionType.ROOM:
             const configuredRooms = newMode.predefinedSelections.map(ps => ps as RoomConfig);
-            const extractedRooms = getRoomsConfig(card)?.rooms;
+            // A mode that cleans Home Assistant areas (#120) shows its configured rooms only: the
+            // camera's rooms and their detected outlines are named by segment ids, which its
+            // service would not take.
+            const sendsAreaIds = modeTargetsAreas(card, newMode);
+            const extractedRooms = sendsAreaIds ? undefined : getRoomsConfig(card)?.rooms;
             const staleRoomIds = new Set(getStaleRoomIds(card, newMode));
             const configuredRoomsById = new Map(configuredRooms.map(room => [String(room.id), room]));
             // A configured id the camera no longer reports is still drawn, from its configured
@@ -181,7 +185,7 @@ export function setCurrentMode(
                 ? [...extractedRooms, ...unmappedRooms, ...staleRooms]
                 : configuredRooms;
             const detectedRegions = new Map(
-                (card.roomColorDetection?.regions ?? []).map(region => [region.id, region]),
+                ((!sendsAreaIds && card.roomColorDetection?.regions) || []).map(region => [region.id, region]),
             );
             card.selectableRooms = roomConfigs.map(room => {
                 const configured = configuredRoomsById.get(String(room.id));
@@ -208,7 +212,7 @@ export function setCurrentMode(
                 return new Room(config, createContext(card), {
                     imageOutline: region?.outline,
                     stale: staleRoomIds.has(String(room.id)),
-                    cardHitTest: card.roomColorDetection !== undefined,
+                    cardHitTest: !sendsAreaIds && card.roomColorDetection !== undefined,
                 });
             });
             // A rebuild keeps the click order of the rooms that still exist: the order is the
@@ -250,7 +254,7 @@ export function setCurrentMode(
     // entity-backed zones and points. A change of any of them rebuilds the mode.
     card.entitiesToManuallyUpdate = newMode ? [...getWatchedEntitiesForMapMode(newMode)] : [];
     card.heldSelection = held;
-    card.builtRoomIdsKey = getLiveRoomIdsKey(card);
+    card.builtRoomIdsKey = getLiveRoomIdsKey(card, newMode);
     if (card.builtRoomIdsKey !== undefined) card.roomMetadataSeen = true;
     if (card.selectedMode != newModeIndex && manual) forwardHaptic("selection");
     card.selectedMode = newModeIndex;
@@ -319,11 +323,23 @@ function isEntitySourceUnknown(card: XiaomiVacuumMapCard, mode: MapMode, field: 
         .some(source => !isEntitySourceKnown(card.hass?.states, source));
 }
 
-/** The live camera room ids as one comparable value; undefined without metadata. */
-function getLiveRoomIdsKey(card: XiaomiVacuumMapCard): string | undefined {
+/**
+ * The live camera room ids as one comparable value, with the mode's configured ids that are Home
+ * Assistant areas (#120): a deleted area must rebuild the rooms like a vanished segment.
+ * Undefined without camera metadata.
+ */
+function getLiveRoomIdsKey(card: XiaomiVacuumMapCard, mode: MapMode | undefined): string | undefined {
     if (!card.hass || !card.currentPreset) return undefined;
     const ids = getLiveRoomIds(card);
-    return ids ? JSON.stringify([...ids].sort()) : undefined;
+    if (!ids) return undefined;
+    const areas = getAreas(card);
+    const areaIds =
+        mode?.selectionType === SelectionType.ROOM
+            ? configuredRoomIds(mode)
+                  .map(String)
+                  .filter(id => isAreaId(id, areas))
+            : [];
+    return JSON.stringify([[...ids].sort(), areaIds.sort()]);
 }
 
 /**
@@ -336,7 +352,7 @@ function getLiveRoomIdsKey(card: XiaomiVacuumMapCard): string | undefined {
 export function updateSelectables(card: XiaomiVacuumMapCard, entitiesChanged: boolean): void {
     const roomsChanged =
         card._getCurrentMode()?.selectionType === SelectionType.ROOM &&
-        getLiveRoomIdsKey(card) !== card.builtRoomIdsKey;
+        getLiveRoomIdsKey(card, card._getCurrentMode()) !== card.builtRoomIdsKey;
     if (entitiesChanged || roomsChanged) rebuildSelection(card);
 }
 
@@ -344,15 +360,15 @@ export function updateSelectables(card: XiaomiVacuumMapCard, entitiesChanged: bo
  * The selected rooms that may be sent. The configured-id audit cannot see a room that was
  * picked from the detected metadata in a template-only mode. Its `stale` flag was captured when
  * the room was built, so the id is also checked against the live metadata here; otherwise a
- * selection held across an id shift would still be sent. Undefined metadata means the camera
+ * selection held across an id shift would still be sent. A Home Assistant area id is usable while
+ * the area exists (#120). Undefined metadata means the camera
  * reports no rooms, where the configured fallback must keep working.
  */
 export function getUsableSelectedRooms(card: XiaomiVacuumMapCard, mode: MapMode): Room[] {
     const staleRoomIds = new Set(getStaleRoomIds(card, mode));
-    const liveRoomIds = getLiveRoomIds(card);
     return card.selectedRooms.filter(room => {
         const id = String(room.toVacuum());
-        return !room.stale && !staleRoomIds.has(id) && (!liveRoomIds || liveRoomIds.has(id));
+        return !room.stale && !staleRoomIds.has(id) && isRoomIdSendable(card, id);
     });
 }
 

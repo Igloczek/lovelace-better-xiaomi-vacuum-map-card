@@ -56,6 +56,16 @@ export class Room extends PredefinedMapObject {
         return String(this._config.id);
     }
 
+    /**
+     * A stale room's `default_state` is not in effect: it can never be selected. Reporting it lets a
+     * rebuild that finds the room live again (Home Assistant's areas loading after the camera's
+     * rooms, issue #120, or a segment the camera reports again) apply the configured default
+     * instead of keeping the "not selected" the stale room was forced into.
+     */
+    public override defaultSelected(): boolean {
+        return !this._stale && super.defaultSelected();
+    }
+
     public restoreSelected(selected: boolean): void {
         if (this._stale) return;
         super.restoreSelected(selected);

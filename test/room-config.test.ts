@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findStaleRoomIds } from "../src/model/room-config";
+import { findStaleRoomIds, isAreaId, isRoomIdLive } from "../src/model/room-config";
 import { loadSyntheticFixture, loadSyntheticShiftedRoomIdsCamera } from "./harness";
 
 /**
@@ -56,5 +56,43 @@ describe("room-config stale-room audit (#928)", () => {
 
     it("compares numeric and string ids equally and reports a duplicate once", () => {
         expect(findStaleRoomIds([3, "3", 9], roomsOf(AFTER))).toEqual(["9"]);
+    });
+});
+
+describe("area ids among configured ROOM ids (#120)", () => {
+    const camera = { "16": {}, "17": {}, "18": {} };
+    const areas = { flur: {}, esszimmer: {}, "17": {} };
+
+    it("never audits an id that is a Home Assistant area against the camera", () => {
+        expect(findStaleRoomIds(["flur", "esszimmer"], camera, areas)).toEqual([]);
+        expect(isRoomIdLive("flur", camera, areas)).toBe(true);
+    });
+
+    it("audits every other id against the camera, per id", () => {
+        // A mixed list: the area passes, the renumbered segment is stale, the live segment is not.
+        expect(findStaleRoomIds(["flur", 9, 16], camera, areas)).toEqual(["9"]);
+        expect(isRoomIdLive("9", camera, areas)).toBe(false);
+        expect(isRoomIdLive(16, camera, areas)).toBe(true);
+    });
+
+    it("keeps a re-map that renumbered every configured segment stale while areas exist", () => {
+        expect(findStaleRoomIds([1, 2, 3], camera, areas)).toEqual(["1", "2", "3"]);
+    });
+
+    it("reports a deleted area as stale: it is no area and no camera room", () => {
+        expect(findStaleRoomIds(["flur", "gaestezimmer"], camera, areas)).toEqual(["gaestezimmer"]);
+        expect(isRoomIdLive("gaestezimmer", camera, areas)).toBe(false);
+    });
+
+    it("treats an area whose id is also a live segment id as an area (accepted edge case)", () => {
+        expect(isAreaId(17, areas)).toBe(true);
+        // A deleted segment 17 would not be reported while an area `17` exists.
+        expect(findStaleRoomIds([17], { "16": {} }, areas)).toEqual([]);
+    });
+
+    it("keeps unknown camera metadata unknown, with or without areas", () => {
+        expect(findStaleRoomIds(["gaestezimmer", 9], undefined, areas)).toEqual([]);
+        expect(isRoomIdLive("gaestezimmer", undefined, areas)).toBe(true);
+        expect(findStaleRoomIds([9], camera, undefined)).toEqual(["9"]);
     });
 });

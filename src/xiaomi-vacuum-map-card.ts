@@ -113,6 +113,7 @@ import {
 import {
     detectRoomColors,
     getStaleRoomIds,
+    staleWarningNamesAreas,
     getUnsendableRoomIds,
     handleRoomColorClick,
     refreshRoomsAfterColorDetection,
@@ -676,7 +677,9 @@ export class XiaomiVacuumMapCard extends LitElement {
         `;
         const warningSection = html`
             ${conditional(!validCalibration, () => showInvalidCalibrationWarning(this))}
-            ${conditional(staleRoomIds.length > 0, () => showStaleRoomsWarning(this, staleRoomIds))}
+            ${conditional(staleRoomIds.length > 0, () =>
+                showStaleRoomsWarning(this, staleRoomIds, staleWarningNamesAreas(this, this._getCurrentMode())),
+            )}
             ${conditional(unsendableRoomIds.length > 0, () => showUnsendableRoomsWarning(this, unsendableRoomIds))}
         `;
         const hasControls =

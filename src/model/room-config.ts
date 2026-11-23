@@ -16,8 +16,39 @@
 export type LiveRoomMetadata = Record<string, unknown> | undefined | null;
 
 /**
- * Configured ROOM ids the live camera metadata no longer contains, in configured order, once each.
+ * Home Assistant's area registry (`hass.areas`), keyed by area id. A configured ROOM id that is a key
+ * of it is an area id (issue #120): Home Assistant's `vacuum.clean_area` takes area ids and maps
+ * them to the robot's segments itself, so the camera's segment ids say nothing about it.
+ */
+export type AreaRegistry = Record<string, unknown> | undefined | null;
+
+/** Whether a configured ROOM id is a Home Assistant area id. */
+export function isAreaId(id: string | number, areas: AreaRegistry): boolean {
+    return !!areas && Object.prototype.hasOwnProperty.call(areas, String(id));
+}
+
+/**
+ * Whether a ROOM id may be sent: a Home Assistant area id, or a segment id the camera reports.
+ * Without camera metadata every segment id is usable, since the configured rooms are the fallback.
+ */
+export function isRoomIdLive(id: string | number, liveRooms: LiveRoomMetadata, areas: AreaRegistry): boolean {
+    if (isAreaId(id, areas)) return true;
+    const liveRoomIds = liveRooms ? Object.keys(liveRooms) : [];
+    return liveRoomIds.length === 0 || liveRoomIds.includes(String(id));
+}
+
+/**
+ * Configured ROOM ids that are no Home Assistant area and that the live camera metadata no longer
+ * contains, in configured order, once each.
  *
+ * - Each id is decided on its own (issue #120). An id that is a key of Home Assistant's area
+ *   registry is an area id and is never audited against the camera: it is live while the area
+ *   exists. Every other id is a segment id and is audited against the camera's `rooms`, so a re-map
+ *   that renumbered every configured segment still reports all of them (issue #928). A deleted area
+ *   is no area any more and, being no segment either, lands here as stale.
+ * - An area whose id is also a live segment id is an area. That is accepted: Home Assistant creates
+ *   area ids from names (`flur`, `living_room`), and a numeric one needs an area named after a
+ *   number.
  * - Missing, `null` or empty metadata is "unknown", not "all stale": the card still falls back to
  *   the configured rooms when the integration exposes no metadata, so warning there would be noise.
  *   The result is empty in that case.
@@ -26,7 +57,11 @@ export type LiveRoomMetadata = Record<string, unknown> | undefined | null;
  *   configuration may spell the same id as a number. Comparing by name is intentionally impossible
  *   here.
  */
-export function findStaleRoomIds(configuredIds: readonly (string | number)[], liveRooms: LiveRoomMetadata): string[] {
+export function findStaleRoomIds(
+    configuredIds: readonly (string | number)[],
+    liveRooms: LiveRoomMetadata,
+    areas?: AreaRegistry,
+): string[] {
     const liveRoomIds = liveRooms ? Object.keys(liveRooms) : [];
     if (liveRoomIds.length === 0) return [];
     const liveRoomIdSet = new Set(liveRoomIds);
@@ -34,6 +69,7 @@ export function findStaleRoomIds(configuredIds: readonly (string | number)[], li
     const staleIds: string[] = [];
     for (const configuredId of configuredIds) {
         const id = String(configuredId);
+        if (isAreaId(id, areas)) continue;
         if (!liveRoomIdSet.has(id) && !staleIds.includes(id)) staleIds.push(id);
     }
     return staleIds;

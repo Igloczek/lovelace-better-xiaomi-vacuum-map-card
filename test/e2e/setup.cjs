@@ -228,6 +228,82 @@ function renamesCard() {
     });
 }
 
+/**
+ * Home Assistant areas mapped to the fake vacuum's segments, the way a user assigns them in the
+ * vacuum's settings: `vacuum.clean_area` resolves each area to its segments (issue #120).
+ */
+const AREA_SEGMENTS = [
+    { name: "Flur", area_id: "flur", segments: ["0"] },
+    { name: "Esszimmer", area_id: "esszimmer", segments: ["1"] },
+    { name: "Arbeitszimmer", area_id: "arbeitszimmer", segments: ["2"] },
+];
+
+/**
+ * A ROOM mode that cleans Home Assistant areas, configured like the #120 report: icon-only rooms
+ * whose ids are area ids, sent through `vacuum.clean_area`, on a camera that publishes numeric
+ * segment ids. `extraIds` adds configured ids that are no area (area-rooms.spec.ts).
+ */
+function areaRoomsCard(extraIds = []) {
+    const positions = {
+        flur: [500, 450],
+        esszimmer: [1350, 450],
+        arbeitszimmer: [500, 1100],
+        gaestezimmer: [1350, 1100],
+    };
+    const ids = [...AREA_SEGMENTS.map(area => area.area_id), ...extraIds];
+    return card({
+        entity: "vacuum.fake_vacuum",
+        map_modes: [
+            {
+                name: "Räume",
+                icon: "mdi:broom",
+                selection_type: "ROOM",
+                max_selections: 10,
+                service_call_schema: {
+                    service: "vacuum.clean_area",
+                    service_data: { entity_id: "[[entity_id]]", cleaning_area_id: "[[selection]]" },
+                },
+                predefined_selections: ids.map(id => ({
+                    id,
+                    icon: { name: "mdi:broom", x: positions[id][0], y: positions[id][1] },
+                })),
+            },
+        ],
+    });
+}
+
+/** Creates the areas of `AREA_SEGMENTS` and maps them to the fake vacuum's segments. Idempotent. */
+async function setUpAreas(ws) {
+    const existing = new Set((await ws.send("config/area_registry/list")).map(area => area.area_id));
+    for (const area of AREA_SEGMENTS) {
+        if (existing.has(area.area_id)) continue;
+        const created = await ws.send("config/area_registry/create", { name: area.name });
+        if (created.area_id !== area.area_id) {
+            throw new Error(`area ${area.name} was created as ${created.area_id}, expected ${area.area_id}`);
+        }
+    }
+    // Right after onboarding the fixture integration may still be setting up its entities: wait for
+    // the vacuum before asking it for its segments.
+    let segments;
+    for (let attempt = 0; ; attempt++) {
+        try {
+            segments = await ws.send("vacuum/get_segments", { entity_id: "vacuum.fake_vacuum" });
+            break;
+        } catch (error) {
+            if (attempt >= 120 || !String(error.message).includes("not_found")) throw error;
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+    await ws.send("config/entity_registry/update", {
+        entity_id: "vacuum.fake_vacuum",
+        options_domain: "vacuum",
+        options: {
+            area_mapping: Object.fromEntries(AREA_SEGMENTS.map(area => [area.area_id, area.segments])),
+            last_seen_segments: segments.segments ?? segments,
+        },
+    });
+}
+
 async function main() {
     console.log(describeInstance());
     if (process.argv.includes("--reset")) {
@@ -400,6 +476,18 @@ async function main() {
             },
         },
         {
+            // area-rooms.spec.ts: a ROOM mode that cleans Home Assistant areas (issue #120).
+            url_path: "e2e-areas",
+            title: "E2E area rooms",
+            config: {
+                title: "E2E area rooms",
+                views: [
+                    { title: "Rooms", path: "rooms", cards: [areaRoomsCard()] },
+                    { title: "Deleted area", path: "deleted", cards: [areaRoomsCard(["gaestezimmer"])] },
+                ],
+            },
+        },
+        {
             // empty-room-selection.spec.ts: a selection that would send no room ids.
             url_path: "e2e-empty-rooms",
             title: "E2E empty room selection",
@@ -561,6 +649,8 @@ async function main() {
             },
         },
     ];
+
+    await setUpAreas(ws);
 
     for (const dashboard of dashboards) {
         try {

@@ -1,9 +1,9 @@
 import { cameraRoomsById, readCameraRooms } from "../model/camera-rooms";
-import type { RoomConfig, RoomConfigEventData } from "../types/types";
+import type { RoomConfig, RoomConfigEventData, ServiceCallSchemaConfig } from "../types/types";
 import { MapExtractorRoom } from "../types/types";
 import { cameraRefreshKey } from "../model/map-refresh-policy";
 import { RoomColorDetector } from "../model/room-color-detector";
-import { findStaleRoomIds } from "../model/room-config";
+import { AreaRegistry, findStaleRoomIds, isAreaId, isRoomIdLive } from "../model/room-config";
 import { roomIdAtImagePoint } from "../model/room-hit-test";
 import { MapMode } from "../model/map_mode/map-mode";
 import { SelectionType } from "../model/map_mode/selection-type";
@@ -30,9 +30,70 @@ export function getLiveRoomIds(card: XiaomiVacuumMapCard): Set<string> | undefin
     return ids.length > 0 ? new Set(ids) : undefined;
 }
 
+/** A ROOM mode's configured ids, in configured order. */
+export function configuredRoomIds(mode: MapMode): Array<string | number> {
+    return (mode.predefinedSelections as RoomConfig[])
+        .filter(room => room && room.id !== undefined)
+        .map(room => room.id);
+}
+
+/** Home Assistant's area registry, as the frontend exposes it. */
+export function getAreas(card: XiaomiVacuumMapCard): AreaRegistry {
+    return card.hass?.areas as AreaRegistry;
+}
+
 /**
- * The current ROOM mode's configured ids that the live camera metadata no longer contains.
- * An empty list when the mode is not a ROOM mode or the camera exposes no metadata.
+ * Whether a ROOM id may be sent: a Home Assistant area id, or a segment id the camera reports (or
+ * any segment id while the camera reports no metadata). Used as the second, mode-independent guard
+ * in `_getSelection` and for a room's own availability.
+ */
+export function isRoomIdSendable(card: XiaomiVacuumMapCard, id: string): boolean {
+    return isRoomIdLive(id, getLiveRooms(card), getAreas(card));
+}
+
+/**
+ * A ROOM mode that cleans Home Assistant areas instead of the camera's segments (issue #120): at
+ * least one configured id is an area the camera does not publish, and no configured id is a room
+ * the camera publishes. Such a mode's service (typically `vacuum.clean_area`) would not take the
+ * camera's segment ids, so the card offers only the configured rooms.
+ *
+ * An id the camera publishes is never evidence of an area mode, even when it is an area id too: a
+ * Roomba+ camera names its rooms by slugs (`kitchen`, `living_room`) that Home Assistant also uses
+ * for areas, and an area `0` must not hide a segment mode's camera rooms. Such a mode keeps the
+ * camera's rooms, outlines and colour taps.
+ */
+export function modeTargetsAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
+    if (mode?.selectionType !== SelectionType.ROOM) return false;
+    const areas = getAreas(card);
+    const liveRoomIds = getLiveRoomIds(card);
+    const ids = configuredRoomIds(mode).map(String);
+    if (liveRoomIds && ids.some(id => liveRoomIds.has(id))) return false;
+    return ids.some(id => isAreaId(id, areas));
+}
+
+/**
+ * Whether the stale-room warning of a ROOM mode names areas as well as camera rooms: the mode has a
+ * configured area id, or it calls `vacuum.clean_area`, whose ids are areas even when none of them
+ * exists (a display name typed instead of the area id, or every configured area deleted). Only the
+ * wording depends on the service; the audit itself is decided per id.
+ */
+export function staleWarningNamesAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
+    if (mode?.selectionType !== SelectionType.ROOM) return false;
+    const areas = getAreas(card);
+    if (configuredRoomIds(mode).some(id => isAreaId(id, areas))) return true;
+    const schema = mode.getServiceCallSchema(card.hass?.config?.version);
+    return schema.steps.some(step => {
+        const config = step.config as ServiceCallSchemaConfig | ServiceCallSchemaConfig[];
+        return (Array.isArray(config) ? config[0] : config)?.service === "vacuum.clean_area";
+    });
+}
+
+/**
+ * The current ROOM mode's configured ids that are no Home Assistant area and that the live camera
+ * metadata no longer contains. Each id is decided on its own (issue #120): an area id is never
+ * audited against the camera, so a mode that sends area ids keeps working while the camera publishes
+ * segment ids, and a deleted area is stale like a renumbered segment. An empty list when the mode is
+ * not a ROOM mode or the camera exposes no metadata.
  *
  * The audit is deliberately recomputed from the current `hass` instead of trusting the room
  * objects: camera metadata can shift while a selection made against the old metadata is still
@@ -40,10 +101,7 @@ export function getLiveRoomIds(card: XiaomiVacuumMapCard): Set<string> | undefin
  */
 export function getStaleRoomIds(card: XiaomiVacuumMapCard, mode: MapMode | undefined): string[] {
     if (mode?.selectionType !== SelectionType.ROOM) return [];
-    const configuredIds = (mode.predefinedSelections as RoomConfig[])
-        .filter(room => room && room.id !== undefined)
-        .map(room => room.id);
-    return findStaleRoomIds(configuredIds, getLiveRooms(card));
+    return findStaleRoomIds(configuredRoomIds(mode), getLiveRooms(card), getAreas(card));
 }
 
 /**
@@ -190,6 +248,9 @@ export function handleRoomColorClick(card: XiaomiVacuumMapCard, event: MouseEven
     if (card._getCurrentMode()?.selectionType !== SelectionType.ROOM || !card.roomColorDetection || !card.realScale) {
         return;
     }
+    // The detection names camera segments; a mode that cleans areas offers none of them, and its
+    // configured rooms are their own click targets.
+    if (modeTargetsAreas(card, card._getCurrentMode())) return;
     if (event.target instanceof Element && event.target.closest(".clickable")) return;
 
     const point = card._getMousePosition(event);
