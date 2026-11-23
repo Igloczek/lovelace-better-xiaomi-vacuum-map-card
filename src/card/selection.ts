@@ -19,6 +19,7 @@ import { dismissActiveRoomRun } from "./active-run";
 import { getActiveRoomOrder, isActiveRoomRunShownLocked } from "./active-run";
 import { isAreaId } from "../model/room-config";
 import { configuredRoomIds, getAreas, getLiveRoomIds, isRoomIdSendable, modeTargetsAreas } from "./rooms";
+import { areaOutlinesKey, buildAreaRooms } from "./area-mapping";
 import { getRoomsConfig } from "./rooms";
 import { getStaleRoomIds } from "./rooms";
 import { captureSelection, restoreSelection, SelectionSnapshot } from "../model/selection-rebuild";
@@ -163,6 +164,11 @@ export function setCurrentMode(
             // camera's rooms and their detected outlines are named by segment ids, which its
             // service would not take.
             const sendsAreaIds = modeTargetsAreas(card, newMode);
+            // Its rooms are the areas instead, each drawn from the camera rooms Home Assistant's area
+            // mapping assigns it, where the vacuum's integration has a confirmed join (option 5).
+            const areaRooms = sendsAreaIds
+                ? new Map(buildAreaRooms(card, newMode).map(room => [String(room.config.id), room]))
+                : undefined;
             const extractedRooms = sendsAreaIds ? undefined : getRoomsConfig(card)?.rooms;
             const staleRoomIds = new Set(getStaleRoomIds(card, newMode));
             const configuredRoomsById = new Map(configuredRooms.map(room => [String(room.id), room]));
@@ -181,15 +187,25 @@ export function setCurrentMode(
                 room =>
                     room?.id !== undefined && !extractedIds.has(String(room.id)) && !staleRoomIds.has(String(room.id)),
             );
-            const roomConfigs = extractedRooms?.length
-                ? [...extractedRooms, ...unmappedRooms, ...staleRooms]
-                : configuredRooms;
+            const roomConfigs = areaRooms
+                ? [
+                      ...[...areaRooms.values()]
+                          .map(room => room.config)
+                          .filter(room => !staleRoomIds.has(String(room.id))),
+                      ...staleRooms,
+                  ]
+                : extractedRooms?.length
+                  ? [...extractedRooms, ...unmappedRooms, ...staleRooms]
+                  : configuredRooms;
             const detectedRegions = new Map(
                 ((!sendsAreaIds && card.roomColorDetection?.regions) || []).map(region => [region.id, region]),
             );
             card.selectableRooms = roomConfigs.map(room => {
                 const configured = configuredRoomsById.get(String(room.id));
-                const region = detectedRegions.get(String(room.id));
+                const areaRoom = areaRooms?.get(String(room.id));
+                const region = areaRoom
+                    ? areaRoom.imageOutline && { outline: areaRoom.imageOutline }
+                    : detectedRegions.get(String(room.id));
                 const center = room.label ? [room.label.x, room.label.y] : undefined;
                 const config: RoomConfig = {
                     ...configured,
@@ -201,18 +217,24 @@ export function setCurrentMode(
                               y: center?.[1] ?? configured.icon.y,
                           }
                         : undefined,
+                    // An area room's label is placed by `buildAreaRooms` already.
                     label:
-                        region && room.label
+                        region && room.label && !areaRoom
                             ? { ...room.label, offset_x: 0, offset_y: 0 }
                             : (room.label ?? configured?.label),
                     variables: configured?.variables,
                     default_state: configured?.default_state,
                     state_entity: configured?.state_entity,
                 };
+                const stale = staleRoomIds.has(String(room.id));
+                const segments = stale ? [] : (areaRoom?.segments ?? []);
                 return new Room(config, createContext(card), {
                     imageOutline: region?.outline,
-                    stale: staleRoomIds.has(String(room.id)),
-                    cardHitTest: !sendsAreaIds && card.roomColorDetection !== undefined,
+                    stale,
+                    segments,
+                    // In an area mode only an area drawn from camera rooms is hit-tested by the card;
+                    // an icon-only area or one with its own outline keeps its own click targets.
+                    cardHitTest: card.roomColorDetection !== undefined && (!sendsAreaIds || segments.length > 0),
                 });
             });
             // A rebuild keeps the click order of the rooms that still exist: the order is the
@@ -339,7 +361,9 @@ function getLiveRoomIdsKey(card: XiaomiVacuumMapCard, mode: MapMode | undefined)
                   .map(String)
                   .filter(id => isAreaId(id, areas))
             : [];
-    return JSON.stringify([[...ids].sort(), areaIds.sort()]);
+    // The outlines an area mode was drawn from: a re-mapped area or another floor redraws it.
+    const outlines = mode && modeTargetsAreas(card, mode) ? areaOutlinesKey(card) : undefined;
+    return JSON.stringify([[...ids].sort(), areaIds.sort(), outlines ?? null]);
 }
 
 /**

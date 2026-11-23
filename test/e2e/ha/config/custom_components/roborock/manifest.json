@@ -1,0 +1,11 @@
+{
+    "domain": "roborock",
+    "name": "Fake Roborock (e2e)",
+    "version": "1.0.0",
+    "documentation": "https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card",
+    "dependencies": ["map_fixture"],
+    "config_flow": true,
+    "codeowners": ["@Igloczek"],
+    "requirements": [],
+    "iot_class": "local_polling"
+}

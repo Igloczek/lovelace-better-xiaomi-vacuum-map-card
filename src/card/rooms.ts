@@ -67,6 +67,7 @@ export function modeTargetsAreas(card: XiaomiVacuumMapCard, mode: MapMode | unde
     const areas = getAreas(card);
     const liveRoomIds = getLiveRoomIds(card);
     const ids = configuredRoomIds(mode).map(String);
+    if (ids.length === 0) return callsCleanArea(mode);
     if (liveRoomIds && ids.some(id => liveRoomIds.has(id))) return false;
     return ids.some(id => isAreaId(id, areas));
 }
@@ -86,6 +87,17 @@ export function staleWarningNamesAreas(card: XiaomiVacuumMapCard, mode: MapMode 
         const config = step.config as ServiceCallSchemaConfig | ServiceCallSchemaConfig[];
         return (Array.isArray(config) ? config[0] : config)?.service === "vacuum.clean_area";
     });
+}
+
+/**
+ * A mode whose service is Home Assistant's `vacuum.clean_area`. Without configured rooms that is the
+ * only sign the mode cleans areas, and its rooms come from the vacuum's area mapping: the camera's
+ * segment ids are no area ids, so offering its rooms would send ids `clean_area` refuses.
+ */
+function callsCleanArea(mode: MapMode): boolean {
+    const schema = mode.config.service_call_schema;
+    const first = Array.isArray(schema) ? schema[0] : schema;
+    return first?.service === "vacuum.clean_area";
 }
 
 /**
@@ -248,10 +260,13 @@ export function handleRoomColorClick(card: XiaomiVacuumMapCard, event: MouseEven
     if (card._getCurrentMode()?.selectionType !== SelectionType.ROOM || !card.roomColorDetection || !card.realScale) {
         return;
     }
-    // The detection names camera segments; a mode that cleans areas offers none of them, and its
-    // configured rooms are their own click targets.
-    if (modeTargetsAreas(card, card._getCurrentMode())) return;
     if (event.target instanceof Element && event.target.closest(".clickable")) return;
+    // The detection names camera rooms. A mode that cleans areas offers none of them: a tap on a room
+    // selects the area Home Assistant maps it to (issue #120), and a room in no area selects nothing.
+    if (modeTargetsAreas(card, card._getCurrentMode())) {
+        handleAreaRoomClick(card, event);
+        return;
+    }
 
     const point = card._getMousePosition(event);
     const x = Math.floor(point.x / card.realScale);
@@ -266,5 +281,24 @@ export function handleRoomColorClick(card: XiaomiVacuumMapCard, event: MouseEven
     const roomId = roomIdAtImagePoint(card.roomColorDetection, fallbacks, card.coordinatesConverter, x, y);
     if (roomId === undefined) return;
     const room = card.selectableRooms.find(candidate => String(candidate.toVacuum()) === roomId);
+    if (room) void room.click();
+}
+
+/** A tap in a mode that cleans areas: the camera room under it, then the area drawn from that room. */
+function handleAreaRoomClick(card: XiaomiVacuumMapCard, event: MouseEvent): void {
+    const areaRooms = card.selectableRooms.filter(room => !room.stale && room.segments.length > 0);
+    if (areaRooms.length === 0) return;
+    const point = card._getMousePosition(event);
+    const x = Math.floor(point.x / card.realScale);
+    const y = Math.floor(point.y / card.realScale);
+    // A room the detection did not find keeps its metadata outline as the target, as in a segment mode.
+    const fallbacks = areaRooms.flatMap(room =>
+        room.segments
+            .filter(segment => !segment.imageOutline)
+            .map(segment => ({ id: segment.id, outline: segment.outline })),
+    );
+    const roomId = roomIdAtImagePoint(card.roomColorDetection, fallbacks, card.coordinatesConverter, x, y);
+    if (roomId === undefined) return;
+    const room = areaRooms.find(candidate => candidate.segments.some(segment => segment.id === roomId));
     if (room) void room.click();
 }

@@ -25,6 +25,11 @@ export interface MockEntityRegistryEntry extends Omit<EntityRegistryDisplayEntry
     /** The registry icon the generated tiles prefer over `original_icon`. */
     icon?: string | null;
     original_icon?: string | null;
+    /**
+     * The entry's integration options, as `config/entity_registry/get` returns them. A vacuum mapped
+     * to areas keeps `{vacuum: {area_mapping, last_seen_segments}}` here (issue #120).
+     */
+    options?: Record<string, unknown>;
 }
 
 /** Registry input accepted by `mockHass`: a map keyed by entity id, or a list of entries. */

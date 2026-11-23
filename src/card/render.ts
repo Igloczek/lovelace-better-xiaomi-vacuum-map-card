@@ -148,6 +148,25 @@ export function showInvalidCalibrationWarning(card: XiaomiVacuumMapCard): Templa
 }
 
 /**
+ * Selected areas Home Assistant has no segments for (issue #120): `vacuum.clean_area` would clean the
+ * other areas and fail on these with `areas_not_mapped`. Shown while they are selected, before the
+ * run; the run still sends them, because which areas are sent is the user's choice, not the card's.
+ * It wraps like the stale-room warning.
+ */
+export function showUnmappedAreasWarning(card: XiaomiVacuumMapCard, areaIds: string[]): TemplateResult {
+    const message = card._localize(["validation.areas_not_mapped", "{0}", areaIds.join(", ")] as [
+        string,
+        string,
+        string,
+    ]);
+    return html`
+        <hui-warning class="room-config-warning area-mapping-warning">
+            <span class="room-config-warning-text">${message}</span>
+        </hui-warning>
+    `;
+}
+
+/**
  * A ROOM selection that would send an empty room list: the selected rooms are no longer on the
  * camera map, so the run button would call the service with nothing to clean. The rooms are drawn
  * stale (see `Room`), and this warning says why the run is refused. The stale configured-id warning

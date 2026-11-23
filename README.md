@@ -53,6 +53,9 @@ Its own card type, upstream-compatible YAML: [switching takes a minute](#coming-
 
 - **Rooms are found automatically.** When the map camera reports its rooms, the card takes the
   outlines, names and tap targets from the map itself. You don't draw anything by hand.
+- **Clean Home Assistant areas.** A room mode can send `vacuum.clean_area`; on Roborock, Dreame and
+  Valetudo the card draws each area with the rooms you mapped it to in Home Assistant
+  ([areas](docs/configuration.md#area-outlines)).
 - **Zoom and pan** with the mouse wheel or your fingers, and **rotate** with two fingers or a fixed
   angle. Overlays stay aligned at any zoom and rotation.
 - **Remembers your view.** Each card reopens at the zoom, position and rotation you left it at. You
