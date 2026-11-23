@@ -30,11 +30,15 @@ interface PaintWindow {
     };
 }
 
-function config(mode: Partial<MapModeConfig>, rotation: number): XiaomiVacuumMapCardConfig {
+function config(
+    mode: Partial<MapModeConfig>,
+    rotation: number,
+    mapSource: Record<string, unknown> = {},
+): XiaomiVacuumMapCardConfig {
     return {
         type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.roborock_s7",
-        map_source: { camera: "camera.vacuum_map" },
+        map_source: { camera: "camera.vacuum_map", ...mapSource },
         calibration_source: { camera: true },
         vacuum_platform: "Xiaomi Miio",
         map_modes: [mode as MapModeConfig],
@@ -187,3 +191,122 @@ test("a pill's name and badge number are centred on their letters", async ({ pag
     );
     expect(Math.abs(number.above - number.below), `badge ${JSON.stringify(number)}`).toBeLessThanOrEqual(1);
 });
+
+for (const zoom of [1, 2.5] as const) {
+    for (const rotation of [0, 90] as const) {
+        test(`an icon-only room keeps and recolours its icon in place at zoom ${zoom} and rotation ${rotation}`, async ({
+            page,
+        }) => {
+            const label = `zoom ${zoom} rotation ${rotation}`;
+            const iconOnlyMode: Partial<MapModeConfig> = { ...ROOM_MODE, cleaning_order: false };
+            await mount(page, config(iconOnlyMode, rotation, { room_labels: false }));
+            if (zoom !== 1) {
+                const anchor = await page.evaluate(() =>
+                    (window as unknown as PaintWindow).visualHarness.roomAnchor("0"),
+                );
+                await page.evaluate(
+                    input => (window as unknown as PaintWindow).visualHarness.setZoom(input.zoom, input.anchor),
+                    { zoom, anchor },
+                );
+            }
+            // Override the two selected-icon CSS variables explicitly so the check proves both reach
+            // the painted pixels in Chromium and WebKit.
+            await page.addStyleTag({
+                content: `${CARD} {
+                    --map-card-room-icon-color: rgb(20, 20, 20);
+                    --map-card-room-icon-background-color: rgb(220, 220, 220);
+                    --map-card-room-icon-color-selected: rgb(255, 255, 255);
+                    --map-card-room-icon-background-color-selected: rgb(210, 40, 40);
+                    --map-card-transitions-duration: 0ms;
+                }`,
+            });
+            await page.waitForTimeout(100);
+
+            const iconSelector = ".room-0-wrapper .room-icon-wrapper";
+            await expectPaintedInPlace(page, iconSelector, `${label}, unselected icon`);
+
+            const readIcon = (): Promise<{
+                color: string;
+                backgroundColor: string;
+                box: { x: number; y: number; width: number; height: number };
+            }> =>
+                page.locator(CARD).evaluate((card: Element, sel: string) => {
+                    const el = card.shadowRoot!.querySelector(sel) as HTMLElement | null;
+                    if (!el) throw new Error(`missing ${sel}`);
+                    const style = getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    return {
+                        color: style.color,
+                        backgroundColor: style.backgroundColor,
+                        box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                    };
+                }, iconSelector);
+
+            const before = await readIcon();
+            expect(before.color).toBe("rgb(20, 20, 20)");
+            expect(before.backgroundColor).toBe("rgb(220, 220, 220)");
+            const clip = {
+                x: Math.max(0, Math.floor(before.box.x)),
+                y: Math.max(0, Math.floor(before.box.y)),
+                width: Math.ceil(before.box.width),
+                height: Math.ceil(before.box.height),
+            };
+            const pixelsBefore = await page.screenshot({ clip, animations: "disabled" });
+
+            await tapRoom(page, "0");
+            await expectPaintedInPlace(page, iconSelector, `${label}, selected icon`);
+            await expect(page.locator(`${CARD} .room-0-wrapper .room-pill`)).toHaveCount(0);
+
+            const after = await readIcon();
+            expect(after.color).toBe("rgb(255, 255, 255)");
+            expect(after.backgroundColor).toBe("rgb(210, 40, 40)");
+            const pixelsAfter = await page.screenshot({ clip, animations: "disabled" });
+            expect(pixelsBefore.equals(pixelsAfter), `${label}: selected icon pixels changed`).toBe(false);
+
+            // Clicking the selected icon itself deselects the room again.
+            await page.mouse.click(after.box.x + after.box.width / 2, after.box.y + after.box.height / 2);
+            await expect
+                .poll(() => page.evaluate(() => (window as unknown as PaintWindow).visualHarness.selectedRoomIds()))
+                .not.toContain("0");
+        });
+
+        test(`an icon-only room with cleaning_order paints its icon and corner order badge at zoom ${zoom} and rotation ${rotation}`, async ({
+            page,
+        }) => {
+            const label = `zoom ${zoom} rotation ${rotation}`;
+            await mount(page, config(ROOM_MODE, rotation, { room_labels: false }));
+            if (zoom !== 1) {
+                const anchor = await page.evaluate(() =>
+                    (window as unknown as PaintWindow).visualHarness.roomAnchor("0"),
+                );
+                await page.evaluate(
+                    input => (window as unknown as PaintWindow).visualHarness.setZoom(input.zoom, input.anchor),
+                    { zoom, anchor },
+                );
+            }
+            await tapRoom(page, "0");
+            await expectPaintedInPlace(page, ".room-0-wrapper .room-icon-wrapper", `${label}, icon`);
+            await expectPaintedInPlace(page, ".room-0-wrapper .room-pill-badge.room-order", `${label}, order badge`);
+
+            // The badge sits at the top-right corner of the icon on screen at every zoom and rotation.
+            const geometry = await page.locator(CARD).evaluate((card: Element) => {
+                const icon = card
+                    .shadowRoot!.querySelector(".room-0-wrapper .room-icon-wrapper")!
+                    .getBoundingClientRect();
+                const badge = card
+                    .shadowRoot!.querySelector(".room-0-wrapper .room-pill-badge.room-order")!
+                    .getBoundingClientRect();
+                return {
+                    iconCentreX: icon.x + icon.width / 2,
+                    iconCentreY: icon.y + icon.height / 2,
+                    badgeCentreX: badge.x + badge.width / 2,
+                    badgeCentreY: badge.y + badge.height / 2,
+                };
+            });
+            expect(geometry.badgeCentreX, `${label}: badge right of icon centre`).toBeGreaterThan(
+                geometry.iconCentreX + 8,
+            );
+            expect(geometry.badgeCentreY, `${label}: badge above icon centre`).toBeLessThan(geometry.iconCentreY - 8);
+        });
+    }
+}

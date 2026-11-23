@@ -87,6 +87,36 @@ test("cleans the selected Home Assistant areas through vacuum.clean_area", async
         ]);
     expect(await warning(target)).toBe("");
 
+    const readIconStyle = (id: string): Promise<{ background: string; color: string; pillCount: number } | null> =>
+        target.evaluate((element, roomId: string) => {
+            const icon = element.shadowRoot.querySelector(
+                `.room-label-layer.room-${roomId}-wrapper .room-icon-wrapper`,
+            ) as HTMLElement | null;
+            if (!icon) return null;
+            const style = getComputedStyle(icon);
+            return {
+                background: style.backgroundColor,
+                color: style.color,
+                pillCount: element.shadowRoot.querySelectorAll(`.room-label-layer.room-${roomId}-wrapper .room-pill`)
+                    .length,
+            };
+        }, id);
+
+    const unselectedStyle = await readIconStyle("esszimmer");
+    expect(unselectedStyle).not.toBeNull();
+
+    await clickIcon(page, target, "esszimmer");
+    await expect.poll(() => selected(target), { timeout: 15_000 }).toEqual(["esszimmer"]);
+    // An icon-only room keeps its icon in the selected colours (no bare checkmark pill) and stays
+    // clickable so tapping it again deselects the room.
+    const selectedStyle = await readIconStyle("esszimmer");
+    expect(selectedStyle).not.toBeNull();
+    expect(selectedStyle!.pillCount).toBe(0);
+    expect(selectedStyle!.background).not.toBe(unselectedStyle!.background);
+
+    await clickIcon(page, target, "esszimmer");
+    await expect.poll(() => selected(target), { timeout: 15_000 }).toEqual([]);
+
     await clickIcon(page, target, "esszimmer");
     await clickIcon(page, target, "flur");
     await expect.poll(() => selected(target), { timeout: 15_000 }).toEqual(["esszimmer", "flur"]);
