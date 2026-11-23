@@ -120,9 +120,10 @@ import {
     refreshRoomsAfterColorDetection,
 } from "./card/rooms";
 import {
+    currentMapSelectChanged,
+    detachAreaMapping,
     getUnmappedSelectedAreas,
     refreshAreaMapping,
-    unsubscribeAreaMapping,
     type AreaMappingSubscription,
     type CardAreaMapping,
 } from "./card/area-mapping";
@@ -455,7 +456,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         document.removeEventListener("visibilitychange", this._handleVisibilityChange);
         window.removeEventListener("pagehide", this._flushMapView);
         disconnectActiveRun(this);
-        unsubscribeAreaMapping(this);
+        detachAreaMapping(this);
         this.mapResizeObserver?.disconnect();
         this.mapResizeObserver = undefined;
         this.observedMapCanvas = undefined;
@@ -544,7 +545,12 @@ export class XiaomiVacuumMapCard extends LitElement {
         }
         // A rename in Home Assistant's registries, or the frontend installing its real name
         // formatter, changes no entity state; without this the tiles keep the old label and icon.
-        if (entityNamesChanged(changedProps.get("_hass") as HomeAssistantFixed | undefined, this.hass)) {
+        const oldHass = changedProps.get("_hass") as HomeAssistantFixed | undefined;
+        if (entityNamesChanged(oldHass, this.hass)) {
+            return true;
+        }
+        // The floor an area mode is drawn for (Roborock's current-map select, #120).
+        if (currentMapSelectChanged(this, oldHass)) {
             return true;
         }
         return hasConfigOrAnyEntityChanged(this.watchedEntities, changedProps, false, this.hass);

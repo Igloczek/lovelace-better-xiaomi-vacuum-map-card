@@ -202,7 +202,10 @@ export function setCurrentMode(
             );
             card.selectableRooms = roomConfigs.map(room => {
                 const configured = configuredRoomsById.get(String(room.id));
-                const areaRoom = areaRooms?.get(String(room.id));
+                const stale = staleRoomIds.has(String(room.id));
+                // A deleted area keeps nothing of the rooms it was mapped to.
+                const areaRoom = stale ? undefined : areaRooms?.get(String(room.id));
+                const drawnArea = (areaRoom?.segments.length ?? 0) > 0;
                 const region = areaRoom
                     ? areaRoom.imageOutline && { outline: areaRoom.imageOutline }
                     : detectedRegions.get(String(room.id));
@@ -210,13 +213,16 @@ export function setCurrentMode(
                 const config: RoomConfig = {
                     ...configured,
                     ...room,
-                    icon: configured?.icon
-                        ? {
-                              ...configured.icon,
-                              x: center?.[0] ?? configured.icon.x,
-                              y: center?.[1] ?? configured.icon.y,
-                          }
-                        : undefined,
+                    // An area drawn from camera rooms has its icon placed by `buildAreaRooms`.
+                    icon: drawnArea
+                        ? room.icon
+                        : configured?.icon
+                          ? {
+                                ...configured.icon,
+                                x: center?.[0] ?? configured.icon.x,
+                                y: center?.[1] ?? configured.icon.y,
+                            }
+                          : undefined,
                     // An area room's label is placed by `buildAreaRooms` already.
                     label:
                         region && room.label && !areaRoom
@@ -226,8 +232,7 @@ export function setCurrentMode(
                     default_state: configured?.default_state,
                     state_entity: configured?.state_entity,
                 };
-                const stale = staleRoomIds.has(String(room.id));
-                const segments = stale ? [] : (areaRoom?.segments ?? []);
+                const segments = areaRoom?.segments ?? [];
                 return new Room(config, createContext(card), {
                     imageOutline: region?.outline,
                     stale,
@@ -248,10 +253,14 @@ export function setCurrentMode(
             // sends nothing. Keep it aside while the selection would otherwise be empty: it is
             // drawn stale (outside the selection machinery, which must not see it as an object it
             // can restore) and the card's warning names it, so the refused run is reported.
+            // An area that left a mode built from the area mapping (another floor, re-mapped) is still
+            // a sendable id but no longer on this map: it leaves the selection like any room that
+            // is no longer offered, and is not kept aside as unsendable.
             if (cameraRoomsSeenBefore && !isRoomMetadataUnknown(card) && card.selectedRooms.length === 0) {
                 const presentKeys = new Set(card.selectableRooms.map(room => room.selectionKey()));
                 card.unavailableRooms = previousSelectedRooms.filter(room => {
                     if (presentKeys.has(room.selectionKey())) return false;
+                    if (sendsAreaIds && isRoomIdSendable(card, room.selectionKey())) return false;
                     presentKeys.add(room.selectionKey());
                     return true;
                 });

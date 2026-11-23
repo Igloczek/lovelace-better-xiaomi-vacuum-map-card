@@ -99,9 +99,11 @@ export interface AreaOutlines {
  *
  * A segment is drawn for its area only when the join leaves no doubt:
  * - Integrations that number each map's segments from the same start (Roborock, Dreame) give the
- *   same bare id on two floors. The current-map select picks the floor when it names a map the
- *   segments' `group` knows; otherwise a bare id that two map prefixes produce is dropped rather
- *   than guessed, since the camera does not say which map it shows.
+ *   same bare id on two floors. The current-map select, when the segments carry map names, names
+ *   the floors that may be shown: a name no segment has means a floor Home Assistant has no
+ *   segments for, so nothing is drawn. Among the floors left, a bare id that two map prefixes
+ *   produce is dropped rather than guessed. Without `last_seen_segments` the card cannot know the
+ *   unmapped rooms of each floor, so a mapping on several floors draws nothing.
  * - A segment the camera does not report draws nothing.
  * - A camera room that two areas claim (the same segment mapped twice) belongs to neither, so a tap
  *   on it cannot pick one of them at random.
@@ -110,16 +112,26 @@ export function resolveAreaOutlines(input: AreaOutlineInput): AreaOutlines | und
     const rule = input.platform ? AREA_JOIN_RULES[input.platform] : undefined;
     const mapping = input.options.areaMapping;
     if (!rule || !mapping) return undefined;
+    const none: AreaOutlines = { roomsByArea: new Map(), areaByRoom: new Map() };
 
     const segments = input.options.lastSeenSegments ?? [];
-    const currentMap = currentMapPrefix(rule, segments, input.currentMapName);
-    // Every map prefix that produces a bare id, from the mapping and from every segment the vacuum
-    // reported: a floor nobody mapped yet still makes its bare ids ambiguous.
+    const joinedMapping = Object.values(mapping)
+        .flat()
+        .map(segmentId => rule.join(segmentId))
+        .filter((joined): joined is JoinedSegment => joined !== undefined);
+    const shownMaps = shownMapPrefixes(rule, segments, input.currentMapName);
+    if (!shownMaps && segments.length === 0 && new Set(joinedMapping.map(joined => joined.map)).size > 1) return none;
+    const mayBeShown = (map: string | undefined): boolean => !shownMaps || shownMaps.has(map ?? "");
+
+    // Every map prefix that may be shown and produces a bare id, from the mapping and from every
+    // segment the vacuum reported: a floor nobody mapped yet still makes its bare ids ambiguous.
     const mapsByRoom = new Map<string, Set<string | undefined>>();
-    const allSegmentIds = [...Object.values(mapping).flat(), ...segments.map(segment => segment.id)];
-    for (const segmentId of allSegmentIds) {
-        const joined = typeof segmentId === "string" ? rule.join(segmentId) : undefined;
-        if (!joined) continue;
+    const allJoined = [
+        ...joinedMapping,
+        ...segments.map(segment => rule.join(segment.id)).filter(joined => joined !== undefined),
+    ];
+    for (const joined of allJoined) {
+        if (!mayBeShown(joined.map)) continue;
         const maps = mapsByRoom.get(joined.roomId) ?? new Set();
         maps.add(joined.map);
         mapsByRoom.set(joined.roomId, maps);
@@ -131,10 +143,8 @@ export function resolveAreaOutlines(input: AreaOutlineInput): AreaOutlines | und
         if (!Array.isArray(segmentIds)) continue;
         for (const segmentId of segmentIds) {
             const joined = typeof segmentId === "string" ? rule.join(segmentId) : undefined;
-            if (!joined || !input.cameraRoomIds.has(joined.roomId)) continue;
-            const onShownMap =
-                currentMap !== undefined ? joined.map === currentMap : (mapsByRoom.get(joined.roomId)?.size ?? 0) <= 1;
-            if (!onShownMap) continue;
+            if (!joined || !input.cameraRoomIds.has(joined.roomId) || !mayBeShown(joined.map)) continue;
+            if ((mapsByRoom.get(joined.roomId)?.size ?? 0) > 1) continue;
             const rooms = roomsByArea.get(areaId) ?? [];
             if (!rooms.includes(joined.roomId)) rooms.push(joined.roomId);
             roomsByArea.set(areaId, rooms);
@@ -157,23 +167,25 @@ export function resolveAreaOutlines(input: AreaOutlineInput): AreaOutlines | und
 }
 
 /**
- * The map prefix of the map the vacuum is on, from the current-map select's state matched against
- * the segments' `group`. Undefined when the integration has no such select, its state is unknown,
- * or the name matches no single prefix (a map without a name, two maps with the same name).
+ * The map prefixes the current-map select's state names, matched against the segments' `group`:
+ * one map, several maps sharing a name, or none at all when the vacuum is on a map Home Assistant
+ * has no segments for. Undefined (no floor signal) when the integration has no such select, its
+ * state is unknown, or no segment carries a map name to compare with.
  */
-function currentMapPrefix(
+function shownMapPrefixes(
     rule: AreaJoinRule,
     segments: readonly VacuumSegment[],
     currentMapName: string | undefined,
-): string | undefined {
+): ReadonlySet<string> | undefined {
     if (!rule.currentMapSelect || !currentMapName) return undefined;
+    if (!segments.some(segment => segment.group)) return undefined;
     const prefixes = new Set<string>();
     for (const segment of segments) {
         if (segment.group !== currentMapName) continue;
         const map = rule.join(segment.id)?.map;
         if (map !== undefined) prefixes.add(map);
     }
-    return prefixes.size === 1 ? [...prefixes][0] : undefined;
+    return prefixes;
 }
 
 /** Reads `options.vacuum` of an entity registry entry, ignoring anything malformed. */
@@ -186,7 +198,7 @@ export function readVacuumAreaOptions(entry: unknown): VacuumAreaOptions {
             ? Object.fromEntries(
                   Object.entries(rawMapping as Record<string, unknown>)
                       .filter(([, ids]) => Array.isArray(ids))
-                      .map(([areaId, ids]) => [areaId, (ids as unknown[]).map(id => String(id))]),
+                      .map(([areaId, ids]) => [areaId, (ids as unknown[]).filter(isSegmentId).map(id => String(id))]),
               )
             : undefined;
     const rawSegments = options.last_seen_segments;
@@ -194,7 +206,7 @@ export function readVacuumAreaOptions(entry: unknown): VacuumAreaOptions {
         ? rawSegments
               .filter(
                   (segment): segment is Record<string, unknown> =>
-                      !!segment && typeof segment === "object" && (segment as { id?: unknown }).id !== undefined,
+                      !!segment && typeof segment === "object" && isSegmentId((segment as { id?: unknown }).id),
               )
               .map(segment => ({
                   id: String(segment.id),
@@ -203,6 +215,11 @@ export function readVacuumAreaOptions(entry: unknown): VacuumAreaOptions {
               }))
         : undefined;
     return { areaMapping, lastSeenSegments };
+}
+
+/** A segment id as Home Assistant stores it: a non-empty string, or a number from an older entry. */
+function isSegmentId(id: unknown): id is string | number {
+    return (typeof id === "string" && id !== "") || (typeof id === "number" && Number.isFinite(id));
 }
 
 /**

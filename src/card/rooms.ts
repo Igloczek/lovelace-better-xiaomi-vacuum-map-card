@@ -52,23 +52,28 @@ export function isRoomIdSendable(card: XiaomiVacuumMapCard, id: string): boolean
 }
 
 /**
- * A ROOM mode that cleans Home Assistant areas instead of the camera's segments (issue #120): at
- * least one configured id is an area the camera does not publish, and no configured id is a room
- * the camera publishes. Such a mode's service (typically `vacuum.clean_area`) would not take the
- * camera's segment ids, so the card offers only the configured rooms.
+ * A ROOM mode that cleans Home Assistant areas instead of the camera's segments (issue #120). The
+ * camera's own rooms are named by segment ids that such a service would not take, so the card never
+ * offers them.
  *
- * An id the camera publishes is never evidence of an area mode, even when it is an area id too: a
- * Roomba+ camera names its rooms by slugs (`kitchen`, `living_room`) that Home Assistant also uses
- * for areas, and an area `0` must not hide a segment mode's camera rooms. Such a mode keeps the
- * camera's rooms, outlines and colour taps.
+ * - An id the camera publishes is never evidence of an area mode, even when it is an area id too: a
+ *   Roomba+ camera names its rooms by slugs (`kitchen`, `living_room`) that Home Assistant also uses
+ *   for areas, and an area `0` must not hide a segment mode's camera rooms. Such a mode keeps the
+ *   camera's rooms, outlines and colour taps. For the same reason a mode without configured rooms
+ *   keeps them when the camera names a room by an area id.
+ * - Otherwise a mode that calls `vacuum.clean_area` cleans areas, even when every configured area is
+ *   gone or none is configured (its rooms then come from the vacuum's area mapping).
+ * - Otherwise a mode cleans areas when one of its configured ids is an area (a script or another
+ *   service that takes areas).
  */
 export function modeTargetsAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
     if (mode?.selectionType !== SelectionType.ROOM) return false;
     const areas = getAreas(card);
     const liveRoomIds = getLiveRoomIds(card);
     const ids = configuredRoomIds(mode).map(String);
-    if (ids.length === 0) return callsCleanArea(mode);
     if (liveRoomIds && ids.some(id => liveRoomIds.has(id))) return false;
+    if (ids.length === 0 && liveRoomIds && [...liveRoomIds].some(id => isAreaId(id, areas))) return false;
+    if (callsCleanArea(mode)) return true;
     return ids.some(id => isAreaId(id, areas));
 }
 
@@ -81,23 +86,16 @@ export function modeTargetsAreas(card: XiaomiVacuumMapCard, mode: MapMode | unde
 export function staleWarningNamesAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
     if (mode?.selectionType !== SelectionType.ROOM) return false;
     const areas = getAreas(card);
-    if (configuredRoomIds(mode).some(id => isAreaId(id, areas))) return true;
-    const schema = mode.getServiceCallSchema(card.hass?.config?.version);
-    return schema.steps.some(step => {
-        const config = step.config as ServiceCallSchemaConfig | ServiceCallSchemaConfig[];
-        return (Array.isArray(config) ? config[0] : config)?.service === "vacuum.clean_area";
-    });
+    return configuredRoomIds(mode).some(id => isAreaId(id, areas)) || callsCleanArea(mode);
 }
 
 /**
- * A mode whose service is Home Assistant's `vacuum.clean_area`. Without configured rooms that is the
- * only sign the mode cleans areas, and its rooms come from the vacuum's area mapping: the camera's
- * segment ids are no area ids, so offering its rooms would send ids `clean_area` refuses.
+ * A mode one of whose service calls is Home Assistant's `vacuum.clean_area`, configured or from the
+ * platform template. It takes area ids only, even when every configured one is gone, and its
+ * rooms without configured ones come from the vacuum's area mapping.
  */
-function callsCleanArea(mode: MapMode): boolean {
-    const schema = mode.config.service_call_schema;
-    const first = Array.isArray(schema) ? schema[0] : schema;
-    return first?.service === "vacuum.clean_area";
+export function callsCleanArea(mode: MapMode): boolean {
+    return mode.serviceCallSchema.steps.some(step => step.service === "vacuum.clean_area");
 }
 
 /**

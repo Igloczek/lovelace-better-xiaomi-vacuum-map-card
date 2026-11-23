@@ -13,7 +13,8 @@ import type { RoomSegment } from "../model/map_objects/room";
 import { SelectionType } from "../model/map_mode/selection-type";
 import type { MapMode } from "../model/map_mode/map-mode";
 import type { XiaomiVacuumMapCard } from "../xiaomi-vacuum-map-card";
-import { getAreas, getLiveRooms, modeTargetsAreas } from "./rooms";
+import { callsCleanArea, getAreas, modeTargetsAreas } from "./rooms";
+import type { HomeAssistantFixed } from "../types/fixes";
 import { rebuildSelection, getUsableSelectedRooms } from "./selection";
 
 /**
@@ -28,7 +29,12 @@ export interface CardAreaMapping {
     readonly entityId: string;
     readonly entities: unknown;
     options?: VacuumAreaOptions;
+    /** When the read failed for a reason other than a missing entry; it is retried after a while. */
+    failedAt?: number;
 }
+
+/** How long a failed registry read or subscription waits before the card tries it again. */
+const RETRY_MS = 30_000;
 
 /**
  * The card's subscription to `entity_registry_updated`, which Home Assistant lets every user subscribe
@@ -40,6 +46,8 @@ export interface AreaMappingSubscription {
     readonly connection: unknown;
     readonly entityId: string;
     readonly unsubscribe: Promise<(() => unknown) | undefined>;
+    /** When Home Assistant refused the subscription; it is tried again after a while. */
+    failedAt?: number;
 }
 
 /**
@@ -56,7 +64,8 @@ export function refreshAreaMapping(card: XiaomiVacuumMapCard, force = false): vo
     subscribeAreaMapping(card, entityId);
     const entities = card.hass.entities;
     const previous = card.areaMapping;
-    if (!force && previous?.entityId === entityId && previous.entities === entities) return;
+    const retry = previous?.failedAt !== undefined && Date.now() - previous.failedAt >= RETRY_MS;
+    if (!force && !retry && previous?.entityId === entityId && previous.entities === entities) return;
 
     const request: CardAreaMapping = {
         entityId,
@@ -68,16 +77,19 @@ export function refreshAreaMapping(card: XiaomiVacuumMapCard, force = false): vo
     card.hass
         .callWS({ type: "config/entity_registry/get", entity_id: entityId })
         .then(entry => {
-            if (card.areaMapping !== request) return;
+            // A newer read, or a detached card (see `detachAreaMapping`), discards this answer.
+            if (card.areaMapping !== request || !card.connected) return;
             const options = readVacuumAreaOptions(entry);
             const changed = JSON.stringify(options) !== JSON.stringify(request.options);
             request.options = options;
             if (changed && modeTargetsAreas(card, card._getCurrentMode())) rebuildSelection(card);
             card.requestUpdate();
         })
-        .catch(() => {
-            // No registry entry (a YAML vacuum without a unique id) or no connection: the configured
-            // rooms stay as they are.
+        .catch((error: { code?: string } | undefined) => {
+            // The configured rooms stay as they are. A vacuum without a registry entry (a YAML
+            // vacuum without a unique id) has nothing to read; any other failure (a lost
+            // connection) is tried again on a later update.
+            if (card.areaMapping === request && error?.code !== "not_found") request.failedAt = Date.now();
         });
 }
 
@@ -86,7 +98,8 @@ function subscribeAreaMapping(card: XiaomiVacuumMapCard, entityId: string): void
     const connection = card.hass?.connection;
     const current = card.areaMappingSubscription;
     if (!card.connected || !connection?.subscribeEvents) return;
-    if (current && current.connection === connection && current.entityId === entityId) return;
+    const retry = current?.failedAt !== undefined && Date.now() - current.failedAt >= RETRY_MS;
+    if (current && !retry && current.connection === connection && current.entityId === entityId) return;
     unsubscribeAreaMapping(card);
     const unsubscribe = connection
         .subscribeEvents((event: { data?: { entity_id?: string; old_entity_id?: string } }) => {
@@ -96,12 +109,26 @@ function subscribeAreaMapping(card: XiaomiVacuumMapCard, entityId: string): void
         }, "entity_registry_updated")
         .then(
             unsub => unsub as () => unknown,
-            () => undefined,
+            () => {
+                subscription.failedAt = Date.now();
+                return undefined;
+            },
         );
-    card.areaMappingSubscription = { connection, entityId, unsubscribe };
+    const subscription: AreaMappingSubscription = { connection, entityId, unsubscribe };
+    card.areaMappingSubscription = subscription;
 }
 
-/** Ends the registry subscription; the card calls it when it is detached. */
+/**
+ * Called when the card is detached: ends the subscription, discards a read still on its way, and
+ * makes the card read the mapping again when it is attached, keeping the last one drawn meanwhile.
+ */
+export function detachAreaMapping(card: XiaomiVacuumMapCard): void {
+    unsubscribeAreaMapping(card);
+    const mapping = card.areaMapping;
+    if (mapping) card.areaMapping = { entityId: mapping.entityId, entities: undefined, options: mapping.options };
+}
+
+/** Ends the registry subscription. */
 export function unsubscribeAreaMapping(card: XiaomiVacuumMapCard): void {
     const subscription = card.areaMappingSubscription;
     if (!subscription) return;
@@ -115,23 +142,55 @@ function currentAreaOptions(card: XiaomiVacuumMapCard): VacuumAreaOptions | unde
     return mapping && mapping.entityId === card._getCurrentPreset()?.entity ? mapping.options : undefined;
 }
 
+/** The current-map select found for each vacuum, per `hass.entities` object (it is replaced on change). */
+const currentMapSelects = new WeakMap<object, Map<string, string | undefined>>();
+
 /**
- * The state of the integration's current-map select on the vacuum's device (Roborock's
- * `selected_map`), which names the map the camera shows. Undefined when there is none.
+ * The integration's current-map select on the vacuum's device (Roborock's `selected_map`), whose
+ * state names the map the camera shows. Undefined when there is none.
  */
-function currentMapName(card: XiaomiVacuumMapCard, platform: string | undefined): string | undefined {
+function findCurrentMapSelect(hass: HomeAssistantFixed | undefined, vacuumId: string | undefined): string | undefined {
+    const entities = hass?.entities;
+    if (!entities || !vacuumId) return undefined;
+    let found = currentMapSelects.get(entities);
+    if (!found) currentMapSelects.set(entities, (found = new Map()));
+    if (found.has(vacuumId)) return found.get(vacuumId);
+    const vacuum = entities[vacuumId];
+    const platform = vacuum?.platform;
     const translationKey = platform ? AREA_JOIN_RULES[platform]?.currentMapSelect : undefined;
-    const vacuum = card.hass?.entities?.[card._getCurrentPreset()?.entity ?? ""];
-    if (!translationKey || !vacuum?.device_id) return undefined;
-    const select = Object.values(card.hass.entities).find(
-        entry =>
-            entry.entity_id.startsWith("select.") &&
-            entry.device_id === vacuum.device_id &&
-            entry.platform === platform &&
-            entry.translation_key === translationKey,
-    );
-    const state = select ? card.hass.states[select.entity_id]?.state : undefined;
+    const select =
+        translationKey && vacuum.device_id
+            ? Object.values(entities).find(
+                  entry =>
+                      entry.entity_id.startsWith("select.") &&
+                      entry.device_id === vacuum.device_id &&
+                      entry.platform === platform &&
+                      entry.translation_key === translationKey,
+              )?.entity_id
+            : undefined;
+    found.set(vacuumId, select);
+    return select;
+}
+
+function currentMapName(card: XiaomiVacuumMapCard): string | undefined {
+    const select = findCurrentMapSelect(card.hass, card._getCurrentPreset()?.entity);
+    const state = select ? card.hass.states[select]?.state : undefined;
     return state && state !== "unknown" && state !== "unavailable" ? state : undefined;
+}
+
+/**
+ * Whether the current-map select changed state. It is no entity the card shows, so without this
+ * a floor change the select reports after the camera has updated would never redraw the areas.
+ */
+export function currentMapSelectChanged(card: XiaomiVacuumMapCard, oldHass: HomeAssistantFixed | undefined): boolean {
+    if (!card.areaMapping?.options) return false;
+    const select = findCurrentMapSelect(card.hass, card._getCurrentPreset()?.entity);
+    return select !== undefined && oldHass?.states[select] !== card.hass?.states[select];
+}
+
+/** The camera rooms the card can draw (with geometry), for the preset's camera. */
+function drawableCameraRooms(card: XiaomiVacuumMapCard): CameraRoom[] {
+    return readCameraRooms(card.hass?.states[card._getCurrentPreset()?.map_source?.camera ?? ""]?.attributes["rooms"]);
 }
 
 /**
@@ -145,15 +204,27 @@ export function getAreaOutlines(card: XiaomiVacuumMapCard): AreaOutlines | undef
     return resolveAreaOutlines({
         platform,
         options,
-        cameraRoomIds: new Set(Object.keys(getLiveRooms(card) ?? {})),
-        currentMapName: currentMapName(card, platform),
+        // A camera room without geometry has nothing to draw or tap: it gives its area no room.
+        cameraRoomIds: new Set(drawableCameraRooms(card).map(room => room.id)),
+        currentMapName: currentMapName(card),
     });
 }
 
-/** One comparable value for the outlines the rooms were built from; undefined without any. */
+/**
+ * One comparable value for the outlines the rooms were built from, with the names they are
+ * labelled with (an area renamed or deleted in Home Assistant); undefined without any.
+ */
 export function areaOutlinesKey(card: XiaomiVacuumMapCard): string | undefined {
     const outlines = getAreaOutlines(card);
-    return outlines ? JSON.stringify([...outlines.roomsByArea]) : undefined;
+    if (!outlines) return undefined;
+    const areas = getAreas(card);
+    return JSON.stringify(
+        [...outlines.roomsByArea].map(([areaId, rooms]) => [
+            areaId,
+            (areas?.[areaId] as { name?: string } | undefined)?.name ?? null,
+            rooms,
+        ]),
+    );
 }
 
 /** A room of an area mode, with the camera rooms it is drawn from. */
@@ -182,11 +253,7 @@ export function buildAreaRooms(card: XiaomiVacuumMapCard, mode: MapMode): AreaRo
         ? configured.map(room => String(room.id))
         : [...(outlines?.roomsByArea.keys() ?? [])].filter(id => isAreaId(id, areas));
     const configuredById = new Map(configured.map(room => [String(room.id), room]));
-    const cameraRooms = new Map(
-        readCameraRooms(card.hass?.states[card._getCurrentPreset()?.map_source?.camera ?? ""]?.attributes["rooms"]).map(
-            room => [room.id, room],
-        ),
-    );
+    const cameraRooms = new Map(drawableCameraRooms(card).map(room => [room.id, room]));
     const regions = new Map((card.roomColorDetection?.regions ?? []).map(region => [region.id, region]));
 
     return areaIds.map(areaId => {
@@ -206,8 +273,12 @@ export function buildAreaRooms(card: XiaomiVacuumMapCard, mode: MapMode): AreaRo
             id: own?.id ?? areaId,
             icon: own?.icon ? { ...own.icon, x, y } : undefined,
             // The name sits under the area's icon, as a configured room's label does; without an icon
-            // it is centred in a detected room, as a camera room's is.
-            label: own?.label ?? { text: name ?? areaId, x, y, offset_y: own?.icon || !main.region ? 35 : 0 },
+            // it is centred in a detected room, and placed as `getRoomsConfig` places a camera
+            // room's label otherwise. A configured label keeps its text and offsets and moves with
+            // the icon.
+            label: own?.label
+                ? { ...own.label, x, y }
+                : { text: name ?? areaId, x, y, offset_y: own?.icon || !main.region ? 35 : 0 },
             outline: main.room.outline,
         };
         return {
@@ -252,7 +323,8 @@ function polygonArea(outline: ReadonlyArray<readonly [number, number]>): number 
  * The card still sends them: Home Assistant cleans the mapped areas and reports the rest.
  */
 export function getUnmappedSelectedAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): string[] {
-    if (mode?.selectionType !== SelectionType.ROOM || !modeTargetsAreas(card, mode)) return [];
+    // Only `vacuum.clean_area` resolves areas through the mapping; a script decides on its own.
+    if (mode?.selectionType !== SelectionType.ROOM || !callsCleanArea(mode)) return [];
     const options = currentAreaOptions(card);
     if (!options) return [];
     const areas = getAreas(card);

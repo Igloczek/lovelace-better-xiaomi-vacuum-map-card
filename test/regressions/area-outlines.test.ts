@@ -370,7 +370,174 @@ describe("areas drawn from Home Assistant's area mapping (#120)", () => {
         await settle(card.element);
         expect(polygons(card, "esszimmer")).toEqual([BOX["1"]]);
     });
+
+    describe("council review", () => {
+        const SELECT = "select.roborock_s7_selected_map";
+        const twoFloors = [...SEGMENTS, { id: "2_1", name: "Upstairs", group: "Map 2" }];
+
+        /** A hass whose vacuum has a current-map select on its device, set to `map`. */
+        function hassOnMap(map: string): MockHass {
+            const hass = withRegistryEntries(fixtureHass(FIXTURE, { areas: AREAS }), [
+                {
+                    ...vacuumEntry("roborock", MAPPING),
+                    options: { vacuum: { area_mapping: MAPPING, last_seen_segments: twoFloors } },
+                },
+                {
+                    entity_id: SELECT,
+                    device_id: "device-roborock-s7",
+                    platform: "roborock",
+                    translation_key: "selected_map",
+                },
+            ]);
+            return withState(hass, SELECT, { state: map }).hass;
+        }
+
+        it("redraws when only the current-map select changes", async () => {
+            // Core Roborock's select and the custom camera update independently; the select may
+            // change after the camera, with no registry change and no camera update to follow.
+            const card = await mount(config(CONFIGURED), hassOnMap("Map 2"));
+            expect(polygons(card, "esszimmer"), "map 1's area is not drawn on map 2").toEqual([""]);
+
+            const entities = card.hass.entities;
+            const next = withState(card.hass, SELECT, { state: "Map 1" }).hass;
+            expect(next.entities).toBe(entities);
+            await card.updateHass(next);
+            await settle(card.element);
+            expect(polygons(card, "esszimmer")).toEqual([BOX["1"]]);
+        });
+
+        it("drops a selected area that leaves a mapping-built mode, without drawing it or blocking the run", async () => {
+            const card = await mount(config(undefined));
+            await clickPolygon(card, "arbeitszimmer");
+            expect(selection(card)).toEqual(["arbeitszimmer"]);
+
+            await card.updateHass(withRegistryEntries(card.hass, [vacuumEntry("roborock", { flur: ["1_0"] })]));
+            await settle(card.element);
+            expect(selectableIds(card)).toEqual(["flur"]);
+            expect(card.element.unavailableRooms.map(room => String(room.toVacuum()))).toEqual([]);
+            expect(card.shadowRoot.querySelector(".room-wrapper.room-arbeitszimmer-wrapper")).toBeNull();
+            expect(warnings(card)).toEqual([]);
+        });
+
+        it("never offers the camera's segment rooms to clean_area, even when every configured area is gone", async () => {
+            const card = await mount(config([areaRoom("keller", 300, 300)]));
+            expect(selectableIds(card)).not.toContain("0");
+            expect(selectableIds(card)).toEqual(["keller"]);
+        });
+
+        it("recognises clean_area in a later step of the service call", async () => {
+            const steps = [
+                { service: "vacuum.set_fan_speed", service_data: { entity_id: "[[entity_id]]", fan_speed: "max" } },
+                CLEAN_AREA,
+            ] as unknown as ServiceCallSchemaConfig;
+            const card = await mount(config(undefined, steps));
+            expect(selectableIds(card)).toEqual(["flur", "esszimmer", "arbeitszimmer"]);
+        });
+
+        it("does not warn about the area mapping for a mode that calls a script", async () => {
+            const script: ServiceCallSchemaConfig = {
+                service: "script.clean_rooms",
+                service_data: { rooms: "[[selection]]" },
+            };
+            // The vacuum has a mapping, but none for the selected area: the script never reads it.
+            const card = await mount(config(CONFIGURED, script), hassWith("roborock", {}));
+            await clickIcon(card, "arbeitszimmer");
+            expect(selection(card)).toEqual(["arbeitszimmer"]);
+            expect(warnings(card)).toEqual([]);
+        });
+
+        it("keeps a configured label with the icon it moves into the area's room", async () => {
+            const own: RoomConfig = { ...areaRoom("flur", 300, 300), label: { text: "Hall", x: 1300, y: 1300 } };
+            const card = await mount(config([own, ...CONFIGURED.slice(1)]));
+            const flur = card.element.selectableRooms.find(room => room.toVacuum() === "flur");
+            const roomConfig = (flur as unknown as { _config: RoomConfig })._config;
+            expect(pillText(card, "flur")).toBe("Hall");
+            expect([roomConfig.icon?.x, roomConfig.icon?.y]).toEqual([500, 450]);
+            expect([roomConfig.label?.x, roomConfig.label?.y]).toEqual([500, 450]);
+        });
+
+        it("gives a deleted area no outline of the room it was mapped to", async () => {
+            vi.spyOn(RoomColorDetector, "detect").mockReturnValue(detectionOfRoom1());
+            const areas = areaRegistry([
+                ["flur", "Flur"],
+                ["arbeitszimmer", "Arbeitszimmer"],
+            ]);
+            const hass = withRegistryEntries(fixtureHass(FIXTURE, { areas }), [vacuumEntry("roborock", MAPPING)]);
+            const card = await mount(config(CONFIGURED), hass);
+            const esszimmer = card.element.selectableRooms.find(room => room.toVacuum() === "esszimmer");
+            expect(esszimmer?.stale).toBe(true);
+            expect(esszimmer?.hasImageOutline).toBe(false);
+        });
+
+        it("reads the mapping again after a failed read", async () => {
+            const hass = hassWith();
+            let fail = true;
+            const entry = vacuumEntry("roborock", MAPPING);
+            hass.setWSHandler("config/entity_registry/get", () => {
+                if (fail) throw new Error("connection lost");
+                return entry;
+            });
+            const card = await mount(config(CONFIGURED), hass);
+            expect(polygons(card, "flur")).toEqual([""]);
+
+            fail = false;
+            await vi.advanceTimersByTimeAsync(60_000);
+            await card.updateHass(withState(card.hass, VACUUM, { state: "cleaning" }).hass);
+            await settle(card.element);
+            expect(polygons(card, "flur")).toEqual([BOX["0"]]);
+        });
+
+        it("subscribes again after a failed subscription", async () => {
+            const hass = hassWith();
+            const subscribeEvents = vi.fn().mockRejectedValueOnce(new Error("lost")).mockResolvedValue(vi.fn());
+            hass.connection = { ...hass.connection, subscribeEvents } as never;
+            const card = await mount(config(CONFIGURED), hass);
+            await vi.advanceTimersByTimeAsync(60_000);
+            await card.updateHass(withState(card.hass, VACUUM, { state: "cleaning" }).hass);
+            await settle(card.element);
+            const calls = subscribeEvents.mock.calls.filter(args => args[1] === "entity_registry_updated");
+            expect(calls.length).toBe(2);
+        });
+
+        it("does not rebuild a detached card when a pending read arrives", async () => {
+            const hass = hassWith();
+            let resolve: (entry: unknown) => void = () => undefined;
+            hass.setWSHandler("config/entity_registry/get", () => new Promise(done => (resolve = done)));
+            const card = await mount(config(CONFIGURED), hass);
+            const element = card.element;
+            await card.cleanup();
+            const before = element.selectableRooms;
+            resolve(vacuumEntry("roborock", MAPPING));
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(element.selectableRooms).toBe(before);
+        });
+
+        it("shows an area's new name after it is renamed", async () => {
+            const card = await mount(config(undefined));
+            expect(pillText(card, "flur")).toBe("Flur");
+            const renamed = { ...AREAS, flur: { ...AREAS.flur, name: "Eingang" } };
+            await card.updateHass({ ...card.hass, areas: renamed } as MockHass);
+            await settle(card.element);
+            expect(pillText(card, "flur")).toBe("Eingang");
+        });
+
+        it("offers no area whose mapped rooms have no geometry", async () => {
+            const camera = FIXTURE.camera.entity_id;
+            const rooms = { ...card0Rooms(), "3": { name: "Storage" } };
+            const hass = withState(hassWith("roborock", { ...MAPPING, terrasse: ["1_3"] }), camera, {
+                attributes: { ...FIXTURE.camera.attributes, rooms },
+            }).hass;
+            const card = await mount(config(undefined), hass);
+            expect(selectableIds(card)).toEqual(["flur", "esszimmer", "arbeitszimmer"]);
+        });
+    });
 });
+
+/** The synthetic camera's own rooms. */
+function card0Rooms(): Record<string, unknown> {
+    return FIXTURE.camera.attributes.rooms as Record<string, unknown>;
+}
 
 async function clickIcon(card: CardHandle, id: string): Promise<void> {
     const icon = card.shadowRoot.querySelector(`.room-label-layer.room-${id}-wrapper .map-icon-wrapper.clickable`);

@@ -12,7 +12,8 @@ export class ServiceCallSchema {
     public readonly evaluateDataAsTemplate: boolean;
     /** The steps after this one, in order. Empty for a single call. */
     public readonly next: ServiceCallSchema[];
-    private readonly service: string;
+    /** The service this step calls, `domain.service`. */
+    public readonly service: string;
     private readonly serviceData?: Record<string, unknown>;
     private readonly target?: Record<string, unknown>;
 

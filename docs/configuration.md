@@ -865,12 +865,17 @@ Format of data depends on selected `selection_type`:
     whole area, and all of them are drawn selected.
   - A room in no area is not selectable in this mode.
   - A room's configured `icon` moves into the area's largest room, with the area's name below it
-    (shown unless `map_source.room_labels` is `false`). A configured `label` or `outline` is kept as
-    it is.
+    (shown unless `map_source.room_labels` is `false`). A configured `label` keeps its text and
+    offsets and moves with the icon. A configured `outline` is kept as it is, and the area is then
+    drawn from it instead of the mapping.
   - The mode may leave out `predefined_selections` when its service is `vacuum.clean_area`: it then
-    offers every mapped area that has a room on the map.
+    offers every mapped area that has a room on the map. A selected area that leaves the map (the
+    vacuum moved to another floor, or the area was re-mapped) leaves the selection.
+  - A mode that calls `vacuum.clean_area` never offers the camera's own rooms, even when every
+    configured area is gone: their segment ids are no areas.
   - Selecting an area that has no segments in the mapping shows a warning before the run, because
-    Home Assistant would not clean it (`areas_not_mapped`). The card still sends it.
+    Home Assistant would not clean it (`areas_not_mapped`). The card still sends it. A mode that calls
+    another service (a script) shows no such warning: the mapping is not what it cleans by.
   - Selected areas show a checkmark, not a number: Home Assistant keeps the order of the areas, but
     whether the vacuum follows it depends on the integration. Set `cleaning_order: true` to show
     numbers.
@@ -886,7 +891,14 @@ Format of data depends on selected `selection_type`:
   | Valetudo over MQTT (core `mqtt`)     | `16`                         | `16`           | -                                                                 |
 
   On a vacuum with several maps whose rooms are numbered from the same start, the card draws a room
-  only when it knows the room is on the map the camera shows; it does not guess.
+  only when it knows the room is on the map the camera shows; it does not guess:
+
+  - With Roborock's "Selected map" select, only areas on the selected map are drawn. When it names a
+    map Home Assistant has no segments for (a floor added after the areas were mapped), none are,
+    until the areas are mapped again.
+  - Without it, a room is drawn only when no other map has a room with the same number, judged from
+    the segments Home Assistant last saw. A mapping on several maps saved without that segment list
+    draws nothing.
 
   An id that is neither an area nor a room on the camera map is stale: a deleted area, or a segment
   a re-map renumbered. One exception follows from deciding by the id: an area whose id is also a

@@ -294,10 +294,9 @@ test("follows a re-map in Home Assistant and the vacuum's current floor without 
     expect(await selectedIds(target)).toEqual(["lazienka"]);
     await tap(page, target, INSIDE["14"]);
 
-    // The vacuum switches to the upper floor: room 10 is Strych's there, not Kuchnia's. The camera
-    // publishes its next snapshot, which is when the card redraws.
+    // The vacuum switches to the upper floor: room 10 is Strych's there, not Kuchnia's. Only the
+    // select changes (core Roborock and the map camera update independently), and the card redraws.
     await serviceCall("select", "select_option", { entity_id: SELECT, option: "Obergeschoss" });
-    await serviceCall("map_fixture", "bump");
     await expect.poll(() => offered(target), { timeout: 20_000 }).toMatchObject({ kuchnia: 0, strych: 1 });
     await tap(page, target, INSIDE["10"]);
     expect(await selectedIds(target)).toEqual(["strych"]);

@@ -108,9 +108,55 @@ describe("resolveAreaOutlines", () => {
             expect(asObject(outlines?.roomsByArea)).toEqual({});
         });
 
-        it("ignores a select state that names no single map", () => {
+        it("draws nothing when the select names a map Home Assistant has no segments for", () => {
+            // The vacuum is on a floor added after the areas were mapped: none of the known floors is
+            // shown, so their areas must not be drawn on its rooms.
             const outlines = resolveAreaOutlines(
                 roborock({ options: { areaMapping, lastSeenSegments: segments }, currentMapName: "Keller" }),
+            );
+            expect(asObject(outlines?.roomsByArea)).toEqual({});
+        });
+
+        it("keeps the floors a shared map name names, and only their unique ids", () => {
+            const shared = [
+                { id: "0_16", name: "Esszimmer", group: "Home" },
+                { id: "1_20", name: "Kinderzimmer", group: "Home" },
+                { id: "1_17", name: "Bad", group: "Home" },
+                { id: "2_25", name: "Werkstatt", group: "Garage" },
+                { id: "2_17", name: "Lager", group: "Garage" },
+            ];
+            const outlines = resolveAreaOutlines(
+                roborock({
+                    cameraRoomIds: new Set(["16", "17", "20", "25"]),
+                    options: {
+                        areaMapping: {
+                            esszimmer: ["0_16"],
+                            kinderzimmer: ["1_20"],
+                            bad: ["1_17"],
+                            werkstatt: ["2_25"],
+                        },
+                        lastSeenSegments: shared,
+                    },
+                    currentMapName: "Home",
+                }),
+            );
+            // 17 is on map 1 only among the "Home" maps; the garage's 2_17 does not make it ambiguous.
+            expect(asObject(outlines?.roomsByArea)).toEqual({ esszimmer: ["16"], kinderzimmer: ["20"], bad: ["17"] });
+        });
+
+        it("without the segment list and a floor signal, draws nothing for a mapping on several floors", () => {
+            // Without `last_seen_segments` the card cannot know a floor's unmapped rooms, so room 20 of
+            // map 0 could be anything.
+            const outlines = resolveAreaOutlines(
+                roborock({ options: { areaMapping: { flur: ["0_17"], kinderzimmer: ["1_20"] } } }),
+            );
+            expect(asObject(outlines?.roomsByArea)).toEqual({});
+        });
+
+        it("treats segments without map names as no floor signal", () => {
+            const unnamed = segments.map(segment => ({ ...segment, group: null }));
+            const outlines = resolveAreaOutlines(
+                roborock({ options: { areaMapping, lastSeenSegments: unnamed }, currentMapName: "Erdgeschoss" }),
             );
             expect(asObject(outlines?.roomsByArea)).toEqual({ flur: ["17"], kinderzimmer: ["20"] });
         });
@@ -146,13 +192,18 @@ describe("readVacuumAreaOptions", () => {
             entity_id: "vacuum.robot",
             options: {
                 vacuum: {
-                    area_mapping: { flur: ["0_17"], broken: "0_1" },
-                    last_seen_segments: [{ id: "0_17", name: "Flur", group: "Erdgeschoss" }, null, { name: "no id" }],
+                    area_mapping: { flur: ["0_17", null, "", 18], broken: "0_1" },
+                    last_seen_segments: [
+                        { id: "0_17", name: "Flur", group: "Erdgeschoss" },
+                        null,
+                        { name: "no id" },
+                        { id: null },
+                    ],
                 },
             },
         };
         expect(readVacuumAreaOptions(entry)).toEqual({
-            areaMapping: { flur: ["0_17"] },
+            areaMapping: { flur: ["0_17", "18"] },
             lastSeenSegments: [{ id: "0_17", name: "Flur", group: "Erdgeschoss" }],
         });
     });
