@@ -1,5 +1,5 @@
 import { cameraRoomsById, readCameraRooms } from "../model/camera-rooms";
-import type { RoomConfig, RoomConfigEventData } from "../types/types";
+import type { RoomConfig, RoomConfigEventData, ServiceCallSchemaConfig } from "../types/types";
 import { MapExtractorRoom } from "../types/types";
 import { cameraRefreshKey } from "../model/map-refresh-policy";
 import { RoomColorDetector } from "../model/room-color-detector";
@@ -31,7 +31,7 @@ export function getLiveRoomIds(card: XiaomiVacuumMapCard): Set<string> | undefin
 }
 
 /** A ROOM mode's configured ids, in configured order. */
-function configuredRoomIds(mode: MapMode): Array<string | number> {
+export function configuredRoomIds(mode: MapMode): Array<string | number> {
     return (mode.predefinedSelections as RoomConfig[])
         .filter(room => room && room.id !== undefined)
         .map(room => room.id);
@@ -52,14 +52,40 @@ export function isRoomIdSendable(card: XiaomiVacuumMapCard, id: string): boolean
 }
 
 /**
- * A ROOM mode at least one of whose configured ids is a Home Assistant area id (issue #120). Such a
- * mode cleans areas, typically through `vacuum.clean_area`: the camera's own rooms are named by
- * segment ids that its service would not take, so the card offers only the configured rooms.
+ * A ROOM mode that cleans Home Assistant areas instead of the camera's segments (issue #120): at
+ * least one configured id is an area the camera does not publish, and no configured id is a room
+ * the camera publishes. Such a mode's service (typically `vacuum.clean_area`) would not take the
+ * camera's segment ids, so the card offers only the configured rooms.
+ *
+ * An id the camera publishes is never evidence of an area mode, even when it is an area id too: a
+ * Roomba+ camera names its rooms by slugs (`kitchen`, `living_room`) that Home Assistant also uses
+ * for areas, and an area `0` must not hide a segment mode's camera rooms. Such a mode keeps the
+ * camera's rooms, outlines and colour taps.
  */
 export function modeTargetsAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
     if (mode?.selectionType !== SelectionType.ROOM) return false;
     const areas = getAreas(card);
-    return configuredRoomIds(mode).some(id => isAreaId(id, areas));
+    const liveRoomIds = getLiveRoomIds(card);
+    const ids = configuredRoomIds(mode).map(String);
+    if (liveRoomIds && ids.some(id => liveRoomIds.has(id))) return false;
+    return ids.some(id => isAreaId(id, areas));
+}
+
+/**
+ * Whether the stale-room warning of a ROOM mode names areas as well as camera rooms: the mode has a
+ * configured area id, or it calls `vacuum.clean_area`, whose ids are areas even when none of them
+ * exists (a display name typed instead of the area id, or every configured area deleted). Only the
+ * wording depends on the service; the audit itself is decided per id.
+ */
+export function staleWarningNamesAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
+    if (mode?.selectionType !== SelectionType.ROOM) return false;
+    const areas = getAreas(card);
+    if (configuredRoomIds(mode).some(id => isAreaId(id, areas))) return true;
+    const schema = mode.getServiceCallSchema(card.hass?.config?.version);
+    return schema.steps.some(step => {
+        const config = step.config as ServiceCallSchemaConfig | ServiceCallSchemaConfig[];
+        return (Array.isArray(config) ? config[0] : config)?.service === "vacuum.clean_area";
+    });
 }
 
 /**

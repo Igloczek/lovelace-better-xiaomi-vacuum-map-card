@@ -18,7 +18,7 @@ import { calculateBasicScale } from "./map-view";
 import { dismissActiveRoomRun } from "./active-run";
 import { getActiveRoomOrder, isActiveRoomRunShownLocked } from "./active-run";
 import { isAreaId } from "../model/room-config";
-import { getAreas, getLiveRoomIds, isRoomIdSendable, modeTargetsAreas } from "./rooms";
+import { configuredRoomIds, getAreas, getLiveRoomIds, isRoomIdSendable, modeTargetsAreas } from "./rooms";
 import { getRoomsConfig } from "./rooms";
 import { getStaleRoomIds } from "./rooms";
 import { captureSelection, restoreSelection, SelectionSnapshot } from "../model/selection-rebuild";
@@ -335,8 +335,8 @@ function getLiveRoomIdsKey(card: XiaomiVacuumMapCard, mode: MapMode | undefined)
     const areas = getAreas(card);
     const areaIds =
         mode?.selectionType === SelectionType.ROOM
-            ? mode.predefinedSelections
-                  .map(selection => String((selection as RoomConfig).id))
+            ? configuredRoomIds(mode)
+                  .map(String)
                   .filter(id => isAreaId(id, areas))
             : [];
     return JSON.stringify([[...ids].sort(), areaIds.sort()]);

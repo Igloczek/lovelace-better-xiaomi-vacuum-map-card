@@ -844,14 +844,17 @@ Format of data depends on selected `selection_type`:
   The card decides what each configured id is on its own. An id that is an area in Home Assistant
   (Settings → Areas, the id in the area's URL) is an area id: it is not compared with the camera's
   room ids, and it is usable as long as the area exists. Every other id is a segment id and is
-  checked against the camera's `rooms` metadata, as below. A mode with at least one area id shows
-  only its configured rooms, because the camera's rooms are named by segment ids, which an area
-  service does not take; tap a room's icon (or its configured `outline`) to select it.
+  checked against the camera's `rooms` metadata, as below. A mode whose ids are areas the camera
+  does not publish shows only its configured rooms, because the camera's rooms are named by segment
+  ids, which an area service does not take; tap a room's icon (or its configured `outline`) to
+  select it. A mode with an id the camera does publish keeps the camera's rooms, even when that id
+  is an area too (Roomba+ names its rooms `living_room`, `kitchen`, ...).
 
   An id that is neither an area nor a room on the camera map is stale: a deleted area, or a segment
   a re-map renumbered. One exception follows from deciding by the id: an area whose id is also a
   segment id (an area named after a number, such as `16`) counts as an area, so a renumbered segment
-  `16` is not reported while that area exists.
+  `16` is not reported while that area exists. The warning of a mode that calls `vacuum.clean_area`
+  names areas as well, so an area's display name typed instead of its id is easy to spot.
 
 ### Selection lifetime
 

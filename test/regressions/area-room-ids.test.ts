@@ -247,3 +247,92 @@ describe("segment-id ROOM modes keep the #928 protection beside Home Assistant's
         expect(warningText(card)).toMatch(/: 1, 2\./);
     });
 });
+
+describe("which modes count as area modes (#120 council review)", () => {
+    /** The synthetic camera's rooms re-keyed by slugs, the way a Roomba+ camera names its rooms. */
+    function slugCamera(hass: MockHass): MockHass {
+        const camera = hass.states[FIXTURE.camera.entity_id];
+        const rooms = camera.attributes.rooms as Record<string, unknown>;
+        const slugs = ["living_room", "hallway", "bedroom"];
+        const bySlug = Object.fromEntries(Object.values(rooms).map((room, index) => [slugs[index], room]));
+        return withState(hass, FIXTURE.camera.entity_id, { attributes: { ...camera.attributes, rooms: bySlug } }).hass;
+    }
+
+    it("keeps the camera's rooms when a configured id is a camera room that is also an area (Roomba+ slugs)", async () => {
+        useHarnessClock();
+        const areas = areaRegistry([
+            ["living_room", "Living room"],
+            ["hallway", "Hallway"],
+            ["bedroom", "Bedroom"],
+        ]);
+        const hass = slugCamera(fixtureHass(FIXTURE, { areas }));
+        const schema: ServiceCallSchemaConfig = {
+            service: "vacuum.send_command",
+            service_data: { entity_id: "[[entity_id]]", command: "clean_room", params: "[[selection]]" },
+        };
+        const card = await mountCard(roomModeConfig([areaRoom("living_room", 500, 450)], schema), hass);
+        await card.fireMapLoad();
+
+        expect(card.element.selectableRooms.map(room => String(room.toVacuum())).sort()).toEqual([
+            "bedroom",
+            "hallway",
+            "living_room",
+        ]);
+        expect(warningText(card)).toBeUndefined();
+    });
+
+    it("keeps a segment mode's camera rooms when an area happens to share a configured segment id", async () => {
+        const SEGMENT_SCHEMA: ServiceCallSchemaConfig = {
+            service: "vacuum.send_command",
+            service_data: { entity_id: "[[entity_id]]", command: "app_segment_clean", params: "[[selection]]" },
+        };
+        const config = roomModeConfig(
+            [
+                { id: 0, icon: { name: "mdi:broom", x: 500, y: 450 } },
+                { id: 1, icon: { name: "mdi:broom", x: 1350, y: 450 } },
+            ],
+            SEGMENT_SCHEMA,
+        );
+        const { card } = await mount(config, { areas: areaRegistry([["0", "0"]]) });
+        // Camera room 2 is not configured but the camera publishes it: it stays selectable.
+        expect(card.element.selectableRooms.map(room => String(room.toVacuum())).sort()).toEqual(["0", "1", "2"]);
+    });
+
+    it("names areas in the warning of a clean_area mode whose ids match no area at all", async () => {
+        // Display names typed instead of area ids: no id is an area, but the service takes areas.
+        const { card } = await mount(roomModeConfig([areaRoom("Flur", 500, 450)]));
+        expect(warningText(card)).toMatch(/neither Home Assistant areas nor rooms on the camera map: Flur\./);
+    });
+
+    it("rebuilds the rooms when Home Assistant's areas load late or an area is deleted", async () => {
+        const { card, hass } = await mount(roomModeConfig(REPORTED_ROOMS), { areas: areaRegistry([]) });
+        expect(warningText(card)).toMatch(/flur/);
+
+        await card.updateHass({ ...hass, areas: AREAS } as MockHass);
+        await settle(card.element);
+        expect(warningText(card)).toBeUndefined();
+        expect(roomWrapper(card, "flur")?.classList.contains("room-stale")).toBe(false);
+
+        const withoutFlur = areaRegistry([
+            ["esszimmer", "Esszimmer"],
+            ["arbeitszimmer", "Arbeitszimmer"],
+            ["schlafzimmer", "Schlafzimmer"],
+        ]);
+        await card.updateHass({ ...hass, areas: withoutFlur } as MockHass);
+        await settle(card.element);
+        expect(warningText(card)).toMatch(/: flur\./);
+        expect(roomWrapper(card, "flur")?.classList.contains("room-stale")).toBe(true);
+    });
+
+    it("selects a default_state room once Home Assistant's areas load after the camera's rooms", async () => {
+        // Before the areas arrive, `flur` is stale and cannot be selected. Its default must apply
+        // once it is an area, not the "not selected" it was forced into while stale.
+        const config = roomModeConfig([{ ...areaRoom("flur", 500, 450), default_state: "selected" } as RoomConfig]);
+        const { card, hass } = await mount(config, { areas: areaRegistry([]) });
+        expect(selection(card)).toEqual([]);
+
+        await card.updateHass({ ...hass, areas: AREAS } as MockHass);
+        await settle(card.element);
+        expect(selection(card)).toEqual(["flur"]);
+    });
+});
