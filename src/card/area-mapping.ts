@@ -33,6 +33,9 @@ export interface CardAreaMapping {
     failedAt?: number;
 }
 
+/** The `entities` of a mapping kept across a detach: it matches no `hass.entities`, so attaching reads again. */
+const DETACHED = Symbol("detached");
+
 /** How long a failed registry read or subscription waits before the card tries it again. */
 const RETRY_MS = 30_000;
 
@@ -55,6 +58,9 @@ export interface AreaMappingSubscription {
  * have changed since the last read. Nothing is read for any other card.
  */
 export function refreshAreaMapping(card: XiaomiVacuumMapCard, force = false): void {
+    // A detached card still updates (its `connected` flag changing is one update), but reads nothing:
+    // `detachAreaMapping` has marked the mapping to be read again once it is attached.
+    if (!card.connected) return;
     const entityId = card._getCurrentPreset()?.entity;
     if (!entityId || !card.hass?.callWS || !card.modes.some(mode => modeTargetsAreas(card, mode))) {
         card.areaMapping = undefined;
@@ -125,7 +131,7 @@ function subscribeAreaMapping(card: XiaomiVacuumMapCard, entityId: string): void
 export function detachAreaMapping(card: XiaomiVacuumMapCard): void {
     unsubscribeAreaMapping(card);
     const mapping = card.areaMapping;
-    if (mapping) card.areaMapping = { entityId: mapping.entityId, entities: undefined, options: mapping.options };
+    if (mapping) card.areaMapping = { entityId: mapping.entityId, entities: DETACHED, options: mapping.options };
 }
 
 /** Ends the registry subscription. */

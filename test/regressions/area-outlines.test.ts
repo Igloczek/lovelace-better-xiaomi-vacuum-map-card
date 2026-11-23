@@ -513,6 +513,45 @@ describe("areas drawn from Home Assistant's area mapping (#120)", () => {
             expect(element.selectableRooms).toBe(before);
         });
 
+        it("reads nothing while detached and reads the mapping again when attached", async () => {
+            // Home Assistant detaches and re-attaches cards on a view change; a re-map made meanwhile
+            // reaches no subscription and does not replace `hass.entities`.
+            const card = await mount(config(CONFIGURED));
+            expect(polygons(card, "flur")).toEqual([BOX["0"]]);
+            const reads = (): number =>
+                card.hass.wsCalls.filter(call => call.type === "config/entity_registry/get").length;
+            const parent = card.element.parentElement!;
+            const before = reads();
+
+            card.element.remove();
+            await settle(card.element);
+            expect(reads(), "a detached card reads nothing").toBe(before);
+
+            card.hass.setWSHandler("config/entity_registry/get", () =>
+                vacuumEntry("roborock", { flur: ["1_2"], esszimmer: ["1_1"], arbeitszimmer: ["1_0"] }),
+            );
+            parent.appendChild(card.element);
+            await settle(card.element);
+            expect(polygons(card, "flur")).toEqual([BOX["2"]]);
+        });
+
+        it("reads the mapping when attached again after a read that a detach discarded", async () => {
+            const hass = hassWith();
+            let resolve: (entry: unknown) => void = () => undefined;
+            hass.setWSHandler("config/entity_registry/get", () => new Promise(done => (resolve = done)));
+            const card = await mount(config(CONFIGURED), hass);
+            const parent = card.element.parentElement!;
+            card.element.remove();
+            await settle(card.element);
+            resolve(vacuumEntry("roborock", MAPPING));
+            await settle(card.element);
+
+            card.hass.setWSHandler("config/entity_registry/get", () => vacuumEntry("roborock", MAPPING));
+            parent.appendChild(card.element);
+            await settle(card.element);
+            expect(polygons(card, "flur")).toEqual([BOX["0"]]);
+        });
+
         it("shows an area's new name after it is renamed", async () => {
             const card = await mount(config(undefined));
             expect(pillText(card, "flur")).toBe("Flur");
