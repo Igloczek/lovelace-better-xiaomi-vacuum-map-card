@@ -282,7 +282,18 @@ async function setUpAreas(ws) {
             throw new Error(`area ${area.name} was created as ${created.area_id}, expected ${area.area_id}`);
         }
     }
-    const segments = await ws.send("vacuum/get_segments", { entity_id: "vacuum.fake_vacuum" });
+    // Right after onboarding the fixture integration may still be setting up its entities: wait for
+    // the vacuum before asking it for its segments.
+    let segments;
+    for (let attempt = 0; ; attempt++) {
+        try {
+            segments = await ws.send("vacuum/get_segments", { entity_id: "vacuum.fake_vacuum" });
+            break;
+        } catch (error) {
+            if (attempt >= 120 || !String(error.message).includes("not_found")) throw error;
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
     await ws.send("config/entity_registry/update", {
         entity_id: "vacuum.fake_vacuum",
         options_domain: "vacuum",
