@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.11.0
+
+### Added
+
+- A `ROOM` mode that cleans Home Assistant areas (`vacuum.clean_area`) now draws each area with the
+  outlines and names of the camera rooms Home Assistant maps it to, on core Roborock, Tasshack
+  Dreame and Valetudo over MQTT (#120). A tap anywhere inside an area's rooms selects that area,
+  multi-room areas draw all of their rooms, and a `vacuum.clean_area` mode without
+  `predefined_selections` offers every mapped area on the current floor automatically. Re-mapping
+  areas or switching floors updates the card without a reload, and selected areas that have no
+  segments mapped are named in a warning before the run.
+
+### Fixed
+
+- Configured `ROOM` ids that are Home Assistant area ids (for `vacuum.clean_area`) are no longer
+  marked stale against the camera's segment ids, so area modes clean as configured while deleted
+  areas and renumbered segment ids are still reported (#120).
+- A room marked only by its icon (no label, or `map_source.room_labels: false`) now keeps its icon
+  when selected and during a started run, recoloured with `--map-card-room-icon-color-selected` and
+  `--map-card-room-icon-background-color-selected`, instead of replacing the icon with a bare
+  checkmark pill. When `cleaning_order` is on, the order number sits at the icon's corner. A room
+  with no outline also keeps its icon clickable so it can be deselected by tapping it again.
+
 ## 1.10.0
 
 ### Fixed
