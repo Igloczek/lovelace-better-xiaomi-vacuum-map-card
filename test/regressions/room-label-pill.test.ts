@@ -26,9 +26,11 @@ import {
 
 const VACUUM = "vacuum.roborock_s7";
 
-function config(mode: Partial<MapModeConfig> = {}): XiaomiVacuumMapCardConfig {
+function config(mode: Partial<MapModeConfig> = {}, mapSource: Record<string, unknown> = {}): XiaomiVacuumMapCardConfig {
+    const base = fixtureConfig(loadSyntheticFixture());
     return {
-        ...fixtureConfig(loadSyntheticFixture()),
+        ...base,
+        map_source: { ...base.map_source, ...mapSource },
         map_modes: [{ template: "vacuum_clean_segment", ...mode } as MapModeConfig],
         tiles: [],
         icons: [],
@@ -36,9 +38,9 @@ function config(mode: Partial<MapModeConfig> = {}): XiaomiVacuumMapCardConfig {
     };
 }
 
-async function mount(mode: Partial<MapModeConfig> = {}): Promise<CardHandle> {
+async function mount(mode: Partial<MapModeConfig> = {}, mapSource: Record<string, unknown> = {}): Promise<CardHandle> {
     useHarnessClock();
-    const card = await mountCard(config(mode), fixtureHass(loadSyntheticFixture()));
+    const card = await mountCard(config(mode, mapSource), fixtureHass(loadSyntheticFixture()));
     await card.fireMapLoad();
     return card;
 }
@@ -384,5 +386,187 @@ describe("room labels above every outline", () => {
         for (const outline of outlines) {
             expect(outline.querySelector(".room-pill, .map-icon-wrapper, .room-stale-marker")).toBeNull();
         }
+    });
+});
+
+describe("icon-only rooms keep their icon when selected", () => {
+    afterEach(() => window.localStorage.removeItem(ACTIVE_ROOM_RUN_STORE_KEY));
+
+    const ICON_ROOMS = [
+        {
+            id: 0,
+            icon: { name: "mdi:silverware-fork-knife", x: 500, y: 450 },
+            label: { text: "Kitchen", x: 500, y: 450, offset_y: 30 },
+            outline: [
+                [200, 200],
+                [800, 200],
+                [800, 700],
+                [200, 700],
+            ],
+        },
+        {
+            id: 1,
+            icon: { name: "mdi:sofa", x: 1350, y: 450 },
+            label: { text: "Living room", x: 1350, y: 450, offset_y: 30 },
+            outline: [
+                [1000, 200],
+                [1700, 200],
+                [1700, 700],
+                [1000, 700],
+            ],
+        },
+    ];
+
+    it("keeps the icon and shows no pill when room_labels is false and cleaning_order is off", async () => {
+        const card = await mount({ predefined_selections: ICON_ROOMS } as Partial<MapModeConfig>, {
+            room_labels: false,
+        });
+
+        const icon = (id: string): Element | null => roomQuery(card.shadowRoot, id, ".room-icon-wrapper ha-icon");
+        const layer = (id: string): Element | null =>
+            card.shadowRoot.querySelector(`.room-label-layer.room-${id}-wrapper`);
+
+        expect(icon("0")).not.toBeNull();
+        expect(icon("1")).not.toBeNull();
+        expect(card.shadowRoot.querySelectorAll(".room-pill")).toHaveLength(0);
+
+        await clickRoom(card, "1");
+        expect(layer("1")?.classList.contains("selected")).toBe(true);
+        expect(icon("1")).not.toBeNull();
+        expect(roomQuery(card.shadowRoot, "1", ".room-pill")).toBeNull();
+        expect(layer("0")?.classList.contains("selected")).toBe(false);
+
+        // Clicking the icon itself deselects the room again.
+        const iconWrapper = roomQuery(card.shadowRoot, "1", ".room-icon-wrapper.clickable");
+        expect(iconWrapper).not.toBeNull();
+        iconWrapper!.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+        await settle(card.element);
+        expect(layer("1")?.classList.contains("selected")).toBe(false);
+        expect(icon("1")).not.toBeNull();
+    });
+
+    it("keeps the icon and shows the order badge at its corner when room_labels is false and cleaning_order is on", async () => {
+        const card = await mount(
+            { cleaning_order: true, predefined_selections: ICON_ROOMS } as Partial<MapModeConfig>,
+            { room_labels: false },
+        );
+
+        await clickRoom(card, "1");
+        await clickRoom(card, "0");
+
+        expect(roomQuery(card.shadowRoot, "1", ".room-icon-wrapper ha-icon")).not.toBeNull();
+        expect(roomQuery(card.shadowRoot, "0", ".room-icon-wrapper ha-icon")).not.toBeNull();
+        expect(pills(card)).toEqual({
+            "1": { badge: "1", name: "" },
+            "0": { badge: "2", name: "" },
+        });
+        // The order badge sits at the icon's top-right corner rather than on top of the icon centre.
+        const anchor = roomQuery(card.shadowRoot, "1", ".room-pill-anchor") as SVGGElement;
+        expect(parseFloat(anchor.style.getPropertyValue("--room-pill-offset-x"))).toBeGreaterThan(0);
+        expect(parseFloat(anchor.style.getPropertyValue("--room-pill-offset-y"))).toBeLessThan(0);
+
+        // Deselecting room 1 removes its badge and renumbers room 0 to 1, keeping both icons.
+        roomQuery(card.shadowRoot, "1", ".room-icon-wrapper.clickable")!.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, composed: true }),
+        );
+        await settle(card.element);
+        expect(roomQuery(card.shadowRoot, "1", ".room-icon-wrapper ha-icon")).not.toBeNull();
+        expect(roomQuery(card.shadowRoot, "1", ".room-pill")).toBeNull();
+        expect(pills(card)).toEqual({ "0": { badge: "1", name: "" } });
+    });
+
+    it("keeps the icon of an outline-less icon-only room clickable so it can be deselected", async () => {
+        // Without camera metadata the configured rooms are drawn as written: icon only, no outline,
+        // no label (the same shape an area room has without a confirmed area-mapping join).
+        useHarnessClock();
+        const base = fixtureHass(loadSyntheticFixture());
+        const camera = Object.keys(base.states).find(id => id.startsWith("camera."))!;
+        const { rooms: _rooms, ...attributes } = base.states[camera].attributes as Record<string, unknown>;
+        const hass = withState(base, camera, { attributes }).hass;
+        const card = await mountCard(
+            config({
+                predefined_selections: [
+                    { id: "flur", icon: { name: "mdi:door", x: 500, y: 450 } },
+                    { id: "kueche", icon: { name: "mdi:silverware-fork-knife", x: 1350, y: 450 } },
+                ],
+            } as Partial<MapModeConfig>),
+            hass,
+        );
+        await card.fireMapLoad();
+
+        const clickIcon = async (id: string): Promise<void> => {
+            const el = roomQuery(card.shadowRoot, id, ".room-icon-wrapper.clickable");
+            if (!el) throw new Error(`room ${id} has no clickable icon`);
+            el.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+            await settle(card.element);
+        };
+
+        await clickIcon("flur");
+        expect(
+            card.shadowRoot.querySelector(".room-label-layer.room-flur-wrapper")?.classList.contains("selected"),
+        ).toBe(true);
+        expect(roomQuery(card.shadowRoot, "flur", ".room-icon-wrapper ha-icon")).not.toBeNull();
+        expect(roomQuery(card.shadowRoot, "flur", ".room-pill")).toBeNull();
+
+        // The icon is the room's only click target: clicking it again must deselect the room.
+        await clickIcon("flur");
+        expect(
+            card.shadowRoot.querySelector(".room-label-layer.room-flur-wrapper")?.classList.contains("selected"),
+        ).toBe(false);
+        expect(roomQuery(card.shadowRoot, "flur", ".room-icon-wrapper ha-icon")).not.toBeNull();
+    });
+
+    it("keeps the icon clickable when a room has an icon and a label but no outline", async () => {
+        useHarnessClock();
+        const base = fixtureHass(loadSyntheticFixture());
+        const camera = Object.keys(base.states).find(id => id.startsWith("camera."))!;
+        const { rooms: _rooms, ...attributes } = base.states[camera].attributes as Record<string, unknown>;
+        const hass = withState(base, camera, { attributes }).hass;
+        const card = await mountCard(
+            config({
+                predefined_selections: [
+                    {
+                        id: "flur",
+                        icon: { name: "mdi:door", x: 500, y: 450 },
+                        label: { text: "Flur", x: 500, y: 450, offset_y: 35 },
+                    },
+                ],
+            } as Partial<MapModeConfig>),
+            hass,
+        );
+        await card.fireMapLoad();
+
+        const iconEl = (): Element | null => roomQuery(card.shadowRoot, "flur", ".room-icon-wrapper.clickable");
+        iconEl()!.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+        await settle(card.element);
+        expect(iconEl()).not.toBeNull();
+        expect(roomQuery(card.shadowRoot, "flur", ".room-pill .room-pill-badge.room-check")).not.toBeNull();
+        expect(roomQuery(card.shadowRoot, "flur", ".room-pill .room-pill-name")?.textContent?.trim()).toBe("Flur");
+
+        iconEl()!.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+        await settle(card.element);
+        expect(
+            card.shadowRoot.querySelector(".room-label-layer.room-flur-wrapper")?.classList.contains("selected"),
+        ).toBe(false);
+    });
+
+    it("keeps the selected icon styled during a started run", async () => {
+        const card = await mount({ predefined_selections: ICON_ROOMS } as Partial<MapModeConfig>, {
+            room_labels: false,
+        });
+        await clickRoom(card, "1");
+        const button = card.shadowRoot.querySelector(".map-actions-item.main");
+        button?.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+        await settle(card.element, 400);
+        await card.updateHass(
+            withState(card.hass, VACUUM, { state: "cleaning", last_changed: "2026-11-01T10:00:30.000Z" }).hass,
+        );
+        await settle(card.element);
+
+        expect(card.shadowRoot.querySelector(".room-label-layer.room-1-wrapper")?.classList.contains("selected")).toBe(
+            true,
+        );
+        expect(roomQuery(card.shadowRoot, "1", ".room-icon-wrapper ha-icon")).not.toBeNull();
+        expect(roomQuery(card.shadowRoot, "1", ".room-pill")).toBeNull();
     });
 });

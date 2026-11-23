@@ -147,15 +147,25 @@ export class Room extends PredefinedMapObject {
     /** The room's icon, label pill and stale marker, for the layer above every outline. */
     public renderLabels(): SVGTemplateResult {
         const { stale, highlighted, order } = this._state();
-        // Every room label is a pill (see `renderPill`). A highlighted room's pill gains a badge and
-        // replaces the room's icon; an unselected room shows its icon and the same pill without the
-        // badge. A stale room is never highlighted: it is not a valid part of a run.
+        // Every room label is a pill (see `renderPill`). When a room shows a name and has an
+        // outline to tap, selecting it replaces its icon with the badged pill. A room marked only
+        // by its icon (no label, or `map_source.room_labels: false`) keeps its icon in the
+        // selected colours instead — and adds the order badge at the icon's corner when
+        // `cleaning_order` is on — so the icon stays visible and clickable. A room with a name but
+        // no outline also keeps its icon so it can still be deselected. A stale room is never
+        // highlighted: it is not a valid part of a run.
         const pill = highlighted && !stale;
         const name = this._context.showRoomLabels() ? this._config.label?.text?.trim() || undefined : undefined;
-        const anchor = pill || name ? this._pillAnchor() : undefined;
+        const hasIcon = this._config.icon != null;
+        const hasOutline =
+            this._segments.length > 0 || this._imageOutline !== undefined || (this._config.outline?.length ?? 0) > 0;
+        const iconOnly = hasIcon && !name;
+        const keepIcon = iconOnly || (hasIcon && !hasOutline);
+        const showPill = name !== undefined || (pill && (!iconOnly || order > 0));
+        const anchor = showPill ? (iconOnly ? this._iconBadgeAnchor() : this._pillAnchor()) : undefined;
         return svg`
             <g class="room-label-layer ${highlighted ? "selected" : ""} ${stale ? "room-stale" : ""} ${this._idClass()}">
-                ${pill ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !stale)}
+                ${pill && !keepIcon ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !stale)}
                 ${anchor ? this.renderPill(anchor.origin, anchor.offset, name, pill ? (order > 0 ? order : "check") : undefined, "room-label") : svg``}
                 ${this.renderStaleMarker(stale)}
             </g>
@@ -204,6 +214,21 @@ export class Room extends PredefinedMapObject {
                 anchor.point[1] - anchor.origin[1] + this.scaled(anchor.offset[1]),
             ],
         };
+    }
+
+    /**
+     * Top-right corner of the room's icon, in scaled map pixels, for the cleaning-order badge of
+     * an icon-only room (`cleaning_order: true`). Stepped in screen space after counter-rotation
+     * so the badge stays at the icon's top-right corner at every zoom and rotation.
+     */
+    private _iconBadgeAnchor(): { origin: [number, number]; offset: [number, number] } | undefined {
+        const icon = this._config.icon;
+        if (!icon) return undefined;
+        const origin = this.vacuumToScaledMap(icon.x, icon.y) as [number, number];
+        const raw = this.scaledCss("--map-card-internal-room-icon-wrapper-size");
+        const size = Number.isFinite(raw) && raw > 0 ? raw : this.scaled(36);
+        const shift = size * 0.44;
+        return { origin, offset: [shift, -shift] };
     }
 
     /**
@@ -579,7 +604,7 @@ export class Room extends PredefinedMapObject {
                 fill: var(--map-card-internal-room-outline-fill-color-selected);
             }
 
-            .room-label-layer.selected > * > .room-icon-wrapper {
+            .room-label-layer.selected .room-icon-wrapper {
                 background: var(--map-card-internal-room-icon-background-color-selected);
                 color: var(--map-card-internal-room-icon-color-selected);
             }

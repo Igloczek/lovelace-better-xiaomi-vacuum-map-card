@@ -333,7 +333,7 @@ its content scrolls inside the cell; the map keeps its aspect ratio instead of b
 | `image`  | string | no<sup>1</sup> | -             | URL of map image                             |
 | `crop`   | object | no             | _no cropping_ | Images [cropping options](#cropping-options) |
 | `transparent_background` | boolean | no | `false` | Makes near-white map pixels transparent so the map blends into the card |
-| `room_labels` | boolean | no | `true` | Set to `false` when the map image already shows room names (some integrations draw them into the map); the card then draws no room names of its own, and a selected room shows its badge alone |
+| `room_labels` | boolean | no | `true` | Set to `false` when the map image already shows room names (some integrations draw them into the map); the card then draws no room names of its own, and a selected room shows its badge alone (or keeps its icon in the selected colours when the room has an icon) |
 
 <sup>1</sup> Exactly one of `camera` or `image` must be provided
 
@@ -368,9 +368,7 @@ the platforms that number by default.
 Every label on the map is drawn the same way, as a pill, in the style of the Xiaomi Home app: room
 names, and the labels of predefined points and rectangles. Selecting adds a round badge to the
 pill: a room's number in the cleaning order (or a checkmark, see above), and a checkmark for a
-predefined point or rectangle. The pill stays where it is. A room with an icon shows its icon next to its
-pill until it is selected, and the badged pill alone after; a room without a name shows the badge
-alone once selected. If your map image already shows room names, set
+predefined point or rectangle. The pill stays where it is. A room with an icon and a visible name shows its icon next to its pill until it is selected, and the badged pill alone after (a room with no outline keeps its icon so it stays clickable). A room marked only by an icon (no label, or `room_labels: false`) keeps its icon when selected, recoloured with `--map-card-room-icon-color-selected` and `--map-card-room-icon-background-color-selected`, and shows the cleaning-order badge at the icon's corner when `cleaning_order` is on. A room with neither a name nor an icon shows the badge alone once selected. If your map image already shows room names, set
 [`room_labels: false`](#map-source-options) on the map source to hide the card's copies. The rooms of a started run keep their pills. The pill
 stays upright and the same size at any zoom and rotation, and taps go through it to the room.
 
