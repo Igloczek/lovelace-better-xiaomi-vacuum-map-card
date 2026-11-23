@@ -1,5 +1,5 @@
 import { cameraRoomsById, readCameraRooms } from "../model/camera-rooms";
-import type { RoomConfig, RoomConfigEventData, ServiceCallSchemaConfig } from "../types/types";
+import type { RoomConfig, RoomConfigEventData } from "../types/types";
 import { MapExtractorRoom } from "../types/types";
 import { cameraRefreshKey } from "../model/map-refresh-policy";
 import { RoomColorDetector } from "../model/room-color-detector";
@@ -52,15 +52,19 @@ export function isRoomIdSendable(card: XiaomiVacuumMapCard, id: string): boolean
 }
 
 /**
- * A ROOM mode that cleans Home Assistant areas instead of the camera's segments (issue #120): at
- * least one configured id is an area the camera does not publish, and no configured id is a room
- * the camera publishes. Such a mode's service (typically `vacuum.clean_area`) would not take the
- * camera's segment ids, so the card offers only the configured rooms.
+ * A ROOM mode that cleans Home Assistant areas instead of the camera's segments (issue #120). The
+ * camera's own rooms are named by segment ids that such a service would not take, so the card never
+ * offers them.
  *
- * An id the camera publishes is never evidence of an area mode, even when it is an area id too: a
- * Roomba+ camera names its rooms by slugs (`kitchen`, `living_room`) that Home Assistant also uses
- * for areas, and an area `0` must not hide a segment mode's camera rooms. Such a mode keeps the
- * camera's rooms, outlines and colour taps.
+ * - An id the camera publishes is never evidence of an area mode, even when it is an area id too: a
+ *   Roomba+ camera names its rooms by slugs (`kitchen`, `living_room`) that Home Assistant also uses
+ *   for areas, and an area `0` must not hide a segment mode's camera rooms. Such a mode keeps the
+ *   camera's rooms, outlines and colour taps. For the same reason a mode without configured rooms
+ *   keeps them when the camera names a room by an area id.
+ * - Otherwise a mode that calls `vacuum.clean_area` cleans areas, even when every configured area is
+ *   gone or none is configured (its rooms then come from the vacuum's area mapping).
+ * - Otherwise a mode cleans areas when one of its configured ids is an area (a script or another
+ *   service that takes areas).
  */
 export function modeTargetsAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
     if (mode?.selectionType !== SelectionType.ROOM) return false;
@@ -68,6 +72,8 @@ export function modeTargetsAreas(card: XiaomiVacuumMapCard, mode: MapMode | unde
     const liveRoomIds = getLiveRoomIds(card);
     const ids = configuredRoomIds(mode).map(String);
     if (liveRoomIds && ids.some(id => liveRoomIds.has(id))) return false;
+    if (ids.length === 0 && liveRoomIds && [...liveRoomIds].some(id => isAreaId(id, areas))) return false;
+    if (callsCleanArea(mode)) return true;
     return ids.some(id => isAreaId(id, areas));
 }
 
@@ -80,12 +86,16 @@ export function modeTargetsAreas(card: XiaomiVacuumMapCard, mode: MapMode | unde
 export function staleWarningNamesAreas(card: XiaomiVacuumMapCard, mode: MapMode | undefined): boolean {
     if (mode?.selectionType !== SelectionType.ROOM) return false;
     const areas = getAreas(card);
-    if (configuredRoomIds(mode).some(id => isAreaId(id, areas))) return true;
-    const schema = mode.getServiceCallSchema(card.hass?.config?.version);
-    return schema.steps.some(step => {
-        const config = step.config as ServiceCallSchemaConfig | ServiceCallSchemaConfig[];
-        return (Array.isArray(config) ? config[0] : config)?.service === "vacuum.clean_area";
-    });
+    return configuredRoomIds(mode).some(id => isAreaId(id, areas)) || callsCleanArea(mode);
+}
+
+/**
+ * A mode one of whose service calls is Home Assistant's `vacuum.clean_area`, configured or from the
+ * platform template. It takes area ids only, even when every configured one is gone, and its
+ * rooms without configured ones come from the vacuum's area mapping.
+ */
+export function callsCleanArea(mode: MapMode): boolean {
+    return mode.serviceCallSchema.steps.some(step => step.service === "vacuum.clean_area");
 }
 
 /**
@@ -248,10 +258,13 @@ export function handleRoomColorClick(card: XiaomiVacuumMapCard, event: MouseEven
     if (card._getCurrentMode()?.selectionType !== SelectionType.ROOM || !card.roomColorDetection || !card.realScale) {
         return;
     }
-    // The detection names camera segments; a mode that cleans areas offers none of them, and its
-    // configured rooms are their own click targets.
-    if (modeTargetsAreas(card, card._getCurrentMode())) return;
     if (event.target instanceof Element && event.target.closest(".clickable")) return;
+    // The detection names camera rooms. A mode that cleans areas offers none of them: a tap on a room
+    // selects the area Home Assistant maps it to (issue #120), and a room in no area selects nothing.
+    if (modeTargetsAreas(card, card._getCurrentMode())) {
+        handleAreaRoomClick(card, event);
+        return;
+    }
 
     const point = card._getMousePosition(event);
     const x = Math.floor(point.x / card.realScale);
@@ -266,5 +279,24 @@ export function handleRoomColorClick(card: XiaomiVacuumMapCard, event: MouseEven
     const roomId = roomIdAtImagePoint(card.roomColorDetection, fallbacks, card.coordinatesConverter, x, y);
     if (roomId === undefined) return;
     const room = card.selectableRooms.find(candidate => String(candidate.toVacuum()) === roomId);
+    if (room) void room.click();
+}
+
+/** A tap in a mode that cleans areas: the camera room under it, then the area drawn from that room. */
+function handleAreaRoomClick(card: XiaomiVacuumMapCard, event: MouseEvent): void {
+    const areaRooms = card.selectableRooms.filter(room => !room.stale && room.segments.length > 0);
+    if (areaRooms.length === 0) return;
+    const point = card._getMousePosition(event);
+    const x = Math.floor(point.x / card.realScale);
+    const y = Math.floor(point.y / card.realScale);
+    // A room the detection did not find keeps its metadata outline as the target, as in a segment mode.
+    const fallbacks = areaRooms.flatMap(room =>
+        room.segments
+            .filter(segment => !segment.imageOutline)
+            .map(segment => ({ id: segment.id, outline: segment.outline })),
+    );
+    const roomId = roomIdAtImagePoint(card.roomColorDetection, fallbacks, card.coordinatesConverter, x, y);
+    if (roomId === undefined) return;
+    const room = areaRooms.find(candidate => candidate.segments.some(segment => segment.id === roomId));
     if (room) void room.click();
 }

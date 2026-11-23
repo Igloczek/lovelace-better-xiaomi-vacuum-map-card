@@ -155,7 +155,8 @@
         "invalid_calibration": "Invalid calibration, please check your configuration",
         "stale_rooms": "These configured room IDs no longer exist on the camera map: {0}. The rooms are marked stale and will not be cleaned. Regenerate the rooms config after a re-map.",
         "stale_rooms_or_areas": "These configured room IDs are neither Home Assistant areas nor rooms on the camera map: {0}. The rooms are marked stale and will not be cleaned. Check the area IDs under Settings → Areas, or regenerate the rooms config after a re-map.",
-        "rooms_unavailable": "The selected rooms are no longer on the camera map: {0}. A run would send no room ids, so it is refused; select the rooms again or regenerate the room configuration after a re-map."
+        "rooms_unavailable": "The selected rooms are no longer on the camera map: {0}. A run would send no room ids, so it is refused; select the rooms again or regenerate the room configuration after a re-map.",
+        "areas_not_mapped": "Home Assistant has no segments mapped to these selected areas, so it will not clean them: {0}. Assign their segments in the vacuum's settings (Settings → Devices & services → the vacuum → Map areas)."
     },
     "tile": {
         "status": {

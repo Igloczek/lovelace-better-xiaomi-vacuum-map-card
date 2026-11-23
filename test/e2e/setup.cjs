@@ -272,10 +272,70 @@ function areaRoomsCard(extraIds = []) {
     });
 }
 
+/**
+ * Home Assistant areas over the apartment floor plan, mapped to the fake core Roborock's segments
+ * (custom_components/roborock): `{map_flag}_{segment}` ids whose bare segment is the apartment
+ * camera's room id (area-outlines.spec.ts, issue #120 option 5). Korytarz spans the corridor and
+ * the storeroom; Strych is on the upper floor (map 1), whose room 10 shares its bare id with Kuchnia;
+ * Taras exists but has no segments; rooms 12, 15 and 18 belong to no area.
+ */
+const ROBOROCK_AREAS = [
+    { name: "Salon", area_id: "salon", segments: ["0_11"], icon: [3, 4] },
+    { name: "Kuchnia", area_id: "kuchnia", segments: ["0_10"], icon: [3, 9] },
+    { name: "Korytarz", area_id: "korytarz", segments: ["0_13", "0_14"], icon: [7, 6.5] },
+    { name: "Łazienka", area_id: "lazienka", segments: ["0_16"], icon: [8, 2] },
+    { name: "Sypialnia", area_id: "sypialnia", segments: ["0_17"], icon: [12, 8] },
+    { name: "Strych", area_id: "strych", segments: ["1_10"], icon: [11.5, 3] },
+    { name: "Taras", area_id: "taras", segments: null, icon: [13.5, 3] },
+];
+
+/**
+ * Area rooms on the fake Roborock over the apartment camera. `configured` lists every area with an
+ * icon, as the #120 report did; without it the mode lists none, and its rooms come from the mapping.
+ */
+function areaOutlinesCard(configured) {
+    return {
+        type: "custom:better-xiaomi-vacuum-map-card",
+        entity: "vacuum.fake_roborock",
+        vacuum_platform: "Roborock",
+        map_source: { camera: "camera.apartment_map" },
+        calibration_source: {
+            calibration_points: [
+                { map: { x: 0, y: 216 }, vacuum: { x: 0, y: 0 } },
+                { map: { x: 200, y: 216 }, vacuum: { x: 10, y: 0 } },
+                { map: { x: 0, y: 16 }, vacuum: { x: 0, y: 10 } },
+            ],
+        },
+        tiles: [],
+        icons: [],
+        map_modes: [
+            {
+                name: "Räume",
+                icon: "mdi:broom",
+                selection_type: "ROOM",
+                max_selections: 10,
+                coordinates_rounding: false,
+                service_call_schema: {
+                    service: "vacuum.clean_area",
+                    service_data: { entity_id: "[[entity_id]]", cleaning_area_id: "[[selection]]" },
+                },
+                ...(configured
+                    ? {
+                          predefined_selections: ROBOROCK_AREAS.map(area => ({
+                              id: area.area_id,
+                              icon: { name: "mdi:broom", x: area.icon[0], y: area.icon[1] },
+                          })),
+                      }
+                    : {}),
+            },
+        ],
+    };
+}
+
 /** Creates the areas of `AREA_SEGMENTS` and maps them to the fake vacuum's segments. Idempotent. */
 async function setUpAreas(ws) {
     const existing = new Set((await ws.send("config/area_registry/list")).map(area => area.area_id));
-    for (const area of AREA_SEGMENTS) {
+    for (const area of [...AREA_SEGMENTS, ...ROBOROCK_AREAS]) {
         if (existing.has(area.area_id)) continue;
         const created = await ws.send("config/area_registry/create", { name: area.name });
         if (created.area_id !== area.area_id) {
@@ -299,6 +359,31 @@ async function setUpAreas(ws) {
         options_domain: "vacuum",
         options: {
             area_mapping: Object.fromEntries(AREA_SEGMENTS.map(area => [area.area_id, area.segments])),
+            last_seen_segments: segments.segments ?? segments,
+        },
+    });
+    await mapRoborockAreas(ws);
+}
+
+/** Maps `ROBOROCK_AREAS` to the fake Roborock's segments (area-outlines.spec.ts restores it with this). */
+async function mapRoborockAreas(ws) {
+    let segments;
+    for (let attempt = 0; ; attempt++) {
+        try {
+            segments = await ws.send("vacuum/get_segments", { entity_id: "vacuum.fake_roborock" });
+            break;
+        } catch (error) {
+            if (attempt >= 120 || !String(error.message).includes("not_found")) throw error;
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+    await ws.send("config/entity_registry/update", {
+        entity_id: "vacuum.fake_roborock",
+        options_domain: "vacuum",
+        options: {
+            area_mapping: Object.fromEntries(
+                ROBOROCK_AREAS.filter(area => area.segments).map(area => [area.area_id, area.segments]),
+            ),
             last_seen_segments: segments.segments ?? segments,
         },
     });
@@ -484,6 +569,18 @@ async function main() {
                 views: [
                     { title: "Rooms", path: "rooms", cards: [areaRoomsCard()] },
                     { title: "Deleted area", path: "deleted", cards: [areaRoomsCard(["gaestezimmer"])] },
+                ],
+            },
+        },
+        {
+            // area-outlines.spec.ts: areas drawn from Home Assistant's area mapping (issue #120).
+            url_path: "e2e-area-outlines",
+            title: "E2E area outlines",
+            config: {
+                title: "E2E area outlines",
+                views: [
+                    { title: "Configured", path: "configured", cards: [areaOutlinesCard(true)] },
+                    { title: "Mapped", path: "mapped", cards: [areaOutlinesCard(false)] },
                 ],
             },
         },

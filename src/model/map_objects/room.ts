@@ -20,8 +20,24 @@ interface StaleMarkerSpace {
     readonly right: number;
 }
 
+/**
+ * One camera room an area is drawn from (issue #120): its id in the camera's `rooms`, its outline in
+ * vacuum coordinates and, when the colour detection found it, its outline in image pixels.
+ */
+export interface RoomSegment {
+    readonly id: string;
+    readonly outline: ReadonlyArray<readonly [number, number]>;
+    readonly imageOutline?: Array<[number, number]>;
+}
+
 export interface RoomRenderOptions {
     readonly imageOutline?: Array<[number, number]>;
+    /**
+     * The camera rooms a Home Assistant area covers, each drawn as an outline of this room and each a
+     * target for its taps. Given, they replace the single outline; the label and stale marker still
+     * use the room's own outline, the largest of them.
+     */
+    readonly segments?: readonly RoomSegment[];
     /** The configured id is absent from the live camera metadata (issue #928). */
     readonly stale?: boolean;
     /**
@@ -37,6 +53,7 @@ export class Room extends PredefinedMapObject {
     private readonly _imageOutline?: Array<[number, number]>;
     private readonly _stale: boolean;
     private readonly _cardHitTest: boolean;
+    private readonly _segments: readonly RoomSegment[];
 
     constructor(config: RoomConfig, context: Context, options: RoomRenderOptions = {}) {
         super(config, context);
@@ -44,6 +61,7 @@ export class Room extends PredefinedMapObject {
         this._imageOutline = options.imageOutline;
         this._stale = options.stale === true;
         this._cardHitTest = options.cardHitTest === true;
+        this._segments = options.segments ?? [];
         // A stale room exists only to show which configured id no longer matches the map. It must
         // never be selected, including through `default_state` or a state entity, or a service
         // call would clean a room id the camera no longer reports (issue #928).
@@ -86,6 +104,11 @@ export class Room extends PredefinedMapObject {
         return this._imageOutline !== undefined;
     }
 
+    /** The camera rooms this room is drawn from; empty unless it is an area (issue #120). */
+    public get segments(): readonly RoomSegment[] {
+        return this._segments;
+    }
+
     /** The configured or metadata outline, in vacuum coordinates. */
     public get outline(): Array<[number, number]> {
         return (this._config?.outline ?? []).map(point => [point[0], point[1]]);
@@ -97,19 +120,26 @@ export class Room extends PredefinedMapObject {
      * room's outline painted over a label that reached across the border and cut it.
      */
     public render(): SVGTemplateResult {
-        const poly = this._outlinePoints();
         const { stale, highlighted, runOrder } = this._state();
+        // An area is drawn with every camera room it covers; any other room with its one outline.
+        const outlines: Array<{ points: Array<[number, number]>; image: boolean }> = this._segments.length
+            ? this._segments.map(segment => ({
+                  points: segment.imageOutline
+                      ? segment.imageOutline.map(p => this.realScaled2Point(p) as [number, number])
+                      : segment.outline.map(p => this.vacuumToScaledMap(p[0], p[1]) as [number, number]),
+                  image: segment.imageOutline !== undefined,
+              }))
+            : [{ points: this._outlinePoints(), image: this._imageOutline !== undefined }];
         return svg`
             <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${stale ? "room-stale" : ""}
             ${this._idClass()}">
-                <polygon class="room-outline ${this._imageOutline || stale || this._cardHitTest ? "" : "clickable"}"
-                         points="${poly.map(p => p.join(", ")).join(" ")}"
-                         @click="${
-                             this._imageOutline || stale || this._cardHitTest
-                                 ? undefined
-                                 : async (): Promise<void> => this.click()
-                         }">
-                </polygon>
+                ${outlines.map(({ points, image }) => {
+                    const clickable = !image && !stale && !this._cardHitTest;
+                    return svg`<polygon class="room-outline ${clickable ? "clickable" : ""}"
+                         points="${points.map(p => p.join(", ")).join(" ")}"
+                         @click="${clickable ? async (): Promise<void> => this.click() : undefined}">
+                </polygon>`;
+                })}
             </g>
         `;
     }

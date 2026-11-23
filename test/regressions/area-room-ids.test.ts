@@ -281,6 +281,26 @@ describe("which modes count as area modes (#120 council review)", () => {
         expect(warningText(card)).toBeUndefined();
     });
 
+    it("keeps the camera's rooms for a clean_area mode without configured rooms when the camera names them by areas", async () => {
+        // A Roomba+ camera's slugs are area ids, so `vacuum.clean_area` takes its rooms as they are;
+        // building the rooms from an area mapping instead would leave such a mode with none (#122).
+        useHarnessClock();
+        const areas = areaRegistry([
+            ["living_room", "Living room"],
+            ["hallway", "Hallway"],
+            ["bedroom", "Bedroom"],
+        ]);
+        const hass = slugCamera(fixtureHass(FIXTURE, { areas }));
+        const card = await mountCard(roomModeConfig([], CLEAN_AREA), hass);
+        await card.fireMapLoad();
+
+        expect(card.element.selectableRooms.map(room => String(room.toVacuum())).sort()).toEqual([
+            "bedroom",
+            "hallway",
+            "living_room",
+        ]);
+    });
+
     it("keeps a segment mode's camera rooms when an area happens to share a configured segment id", async () => {
         const SEGMENT_SCHEMA: ServiceCallSchemaConfig = {
             service: "vacuum.send_command",

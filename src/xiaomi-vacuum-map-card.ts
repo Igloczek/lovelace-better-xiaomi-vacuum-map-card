@@ -109,6 +109,7 @@ import {
     showStaleRoomsWarning,
     showToast,
     showUnsendableRoomsWarning,
+    showUnmappedAreasWarning,
 } from "./card/render";
 import {
     detectRoomColors,
@@ -118,6 +119,14 @@ import {
     handleRoomColorClick,
     refreshRoomsAfterColorDetection,
 } from "./card/rooms";
+import {
+    currentMapSelectChanged,
+    detachAreaMapping,
+    getUnmappedSelectedAreas,
+    refreshAreaMapping,
+    type AreaMappingSubscription,
+    type CardAreaMapping,
+} from "./card/area-mapping";
 import { entityNamesChanged, refreshGeneratedIconsAndTiles, rememberRegistrySnapshot } from "./card/registry";
 import { handleServiceCallGet, RunFeedback } from "./card/run";
 import {
@@ -254,6 +263,9 @@ export class XiaomiVacuumMapCard extends LitElement {
     mapImageLoadedWhileDetached = false;
     delayedCallbacks = new Set<number>();
     roomColorDetection?: RoomColorDetection;
+    /** The vacuum's Home Assistant area mapping, read for a mode that cleans areas (see `refreshAreaMapping`). */
+    areaMapping?: CardAreaMapping;
+    areaMappingSubscription?: AreaMappingSubscription;
     lastRoomColorDetectionKey?: string;
     /** When `roomColorDetection` was traced from the pixels (`Date.now()`), for its reuse limit. */
     roomColorDetectionAt?: number;
@@ -444,6 +456,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         document.removeEventListener("visibilitychange", this._handleVisibilityChange);
         window.removeEventListener("pagehide", this._flushMapView);
         disconnectActiveRun(this);
+        detachAreaMapping(this);
         this.mapResizeObserver?.disconnect();
         this.mapResizeObserver = undefined;
         this.observedMapCanvas = undefined;
@@ -532,7 +545,12 @@ export class XiaomiVacuumMapCard extends LitElement {
         }
         // A rename in Home Assistant's registries, or the frontend installing its real name
         // formatter, changes no entity state; without this the tiles keep the old label and icon.
-        if (entityNamesChanged(changedProps.get("_hass") as HomeAssistantFixed | undefined, this.hass)) {
+        const oldHass = changedProps.get("_hass") as HomeAssistantFixed | undefined;
+        if (entityNamesChanged(oldHass, this.hass)) {
+            return true;
+        }
+        // The floor an area mode is drawn for (Roborock's current-map select, #120).
+        if (currentMapSelectChanged(this, oldHass)) {
             return true;
         }
         return hasConfigOrAnyEntityChanged(this.watchedEntities, changedProps, false, this.hass);
@@ -574,6 +592,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         // A ROOM selection that would reach the service call as an empty room list: the selected
         // rooms are not on the camera map any more (see `getUnsendableRoomIds`).
         const unsendableRoomIds = getUnsendableRoomIds(this, this._getCurrentMode());
+        const unmappedAreaIds = getUnmappedSelectedAreas(this, this._getCurrentMode());
 
         const mapZoomerContent = html`
             <div
@@ -681,6 +700,7 @@ export class XiaomiVacuumMapCard extends LitElement {
                 showStaleRoomsWarning(this, staleRoomIds, staleWarningNamesAreas(this, this._getCurrentMode())),
             )}
             ${conditional(unsendableRoomIds.length > 0, () => showUnsendableRoomsWarning(this, unsendableRoomIds))}
+            ${conditional(unmappedAreaIds.length > 0, () => showUnmappedAreasWarning(this, unmappedAreaIds))}
         `;
         const hasControls =
             modes.length > 1 || mapControls.length > 0 || (icons?.length ?? 0) !== 0 || (tiles?.length ?? 0) !== 0;
@@ -794,6 +814,9 @@ export class XiaomiVacuumMapCard extends LitElement {
             oldHass && this.hass && checkIfEntitiesChanged(this.entitiesToManuallyUpdate, oldHass, this.hass);
         this._updateElements(changed);
         updateMapResizeObserver(this);
+        // A mode that cleans areas draws them from the vacuum's area mapping; a registry change may
+        // have re-mapped them.
+        refreshAreaMapping(this);
         // Covers a card shown by a render rather than by a resize (a modal opening, a conditional
         // card switched on): the reset fired while hidden applies as soon as the map has a box.
         applyPendingMapViewReset(this);

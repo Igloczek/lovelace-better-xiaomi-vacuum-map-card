@@ -39,3 +39,8 @@ map_fixture:
     # A realistic floor plan: rooms sharing walls, irregular shapes, long names (apartment-rooms.spec.ts).
     - name: Apartment Map
       map_key: apartment
+
+# A fake core Roborock vacuum (custom_components/roborock takes the built-in's domain): segment ids
+# with the map flag (`0_13`) and a `selected_map` select, as core Roborock reports them, for the
+# area outlines drawn from Home Assistant's area mapping (area-outlines.spec.ts).
+roborock:

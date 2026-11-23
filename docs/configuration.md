@@ -850,6 +850,59 @@ Format of data depends on selected `selection_type`:
   select it. A mode with an id the camera does publish keeps the camera's rooms, even when that id
   is an area too (Roomba+ names its rooms `living_room`, `kitchen`, ...).
 
+  <a id="area-outlines"></a>
+  **Area outlines from Home Assistant's area mapping**
+
+  Where the card can tell which of the camera's rooms each area covers, it draws every area with the
+  outlines of those rooms and its name from Home Assistant, and a tap anywhere in one of those rooms
+  selects the area. It reads the mapping you made in the vacuum's settings (Settings → Devices &
+  services → the vacuum → Map areas), which Home Assistant keeps in the vacuum's entity registry
+  entry, and follows a change of it without a page reload. The run still sends the area ids, and Home
+  Assistant still turns them into segments, so the outlines decide only what is drawn and tapped,
+  never what is cleaned.
+
+  - An area that covers several rooms is drawn with all of them; a tap on any of them selects the
+    whole area, and all of them are drawn selected.
+  - A room in no area is not selectable in this mode.
+  - A room's configured `icon` moves into the area's largest room, with the area's name below it
+    (shown unless `map_source.room_labels` is `false`). A configured `label` keeps its text and
+    offsets and moves with the icon. A configured `outline` is kept as it is, and the area is then
+    drawn from it instead of the mapping.
+  - The mode may leave out `predefined_selections` when its service is `vacuum.clean_area`: it then
+    offers every mapped area that has a room on the map. A selected area that leaves the map (the
+    vacuum moved to another floor, or the area was re-mapped) leaves the selection.
+  - A mode that calls `vacuum.clean_area` never offers the camera's own rooms, even when every
+    configured area is gone: their segment ids are no areas. The exception is a camera that names its
+    rooms by area ids (a Roomba+ camera's slugs such as `living_room`): a configured id the camera
+    publishes, or, without configured rooms, a camera room named by an area id, keeps the camera's
+    rooms.
+  - Selecting an area that has no segments in the mapping shows a warning before the run, because
+    Home Assistant would not clean it (`areas_not_mapped`). The card still sends it. A mode that calls
+    another service (a script) shows no such warning: the mapping is not what it cleans by.
+  - Selected areas show a checkmark, not a number: Home Assistant keeps the order of the areas, but
+    whether the vacuum follows it depends on the integration. Set `cleaning_order: true` to show
+    numbers.
+
+  The camera's room ids and Home Assistant's segment ids are joined by a rule for each vacuum
+  integration. Only these are known; every other integration keeps the configured icons, without
+  outlines:
+
+  | Vacuum integration                   | Segment id in Home Assistant | Camera room id | Floor shown                                                       |
+  |--------------------------------------|------------------------------|----------------|-------------------------------------------------------------------|
+  | Roborock (core `roborock`)           | `0_16` (map flag, segment)   | `16`           | the vacuum's "Selected map" select                                |
+  | Dreame (`dreame_vacuum`, Tasshack)   | `0_16` (map index, segment)  | `16`           | only rooms whose number no other map uses                         |
+  | Valetudo over MQTT (core `mqtt`)     | `16`                         | `16`           | -                                                                 |
+
+  On a vacuum with several maps whose rooms are numbered from the same start, the card draws a room
+  only when it knows the room is on the map the camera shows; it does not guess:
+
+  - With Roborock's "Selected map" select, only areas on the selected map are drawn. When it names a
+    map Home Assistant has no segments for (a floor added after the areas were mapped), none are,
+    until the areas are mapped again.
+  - Without it, a room is drawn only when no other map has a room with the same number, judged from
+    the segments Home Assistant last saw. A mapping on several maps saved without that segment list
+    draws nothing.
+
   An id that is neither an area nor a room on the camera map is stale: a deleted area, or a segment
   a re-map renumbered. One exception follows from deciding by the id: an area whose id is also a
   segment id (an area named after a number, such as `16`) counts as an area, so a renumbered segment

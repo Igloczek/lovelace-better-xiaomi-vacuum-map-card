@@ -90,6 +90,20 @@ cleans the four corners it is given. The card keeps every other platform on axis
 | `Hypfer/Valetudo` | no | Every robot backend (Viomi included) uses only two of the four points and rebuilds a box |
 | Roborock-based templates and the rest | no | The zone command is a box |
 
+## Area outlines per integration
+
+A `ROOM` mode that cleans Home Assistant areas (`vacuum.clean_area`) draws each area with the camera
+rooms it is mapped to only where the card knows how the vacuum integration's segment ids relate to
+the map camera's room ids ([area outlines](configuration.md#area-outlines)). This depends on the
+vacuum's integration, not on the card's platform template.
+
+| Vacuum integration | Outlines | Verified |
+|---|---|---|
+| Roborock (core `roborock`) with `roborock_custom_map` | yes; the "Selected map" select picks the floor | ids from issue #120's data; end-to-end against a simulated Roborock |
+| `Tasshack/dreame-vacuum` | yes; on several maps only room numbers unique across maps | from the integration's source only |
+| Valetudo over MQTT (core `mqtt`) | yes | from the integration's source only |
+| Ecovacs (core), Matter, template vacuum, and integrations without areas | no; configured icons only | - |
+
 ## Getting coordinates
 
 Setup platforms make it easier to retrieve vacuum coordinates for zones, points and room outlines

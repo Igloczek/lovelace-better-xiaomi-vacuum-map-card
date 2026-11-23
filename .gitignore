@@ -31,6 +31,7 @@
 !/test/e2e/ha/config/custom_components/
 /test/e2e/ha/config/custom_components/*
 !/test/e2e/ha/config/custom_components/map_fixture/
+!/test/e2e/ha/config/custom_components/roborock/
 # Python bytecode
 __pycache__/
 *.pyc
