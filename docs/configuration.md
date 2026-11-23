@@ -872,7 +872,10 @@ Format of data depends on selected `selection_type`:
     offers every mapped area that has a room on the map. A selected area that leaves the map (the
     vacuum moved to another floor, or the area was re-mapped) leaves the selection.
   - A mode that calls `vacuum.clean_area` never offers the camera's own rooms, even when every
-    configured area is gone: their segment ids are no areas.
+    configured area is gone: their segment ids are no areas. The exception is a camera that names its
+    rooms by area ids (a Roomba+ camera's slugs such as `living_room`): a configured id the camera
+    publishes, or, without configured rooms, a camera room named by an area id, keeps the camera's
+    rooms.
   - Selecting an area that has no segments in the mapping shows a warning before the run, because
     Home Assistant would not clean it (`areas_not_mapped`). The card still sends it. A mode that calls
     another service (a script) shows no such warning: the mapping is not what it cleans by.

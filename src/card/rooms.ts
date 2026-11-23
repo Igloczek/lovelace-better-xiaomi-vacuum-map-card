@@ -1,5 +1,5 @@
 import { cameraRoomsById, readCameraRooms } from "../model/camera-rooms";
-import type { RoomConfig, RoomConfigEventData, ServiceCallSchemaConfig } from "../types/types";
+import type { RoomConfig, RoomConfigEventData } from "../types/types";
 import { MapExtractorRoom } from "../types/types";
 import { cameraRefreshKey } from "../model/map-refresh-policy";
 import { RoomColorDetector } from "../model/room-color-detector";
