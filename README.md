@@ -15,8 +15,10 @@ Part of the **Better** family for Home Assistant vacuums, maintained together an
 - **Better Xiaomi Vacuum Map Card** (this repository): the map and controls on your dashboard.
 - **[Better Xiaomi Cloud Map Extractor](https://github.com/Igloczek/better-xiaomi-cloud-map-extractor)**:
   the live map image and room data for Xiaomi, Roborock, Viomi, Dreame, Roidmi and Ijai vacuums
-  from the Xiaomi cloud. It is a fork of Piotr Machowski's original, being built to keep the cloud
-  session alive and to take over the original's setup. It has no release yet.
+  from the Xiaomi cloud. It is a fork of Piotr Machowski's original that keeps the cloud session
+  alive without new logins. Its import takes over the original's setup with the same entity ids, so
+  this card keeps working without changes. First release:
+  [v0.1.0](https://github.com/Igloczek/better-xiaomi-cloud-map-extractor/releases/tag/v0.1.0).
 
 [![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=Igloczek&repository=lovelace-better-xiaomi-vacuum-map-card&category=plugin)
 
