@@ -143,6 +143,11 @@ export interface MapSourceConfig {
     readonly transparent_background?: boolean;
     /** False when the map image already names the rooms: the card then draws no room names. */
     readonly room_labels?: boolean;
+    /**
+     * False when the map image already draws the walls: rooms are outlined only while hovered or
+     * selected (and when stale), and stay tappable.
+     */
+    readonly room_outlines?: boolean;
 }
 
 export interface CalibrationSourceConfig {

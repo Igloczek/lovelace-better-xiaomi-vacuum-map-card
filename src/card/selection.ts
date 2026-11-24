@@ -59,6 +59,7 @@ export function createContext(card: XiaomiVacuumMapCard): Context {
         },
         () => card.mapRotation,
         () => card._getCurrentPreset()?.map_source?.room_labels !== false,
+        () => card._getCurrentPreset()?.map_source?.room_outlines !== false,
     );
 }
 

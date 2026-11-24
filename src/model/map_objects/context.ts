@@ -60,6 +60,11 @@ export class Context {
          * rooms, so the card draws no room names of its own (a selected room keeps its badge).
          */
         public readonly showRoomLabels: () => boolean = () => true,
+        /**
+         * False when the preset's `map_source.room_outlines` is off: the map image already draws
+         * the walls, so a room is outlined only while hovered, selected, part of a run or stale.
+         */
+        public readonly showRoomOutlines: () => boolean = () => true,
     ) {}
 
     public roundMap([x, y]: PointArrayNotation): PointArrayNotation {
