@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.12.0
+
+### Added
+
+- `map_source.room_outlines: false` hides the card's room outlines for a map image that already
+  draws its walls (#124). A room is then outlined only while it is selected, part of a started run
+  or stale, and, with a mouse or trackpad, while the pointer is over it. Rooms stay tappable, and the
+  outlines keep their `--map-card-room-outline-*` colours. The default is unchanged.
+
 ## 1.11.0
 
 ### Added
