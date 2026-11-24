@@ -625,6 +625,7 @@ sensor whose display unit was changed in Home Assistant still shows the right nu
 | `max_repeats`           | integer | no              | 1       | Maximal value of repeats                                                             |
 | `variables`             | object  | no              | -       | Variables that should be passed to `service_call_schema`                             |
 | `predefined_selections` | list    | no<sup>3</sup>  | -       |                                                                                      |
+| `room_label_offsets`    | object  | no              | -       | ROOM modes: move room names on screen without configuring the rooms ([moving a room's label](#room-label-offsets)) |
 
 > You can override any value from built-in template by providing it in your configuration
 
@@ -815,6 +816,37 @@ Format of data depends on selected `selection_type`:
   > See [this page](templates/setup.md#getting-coordinates) to check how to easily create outline.
 
   `predefined_selections` may be omitted when the map camera provides a `rooms` attribute. The card will use the names and identifiers from that attribute and, when the image has distinct room fill colors, detect the room shapes and centers from the image.
+
+  <a id="room-label-offsets"></a>
+  **Moving a room's label**
+
+  A room the card places itself (read from the camera's `rooms` attribute, detected from the map
+  colours, or an area drawn from the area mapping) has its name centred in the room. Two rooms can
+  put their names on almost the same spot, for example a hallway wrapped around a kitchen, and one
+  name then hides the other. `room_label_offsets` on the `ROOM` mode moves a room's name without
+  configuring the room:
+
+  ```yaml
+  map_modes:
+    - template: vacuum_clean_segment
+      room_label_offsets:
+        "17": { offset_x: -45, offset_y: -100 }
+        "21": { offset_y: 40 }
+  ```
+
+  - The keys are the room ids the mode selects: the segment ids, or the area ids in a mode that
+    cleans [Home Assistant areas](#cleaning-home-assistant-areas).
+  - `offset_x` and `offset_y` are screen pixels, positive (right, down) or negative (left, up). They
+    are added to the offset the card already gives the name (for example the step below a room's
+    icon) and keep their size and direction at any zoom and rotation.
+  - Only the name moves, and its badge once the room is selected. The room's outline, icon, where a
+    tap selects it, and which rooms the mode offers stay as they are; the key configures no room, so
+    an area mode keeps offering every mapped area.
+  - An id the mode does not draw is ignored.
+
+  A label's own `offset_x`/`offset_y` in `predefined_selections` keeps its meaning for a configured
+  room. On a room whose outline the card detects from the map colours it is dropped, together with
+  the configured label point it belongs to; use `room_label_offsets` there.
 
   <a id="cleaning-home-assistant-areas"></a>
   **Cleaning Home Assistant areas**

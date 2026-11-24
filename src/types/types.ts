@@ -186,7 +186,18 @@ export interface MapModeConfig {
      */
     readonly legacy_service_call_schemas?: LegacyServiceCallSchemaConfig[];
     readonly predefined_selections?: PredefinedSelectionConfig[];
+    /**
+     * ROOM modes: a screen-pixel nudge for the label of each room id the mode draws, added to the
+     * offset the card already gives that label. It moves only the label, for camera, detected, area
+     * and configured rooms alike, without configuring the room (#126).
+     */
+    readonly room_label_offsets?: { readonly [roomId: string]: RoomLabelOffsetConfig };
     readonly variables?: VariablesStorage;
+}
+
+export interface RoomLabelOffsetConfig {
+    readonly offset_x?: number;
+    readonly offset_y?: number;
 }
 
 export interface LegacyServiceCallSchemaConfig {

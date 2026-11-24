@@ -132,6 +132,10 @@
                 "cleaning_order": {
                     "invalid": "cleaning_order must be true or false: {0}"
                 },
+                "room_label_offsets": {
+                    "not_a_number": "{0} must be a number (screen pixels)",
+                    "unknown_key": "Invalid {0}: a room label offset takes only offset_x and offset_y"
+                },
                 "service_call_schema": {
                     "missing": "Missing service call schema",
                     "service": {

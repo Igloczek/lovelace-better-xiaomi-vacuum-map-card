@@ -180,7 +180,7 @@ async function pressStart(page: Page, target: CardHandle): Promise<void> {
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
-async function openCard(page: Page, view: "configured" | "mapped"): Promise<CardHandle> {
+async function openCard(page: Page, view: "configured" | "mapped" | "nudged"): Promise<CardHandle> {
     await openDashboard(page, `/e2e-area-outlines/${view}`);
     await waitForCard(page);
     const target = await card(page);
@@ -318,4 +318,61 @@ test("builds the rooms from the area mapping when a clean_area mode lists none",
     await tap(page, target, INSIDE["16"]);
     await pressStart(page, target);
     await expect.poll(() => commands(page), { timeout: 20_000 }).toEqual([["0_16"]]);
+});
+
+/** The screen box of an area's name pill. */
+function pillBox(target: CardHandle, id: string): Promise<{ x: number; y: number; width: number; height: number }> {
+    return target.evaluate((element, roomId: string) => {
+        const pill = element.shadowRoot.querySelector(`.room-label-layer.room-${roomId}-wrapper .room-pill`);
+        if (!pill) throw new Error(`area ${roomId} has no pill`);
+        const r = pill.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, height: r.height };
+    }, id);
+}
+
+/** Whether hiding an area's pill changes the painted pixels inside `box`. */
+async function pillPaintedIn(
+    page: Page,
+    target: CardHandle,
+    id: string,
+    box: { x: number; y: number; width: number; height: number },
+): Promise<boolean> {
+    const clip = {
+        x: Math.floor(box.x),
+        y: Math.floor(box.y),
+        width: Math.ceil(box.width),
+        height: Math.ceil(box.height),
+    };
+    const toggle = (hidden: boolean) =>
+        target.evaluate(
+            (element, input: { id: string; hidden: boolean }) => {
+                const pill = element.shadowRoot.querySelector(`.room-label-layer.room-${input.id}-wrapper .room-pill`);
+                (pill as HTMLElement).style.visibility = input.hidden ? "hidden" : "";
+            },
+            { id, hidden },
+        );
+    const shown = await page.screenshot({ clip });
+    await toggle(true);
+    const hidden = await page.screenshot({ clip });
+    await toggle(false);
+    return !shown.equals(hidden);
+}
+
+test("nudges an area's name with room_label_offsets, without configuring any area (#126)", async ({
+    loggedIn: page,
+}) => {
+    const mapped = await openCard(page, "mapped");
+    const before = { korytarz: await pillBox(mapped, "korytarz"), salon: await pillBox(mapped, "salon") };
+    await shot(page, `area-outlines-label-before-${test.info().project.name}`);
+
+    const target = await openCard(page, "nudged");
+    // Every mapped area is still offered: the key configures no area.
+    expect(await offered(target)).toEqual({ salon: 1, kuchnia: 1, korytarz: 2, lazienka: 1, sypialnia: 1 });
+    const korytarz = await pillBox(target, "korytarz");
+    expect(korytarz.x - before.korytarz.x).toBeCloseTo(-10, 0);
+    expect(korytarz.y - before.korytarz.y).toBeCloseTo(-30, 0);
+    expect(await pillBox(target, "salon")).toEqual(before.salon);
+    // Painted where it moved to (WebKit can paint foreignObject HTML away from its layout box).
+    expect(await pillPaintedIn(page, target, "korytarz", korytarz)).toBe(true);
+    await shot(page, `area-outlines-label-nudged-${test.info().project.name}`);
 });

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { svg, SVGTemplateResult } from "lit";
 import { forwardHaptic } from "custom-card-helpers";
-import type { PredefinedPointConfig, RoomConfig } from "../types/types";
+import type { LabelConfig, PredefinedPointConfig, RoomConfig, RoomLabelOffsetConfig } from "../types/types";
 import { PredefinedZoneConfig, VariablesStorage } from "../types/types";
 import { EVENT_SELECTION_CHANGED } from "../const";
 import { ManualRectangle } from "../model/map_objects/manual-rectangle";
@@ -224,11 +224,16 @@ export function setCurrentMode(
                                 y: center?.[1] ?? configured.icon.y,
                             }
                           : undefined,
-                    // An area room's label is placed by `buildAreaRooms` already.
-                    label:
+                    // An area room's label is placed by `buildAreaRooms` already. A detected room's
+                    // label sits on the detected centre: a configured label point and offset belong
+                    // to the configured outline, so they are dropped. `room_label_offsets` nudges
+                    // it on top of that (#126).
+                    label: nudgeLabel(
                         region && room.label && !areaRoom
                             ? { ...room.label, offset_x: 0, offset_y: 0 }
                             : (room.label ?? configured?.label),
+                        newMode.roomLabelOffsets[String(room.id)],
+                    ),
                     variables: configured?.variables,
                     default_state: configured?.default_state,
                     state_entity: configured?.state_entity,
@@ -581,4 +586,18 @@ function pushRectangle(card: XiaomiVacuumMapCard, currentMode: MapMode): void {
     const height = actualHeight / 3 / card.mapScale;
     const rotatable = currentMode.selectionType === SelectionType.MANUAL_ROTATABLE_RECTANGLE;
     card.selectedManualRectangles.push(new ManualRectangle(x, y, width, height, name, createContext(card), rotatable));
+}
+
+/**
+ * A room label moved by a mode's `room_label_offsets` entry: the nudge is added to the offset the
+ * card already gives the label (such as the step under an icon), in screen pixels. Only the label
+ * moves; its anchor point, the icon and the outline stay where they are.
+ */
+function nudgeLabel(label: LabelConfig | undefined, nudge: RoomLabelOffsetConfig | undefined): LabelConfig | undefined {
+    if (!label || !nudge) return label;
+    return {
+        ...label,
+        offset_x: (label.offset_x ?? 0) + (nudge.offset_x ?? 0),
+        offset_y: (label.offset_y ?? 0) + (nudge.offset_y ?? 0),
+    };
 }

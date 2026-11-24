@@ -293,7 +293,7 @@ const ROBOROCK_AREAS = [
  * Area rooms on the fake Roborock over the apartment camera. `configured` lists every area with an
  * icon, as the #120 report did; without it the mode lists none, and its rooms come from the mapping.
  */
-function areaOutlinesCard(configured) {
+function areaOutlinesCard(configured, roomLabelOffsets) {
     return {
         type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.fake_roborock",
@@ -327,6 +327,7 @@ function areaOutlinesCard(configured) {
                           })),
                       }
                     : {}),
+                ...(roomLabelOffsets ? { room_label_offsets: roomLabelOffsets } : {}),
             },
         ],
     };
@@ -581,6 +582,12 @@ async function main() {
                 views: [
                     { title: "Configured", path: "configured", cards: [areaOutlinesCard(true)] },
                     { title: "Mapped", path: "mapped", cards: [areaOutlinesCard(false)] },
+                    // room_label_offsets (#126): the corridor area's name nudged up, nothing configured.
+                    {
+                        title: "Nudged",
+                        path: "nudged",
+                        cards: [areaOutlinesCard(false, { korytarz: { offset_x: -10, offset_y: -30 } })],
+                    },
                 ],
             },
         },

@@ -306,6 +306,7 @@ function validateMapModeConfig(
     ) {
         return [notList("predefined_selections")];
     }
+    errors.push(...validateRoomLabelOffsets(config.room_label_offsets));
     const cleaningOrder: unknown = config.cleaning_order;
     if (cleaningOrder !== undefined && cleaningOrder !== null && typeof cleaningOrder !== "boolean") {
         // A typo such as `cleaning_order: yes` would otherwise silently hide the numbers.
@@ -354,6 +355,37 @@ function validateMapModeConfig(
             .forEach(e => errors.push(e));
     } else if (config.service_call_schema)
         validateServiceCallSchemaConfig(config.service_call_schema).forEach(e => errors.push(e));
+    return errors;
+}
+
+/**
+ * `room_label_offsets` (#126): a mapping of room ids to `{ offset_x, offset_y }` in screen pixels.
+ * An id the mode does not draw is not an error: the camera's rooms come and go with a re-map, and
+ * the stale-room warning already covers configured rooms.
+ */
+function validateRoomLabelOffsets(value: unknown): TranslatableString[] {
+    if (value === undefined || value === null) return [];
+    if (!isMapping(value)) return [notMapping("room_label_offsets")];
+    const errors: TranslatableString[] = [];
+    for (const [roomId, entry] of Object.entries(value as Record<string, unknown>)) {
+        const field = `room_label_offsets.${roomId}`;
+        if (entry === undefined || entry === null) continue;
+        if (!isMapping(entry)) {
+            errors.push(notMapping(field));
+            continue;
+        }
+        for (const [key, offset] of Object.entries(entry as Record<string, unknown>)) {
+            if (key !== "offset_x" && key !== "offset_y") {
+                errors.push(["validation.preset.map_modes.room_label_offsets.unknown_key", "{0}", `${field}.${key}`]);
+            } else if (
+                offset !== undefined &&
+                offset !== null &&
+                (typeof offset !== "number" || !Number.isFinite(offset))
+            ) {
+                errors.push(["validation.preset.map_modes.room_label_offsets.not_a_number", "{0}", `${field}.${key}`]);
+            }
+        }
+    }
     return errors;
 }
 
