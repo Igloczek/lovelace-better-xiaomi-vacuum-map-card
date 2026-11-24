@@ -10,6 +10,14 @@ with the vacuum's status and controls around the map.
 
 It works with Xiaomi, Roborock, Dreame, Viomi, Valetudo, Neato, Roomba, Ecovacs, Wyze and more.
 
+Part of the **Better** family for Home Assistant vacuums, maintained together and built test-first:
+
+- **Better Xiaomi Vacuum Map Card** (this repository): the map and controls on your dashboard.
+- **[Better Xiaomi Cloud Map Extractor](https://github.com/Igloczek/better-xiaomi-cloud-map-extractor)**:
+  the live map image and room data for Xiaomi, Roborock, Viomi, Dreame, Roidmi and Ijai vacuums
+  from the Xiaomi cloud. It is a fork of Piotr Machowski's original, being built to keep the cloud
+  session alive and to take over the original's setup. It has no release yet.
+
 [![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=Igloczek&repository=lovelace-better-xiaomi-vacuum-map-card&category=plugin)
 
 [![Better Xiaomi Vacuum Map Card: selecting rooms, zooming and rotating the map, drawing a zone, Pin & Go, a path and switching floors](docs/media/demo.webp)](docs/media/demo.mp4)
@@ -93,6 +101,8 @@ Its own card type, upstream-compatible YAML: [switching takes a minute](#coming-
 2. **A map** to draw:
    - a camera or image entity that shows the live map, from the vacuum integration itself (e.g.
      Roborock, Dreame, Valetudo) or from
+     [Better Xiaomi Cloud Map Extractor](https://github.com/Igloczek/better-xiaomi-cloud-map-extractor)
+     or the original
      [Xiaomi Cloud Map Extractor](https://github.com/PiotrMachowski/Home-Assistant-custom-components-Xiaomi-Cloud-Map-Extractor);
    - or any static image of your floor plan, such as a screenshot from the vendor app.
 3. **Calibration,** so the card knows where map pixels are in the vacuum's coordinates. Map cameras
@@ -210,7 +220,7 @@ covers the token, what the report contains, and follow-up questions. No agent? U
 [bug form](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/issues/new?template=bug_report.yml).
 
 Map camera problems (a missing or wrong map image) belong to the camera's integration, e.g.
-[Xiaomi Cloud Map Extractor](https://github.com/PiotrMachowski/Home-Assistant-custom-components-Xiaomi-Cloud-Map-Extractor/issues).
+[Better Xiaomi Cloud Map Extractor](https://github.com/Igloczek/better-xiaomi-cloud-map-extractor/issues).
 
 ## Contributing
 
