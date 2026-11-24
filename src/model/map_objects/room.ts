@@ -132,7 +132,7 @@ export class Room extends PredefinedMapObject {
             : [{ points: this._outlinePoints(), image: this._imageOutline !== undefined }];
         return svg`
             <g class="room-wrapper ${highlighted ? "selected" : ""} ${runOrder > 0 ? "running" : ""} ${stale ? "room-stale" : ""}
-            ${this._idClass()}">
+            ${this._context.showRoomOutlines() ? "" : "outline-hidden"} ${this._idClass()}">
                 ${outlines.map(({ points, image }) => {
                     const clickable = !image && !stale && !this._cardHitTest;
                     return svg`<polygon class="room-outline ${clickable ? "clickable" : ""}"
@@ -602,6 +602,20 @@ export class Room extends PredefinedMapObject {
             .room-wrapper.selected > .room-outline {
                 stroke: var(--map-card-internal-room-outline-line-color-selected);
                 fill: var(--map-card-internal-room-outline-fill-color-selected);
+            }
+
+            /* map_source.room_outlines: false (#124). The map image draws the walls, so a room's
+               outline is painted only while it is selected, part of a run or stale, and, where the
+               device has a pointer that can hover, while the pointer is over it. Only the stroke is
+               hidden: the polygon keeps its fill, so it stays the hit target and the hover target. */
+            .room-wrapper.outline-hidden:not(.selected):not(.room-stale) > .room-outline {
+                stroke: transparent;
+            }
+
+            @media (hover: hover) {
+                .room-wrapper.outline-hidden:not(.selected):not(.room-stale):hover > .room-outline {
+                    stroke: var(--map-card-internal-room-outline-line-color);
+                }
             }
 
             .room-label-layer.selected .room-icon-wrapper {

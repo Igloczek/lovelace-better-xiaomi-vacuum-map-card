@@ -53,11 +53,11 @@ const WALL_PAIRS: Array<[[number, number], string, [number, number], string]> = 
     [[115, 80], "11", [124, 80], "13"],
 ];
 
-function config(rotation: number): XiaomiVacuumMapCardConfig {
+function config(rotation: number, mapSource: Record<string, unknown> = {}): XiaomiVacuumMapCardConfig {
     return {
         type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.roborock_s7",
-        map_source: { camera: "camera.apartment_map" },
+        map_source: { camera: "camera.apartment_map", ...mapSource },
         calibration_source: { camera: true },
         vacuum_platform: "Xiaomi Miio",
         map_modes: [{ template: "vacuum_clean_segment", cleaning_order: true, max_selections: 10 } as MapModeConfig],
@@ -68,10 +68,13 @@ function config(rotation: number): XiaomiVacuumMapCardConfig {
     } as XiaomiVacuumMapCardConfig;
 }
 
-async function mount(page: Page, rotation: number): Promise<void> {
+async function mount(page: Page, rotation: number, mapSource: Record<string, unknown> = {}): Promise<void> {
     await page.goto("/");
     await page.waitForFunction(() => (window as unknown as HarnessWindow).visualHarness?.ready);
-    await page.evaluate(input => (window as unknown as HarnessWindow).visualHarness.mount(input), config(rotation));
+    await page.evaluate(
+        input => (window as unknown as HarnessWindow).visualHarness.mount(input),
+        config(rotation, mapSource),
+    );
     await expect(page.locator(CARD)).toBeVisible();
     await expect
         .poll(() => page.locator(CARD).locator(".room-wrapper").count(), { message: "rooms detected" })
@@ -261,4 +264,71 @@ for (const rotation of [0, 90] as const) {
             if (zoom !== 2.5) expect(selectedCount).toBe(ROOMS.length);
         });
     }
+}
+
+/**
+ * `map_source.room_outlines: false` (#124): no room is outlined until the pointer is over it or it is
+ * selected. The outline colours are set to magenta through the card's own variables (not an
+ * override), so the card's hiding rule still decides what is painted, and the pixels say whether an
+ * outline is there. The default config is the control: the same variables paint magenta outlines.
+ */
+for (const rotation of [0, 90] as const) {
+    test(`room_outlines: false paints an outline only on the hovered or selected room, rotation ${rotation}`, async ({
+        page,
+    }) => {
+        const outlinePixels = async (): Promise<number> => {
+            const zoomer = (await page.locator(CARD).locator("#map-zoomer").boundingBox())!;
+            return magentaPixels(await page.screenshot({ clip: zoomer, animations: "disabled" }));
+        };
+        const magentaOutlines = (): Promise<unknown> =>
+            page.addStyleTag({
+                content: `${CARD} {
+                    --map-card-room-outline-line-color: rgb(255, 0, 255);
+                    --map-card-room-outline-line-color-selected: rgb(255, 0, 255);
+                    --map-card-room-outline-fill-color-selected: transparent;
+                    --map-card-room-outline-line-width: 3px;
+                    --map-card-room-outline-line-segment-gap: 0px;
+                    --map-card-transitions-duration: 0ms;
+                }`,
+            });
+        const zoom = rotation === 90 ? 0.68 : 1;
+        const away = async (): Promise<void> => {
+            await page.mouse.move(1, 1);
+            await page.waitForTimeout(150);
+        };
+
+        await mount(page, rotation);
+        if (zoom !== 1) await page.evaluate(z => (window as unknown as HarnessWindow).visualHarness.setZoom(z), zoom);
+        await magentaOutlines();
+        await away();
+        const every = await outlinePixels();
+        expect(every, "default: every room is outlined").toBeGreaterThan(500);
+
+        await mount(page, rotation, { room_outlines: false });
+        if (zoom !== 1) await page.evaluate(z => (window as unknown as HarnessWindow).visualHarness.setZoom(z), zoom);
+        await magentaOutlines();
+        await away();
+        expect(await outlinePixels(), "room_outlines: false: no room is outlined").toBe(0);
+
+        // Salon, the largest room: hovering it outlines it and only it.
+        const [x, y] = await screenPoint(page, [40, 140], rotation);
+        await page.mouse.move(x, y);
+        await page.waitForTimeout(150);
+        const hovered = await outlinePixels();
+        expect(hovered, "the hovered room is outlined").toBeGreaterThan(100);
+        expect(hovered, "only the hovered room is outlined").toBeLessThan(every * 0.6);
+
+        // Selected, it keeps its outline with the pointer gone.
+        await page.mouse.click(x, y);
+        await page.waitForTimeout(150);
+        expect(await selected(page)).toEqual(["11"]);
+        await away();
+        expect(await outlinePixels(), "the selected room stays outlined").toBeGreaterThan(100);
+
+        // Deselected and the pointer gone, nothing is outlined again.
+        await page.mouse.click(x, y);
+        await away();
+        expect(await selected(page)).toEqual([]);
+        expect(await outlinePixels(), "deselected: no room is outlined").toBe(0);
+    });
 }

@@ -570,3 +570,30 @@ describe("icon-only rooms keep their icon when selected", () => {
         expect(roomQuery(card.shadowRoot, "1", ".room-pill")).toBeNull();
     });
 });
+
+describe("map_source.room_outlines (#124)", () => {
+    const outlineClasses = (card: CardHandle): Record<string, boolean> =>
+        Object.fromEntries(
+            [...card.shadowRoot.querySelectorAll("g.room-wrapper")].map(group => [
+                /room-(\w+)-wrapper/.exec(group.getAttribute("class") ?? "")?.[1] ?? "?",
+                group.classList.contains("outline-hidden"),
+            ]),
+        );
+
+    it("marks every room's outline as hidden when room_outlines is false, and keeps it clickable", async () => {
+        const card = await mount({}, { room_outlines: false });
+        const rooms = outlineClasses(card);
+        expect(Object.keys(rooms).length).toBeGreaterThan(0);
+        expect(Object.values(rooms).every(Boolean)).toBe(true);
+        // The polygon is still there and still the hit target; selecting keeps its own outline
+        // because the hiding rule excludes selected, running and stale rooms.
+        await clickRoom(card, "1");
+        expect(wrapper(card, "1").classList.contains("selected")).toBe(true);
+        expect(wrapper(card, "1").classList.contains("outline-hidden")).toBe(true);
+    });
+
+    it("draws the outlines as before by default", async () => {
+        const card = await mount();
+        expect(Object.values(outlineClasses(card)).some(Boolean)).toBe(false);
+    });
+});
