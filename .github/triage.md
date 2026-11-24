@@ -15,6 +15,15 @@ A run may use the unit tests (`npm test`), the visual harness, and the real-Home
 instance (`test/e2e/README.md`): give the instance its own port and container, and stop it when
 done. It never touches the maintainer's own Home Assistant. A fix thread follows `AGENTS.md`.
 
+## Shipping a test version
+
+A build thread follows `AGENTS.md`: it sorts the change into a class, and a class 1 bug fix merges
+as usual. Anything else built for an issue stays an open pull request and ships as a
+`vX.Y.Z-beta.N` pre-release on its head ("GitHub releases" in `AGENTS.md`), with a comment on the
+issue asking the reporter's AI agent to install, test and report back. The build thread ends with
+the class 2 hand-off for the maintainer in its own chat; merging and the stable release wait for
+their approval.
+
 ## Project-specific rules
 
 - **Bugs** need the card configuration, the camera's `calibration_points`, the vacuum integration
