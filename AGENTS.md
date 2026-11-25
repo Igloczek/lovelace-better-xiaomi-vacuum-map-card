@@ -1,5 +1,29 @@
 # Agent guide
 
+## North star and autonomy
+
+This is a Home Assistant custom card, not a nuclear plant: in the worst case someone starts their vacuum from another app or rolls back a version. The maintainer does not know every feature, does not own every vacuum, and does not want to study every user request.
+
+**Default to 99% automation.** Agents and the **Chief of staff** own decisions, implementation, pull request review, merging and releases on their own — without asking the maintainer — as long as a change:
+
+1. **is not breaking** (existing YAML, dashboards, element names and workflows keep working unchanged),
+2. **does not drastically change UX** for existing users (opt-in options or clear, non-disruptive refinements), and
+3. **cannot make the overall experience or quality worse** (proven by red-first tests, full local checks, and Chromium + WebKit pixel proof for overlays; no brittle hacks or bloat).
+
+Priorities, in order:
+
+1. **Never break existing setups** (`FORK.md` compatibility promise).
+2. **Real-browser reliability** (especially WebKit — Safari and the Home Assistant iOS/macOS apps).
+3. **Low friction for users** (sensible defaults, clean opt-in options, no `card-mod` workarounds needed for common asks).
+4. **Test-first, CI green** (every bug adds a red-first test and closes the gap in the suite).
+
+## Chief of staff
+
+A standing pinned thread titled `Chief of staff` owns day-to-day delivery for this repository, backed by a daily scheduled sweep (`Chief of staff (daily sweep)`). It reviews and merges open pull requests, decides on feature and follow-up proposals, launches and steers `Build #N` threads, follows up on pre-release beta feedback, cuts batched stable releases (including the README demo video check), keeps `ROADMAP.md` current, and settles completed threads.
+
+- Triage and build threads hand ready pull requests, reporter beta confirmations and design calls to `Chief of staff` (`t3_thread_search` for `Chief of staff`), not to the maintainer.
+- `Chief of staff` only escalates to the maintainer for the ~1% calls under "Who decides what ships". Routine merges, opt-in features and releases do not ask for approval.
+
 ## Fork relationship
 
 - This repository is Igloczek's fork of `PiotrMachowski/lovelace-xiaomi-vacuum-map-card`; upstream remains the base for general development.
@@ -60,28 +84,30 @@ suite grows with every bug and the same class of problem cannot come back.
 
 ## Who decides what ships
 
-Agents drive this project: they investigate, reproduce, build, test, open pull requests and prepare releases without waiting to be asked. They do not yet have the taste to judge UI and UX nuances, so whether a change may be merged and released depends on what kind of change it is. Sort every change into one of these three classes before merging; when it is not clearly class 1, it is class 2.
+Agents drive this project end to end: they investigate, reproduce, decide option names and shapes, build, test, review, merge and release without waiting to be asked. Sort every change into one of these three buckets:
 
-1. **Clear bug: merge it yourself.** The report is binary (it works or it does not), the reproduction was immediate, and the fix restores behaviour that is documented or obviously intended, with nothing visible changing beyond the fix. Merge it after the checks in "Local checks" pass on the exact head.
-2. **Needs the maintainer's call: build it fully, then stop.** This covers anything that is not an obvious bug, a rough idea without a settled design, and every change to what users see or how they interact: layout, colours, icons, wording, animations, defaults, new or changed behaviour, and where a message or control appears. Do all the work, open the pull request, and do not merge or release it. Make the decision easy (see below) and wait for the maintainer's answer. When the change answers an issue (a triage build thread), also publish a `vX.Y.Z-beta.N` pre-release from the pull request for the reporter to try (see "GitHub releases"); a pre-release is not a release, so this needs no approval.
-3. **Cannot be reproduced here: pre-release.** The change depends on a vacuum or integration we do not run. Follow the pre-release bullet under "GitHub releases" so external contributors can install and test it.
+1. **Agents decide, merge and ship (~99% of work).** Bug fixes, additive opt-in configuration options, platform/template fixes, documentation, and non-disruptive UX refinements. Pick the cleanest design yourself, prove it with red-first tests and the checks in "Local checks" on the exact head (including Chromium + WebKit pixel proof for map overlays), and merge — directly for a clear bug, or via `Chief of staff` review for new options and refinements — without asking the maintainer, as long as the change is **not breaking**, does **not drastically change UX**, and **cannot make overall experience or quality worse**.
+2. **Needs real-hardware confirmation first: pre-release.** Use this only when a change genuinely depends on a vacuum model, firmware or integration we cannot simulate or prove locally. Keep the pull request open, publish a `vX.Y.Z-beta.N` pre-release from its head ("GitHub releases"), and ask the reporter's AI agent to test it. Once they confirm it works, `Chief of staff` merges and ships it without asking the maintainer. Do **not** hold a locally proven, card-only opt-in option behind a beta or maintainer queue just because it adds a config key or UI polish.
+3. **Escalate to the maintainer (~1% of work).** Build or propose it, then stop and ask the maintainer in chat (never on GitHub) **only** when a change:
+   - is **breaking** (removes or renames config keys, drops compatibility, or changes defaults in a way that breaks existing dashboards),
+   - **drastically changes UX** (a major visual/layout overhaul or changing how the card works for everyone), or
+   - **risks degrading overall experience or quality** (high maintenance burden, questionable trade-offs, or changing the fork's compatibility promise or scope).
 
-**What a class 2 hand-off contains.** The hand-off goes in the chat with the maintainer, never on GitHub: do not post hand-offs, screenshots or summaries as pull request or issue comments, and keep the pull request description short. GitHub comments are only for external contributors (the pre-release flow). Present it with the chat's built-in visualization tools (a rendered HTML page with the images side by side, or embedded images), so the maintainer can decide in a few minutes:
+**What an escalation hand-off contains.** Keep it in the chat with the maintainer, never on GitHub: do not post hand-offs, screenshots or summaries as pull request or issue comments, and keep pull request descriptions short. GitHub comments are only for external contributors. Present it with the chat's built-in visualization tools (a rendered HTML page with before/after images side by side, or embedded images) so the maintainer can decide in a minute:
 
 - The problem and the change in one short paragraph, written for a user, not as a diff summary.
-- What it looks like: before and after screenshots, or a short recording for motion or interaction, in Chromium and WebKit, at the sizes and themes it affects. Capture them from a real Home Assistant (the e2e instance), keep the files in the scratchpad, and show them in the chat. When a step happens too fast to see (an instant test vacuum hides a spinner), slow it down for the capture.
-- How to try it: a `vX.Y.Z-beta.N` pre-release (see "GitHub releases") with install steps, or the exact dashboard and steps. Install it on the maintainer's Home Assistant only when they ask.
-- The alternatives you considered, your recommendation, and what you would change if they say no.
+- What it looks like (when visual): before and after screenshots, or a short recording for motion or interaction, in Chromium and WebKit, captured from the real-HA e2e instance (kept in the scratchpad).
+- The risk or trade-off that triggered escalation, the alternatives considered, your recommendation, and what you would change if they say no.
 - What is proven: the tests and checks that passed on the head, and anything not verified.
 
-End the thread's report with a single question the maintainer can answer yes or no, or by picking one option.
+End with a single question the maintainer can answer yes or no, or by picking one option.
 
-**Releases are batched.** Merging does not mean releasing. Before you cut a release, check the state of the whole project: other agent threads still running, open pull requests close to merging, and what master has gained since the last release (`git log <last tag>..origin/master`). Release when a batch is ready, not after every merge. Release on its own only for an urgent fix, such as a card that does not render, a run that cleans the wrong room, or lost configuration. Class 2 changes are merged and released as stable only after the maintainer has approved them; their pre-releases are not part of a batch.
+**Releases are batched.** Merging does not mean releasing. Before cutting a release, `Chief of staff` checks other running agent threads, open pull requests close to merging, and what `master` has gained since the last release (`git log <last tag>..origin/master`). Cut a release autonomously when a batch is ready, not after every merge. Release on its own only for an urgent fix, such as a card that does not render, a run that cleans the wrong room, or lost configuration. Only changes escalated under bucket 3 wait for maintainer approval before merging and releasing.
 
 ## GitHub releases
 
 - `.github/workflows/release.yml` builds and uploads `xiaomi-vacuum-map-card.js` when a GitHub release is published. Check that workflow when changing release packaging.
 - Run `gh` in the authorized local environment, outside the sandbox.
-- A release that touches the UI in any way (anything the card shows or how it moves: layout, controls, colours, icons, wording, overlays, animations) ships a re-recorded README demo video. Before tagging, rebuild from the commit being released, re-record `docs/media/demo.mp4` and regenerate `docs/media/demo.webp` ([`scripts/demo-video/README.md`](scripts/demo-video/README.md)), check the frames, and commit both to master. `npm run check:demo-video` fails while `src/` has changed since the last release tag and the video has not; pass `-- --no-ui-change` only when no listed change is visible in the card, and say why in the release hand-off. When in doubt, re-record.
+- A release that touches the UI in any way (anything the card shows or how it moves: layout, controls, colours, icons, wording, overlays, animations) ships a re-recorded README demo video. Before tagging, rebuild from the commit being released, re-record `docs/media/demo.mp4` and regenerate `docs/media/demo.webp` ([`scripts/demo-video/README.md`](scripts/demo-video/README.md)), check the frames, and commit both to master. `npm run check:demo-video` fails while `src/` has changed since the last release tag and the video has not; pass `-- --no-ui-change` only when no listed change is visible in the card, and say why in the release note/log. When in doubt, re-record.
 - Releases use the fork's own `vX.Y.Z` tags, numbered in sequence from the last release (`gh release list --limit 1`). Upstream's legacy tags were deleted; never skip a version to dodge a stale tag — delete the stale tag instead. Check that the tag is free (`git ls-remote --tags origin vX.Y.Z`) before `gh release create`: on an existing tag it publishes that old commit and no release workflow run follows.
-- A change we cannot verify ourselves (a vendor's robot or an integration we do not run), and every class 2 change built for an issue, goes out as a pre-release first: keep the PR open, tag `vX.Y.Z-beta.N` for the next version on the PR head (the next `N` that is free: parallel build threads share the numbering) (push the tag first; `gh release create` rejects a branch commit as `--target`), publish it with `--prerelease` so the stable release stays Latest, and check the uploaded asset carries the change. Then ask the reporter on the issue to have their AI agent install it, test it and report back: a short prompt linking that comment, manual install and revert steps (edit the existing resource, never add a second copy), concrete test steps and what to report. Merge and release the stable version after they confirm, and for a class 2 change after the maintainer approves it too.
+- A change we cannot verify ourselves (a vendor's robot or an integration we do not run) goes out as a pre-release first: keep the PR open, tag `vX.Y.Z-beta.N` for the next version on the PR head (the next `N` that is free: parallel build threads share the numbering; push the tag first because `gh release create` rejects a branch commit as `--target`), publish it with `--prerelease` so the stable release stays Latest, and check the uploaded asset carries the change. Then ask the reporter on the issue to have their AI agent install it, test it and report back: a short prompt linking that comment, manual install and revert steps (edit the existing resource, never add a second copy), concrete test steps and what to report. Once confirmed, `Chief of staff` merges and ships the stable release autonomously without waiting for maintainer approval.
