@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.13.0
+
+### Added
+
+- `room_label_offsets` on a `ROOM` mode nudges any room's name pill by screen pixels (`offset_x`,
+  `offset_y`) without configuring the room (#126). It works for camera-metadata, colour-detected,
+  area-mapped and configured rooms alike, moves only the name pill (and its badge when selected),
+  and leaves outlines, icons, tap targets and offered rooms unchanged.
+- `map_source.room_outlines` now also accepts `"selected"` and `"never"` (#124): `"selected"` hides
+  idle and hover outlines so rooms are outlined only when selected, part of a started run or stale;
+  `"never"` hides room outlines even when selected or running while keeping rooms tappable, keeping
+  the selected fill (`--map-card-room-outline-fill-color-selected`) and badged pill (or selected
+  icon), and keeping the red stale outline on stale rooms. `true` (default) and `false` keep their
+  existing behaviour.
+
 ## 1.12.0
 
 ### Added
