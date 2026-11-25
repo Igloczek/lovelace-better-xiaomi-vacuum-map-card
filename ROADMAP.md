@@ -62,9 +62,13 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
 Accepted in the 1.0 line, each with what would fix it:
 
 - Two same-coloured rooms whose fills touch with no wall or gap between them cannot be split from
-  the pixels: the map has to draw the boundary. A room the camera describes with its own outline is
-  left to that outline, so a same-coloured neighbour traced from bounds may still include part of
-  its floor. Both are the plain per-room trace's behaviour; the card does not guess.
+  the pixels: the map has to draw the boundary. This is the plain per-room trace's behaviour; the
+  card does not guess.
+- A room the camera publishes with its own outline keeps that outline where the colours cannot
+  confirm a better shape: only part of the room drawn in a room colour, its colour running on into
+  an open-plan neighbour, or a doorway strip that runs more than a few pixels past the outline's
+  bounding box. Such a room is drawn as the integration publishes it (for Valetudo's MQTT Vacuum
+  Camera, a convex hull). A wider trace window for outline rooms would cover the doorway case.
 
 ## Open questions and risks
 

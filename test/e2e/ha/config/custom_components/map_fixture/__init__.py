@@ -94,9 +94,14 @@ SHIFTED_ROOMS: dict[str, dict[str, Any]] = {
 APARTMENT_ROOMS_FILE = "/config/map_apartment_rooms.json"
 
 
-def _apartment_rooms() -> dict[str, dict[str, Any]]:
+# The same flat as a Valetudo map camera (sca075's MQTT Vacuum Camera) publishes it: each room's own
+# convex-hull outline in Valetudo units, no bounds (issue #77, valetudo-room-outlines.spec.ts).
+APARTMENT_VALETUDO_ROOMS_FILE = "/config/map_apartment_valetudo_rooms.json"
+
+
+def _apartment_rooms(file: str = APARTMENT_ROOMS_FILE) -> dict[str, dict[str, Any]]:
     try:
-        with open(APARTMENT_ROOMS_FILE, encoding="utf-8") as handle:
+        with open(file, encoding="utf-8") as handle:
             return json.load(handle)
     except OSError:
         return {}
@@ -106,10 +111,12 @@ FIXTURE_IMAGES: dict[str, str] = {
     "default": DEFAULT_IMAGE,
     "interlock": "/config/map_interlock.png",
     "apartment": "/config/map_apartment.png",
+    "apartment_valetudo": "/config/map_apartment.png",
 }
 FIXTURE_MAP_ROOMS: dict[str, dict[str, dict[str, Any]]] = {
     "interlock": INTERLOCK_ROOMS,
     "apartment": _apartment_rooms(),
+    "apartment_valetudo": _apartment_rooms(APARTMENT_VALETUDO_ROOMS_FILE),
 }
 
 # The replacement image the interlock camera serves, for the path-cut piece spec.

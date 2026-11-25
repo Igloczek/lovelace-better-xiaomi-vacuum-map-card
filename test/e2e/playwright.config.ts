@@ -43,7 +43,13 @@ export default defineConfig({
             // label and live-path specs run here too and check the pixels, not only the layout.
             name: "webkit",
             use: { browserName: "webkit" },
-            testMatch: ["room-pill.spec.ts", "live-path.spec.ts", "apartment-rooms.spec.ts", "area-outlines.spec.ts"],
+            testMatch: [
+                "room-pill.spec.ts",
+                "live-path.spec.ts",
+                "apartment-rooms.spec.ts",
+                "area-outlines.spec.ts",
+                "valetudo-room-outlines.spec.ts",
+            ],
         },
     ],
 });

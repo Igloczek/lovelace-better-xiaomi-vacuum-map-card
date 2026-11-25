@@ -406,7 +406,7 @@ describe("camera rooms metadata", () => {
         expectOutline(detection, "2", [62, 10, 109, 49]);
     });
 
-    it("leaves rooms that bring their own outline to that outline", () => {
+    it("traces rooms that bring their own outline where the map agrees with it (#77)", () => {
         const scale = VACUUM_UNITS_PER_PIXEL;
         const outline = [
             [10 * scale, 10 * scale],
@@ -414,11 +414,20 @@ describe("camera rooms metadata", () => {
             [60 * scale, 50 * scale],
             [10 * scale, 50 * scale],
         ];
-        const detection = detect(twoRoomMap(), {
+        const rooms = {
             "1": { ...roomBounds([10, 10, 59, 49]), outline } as MapExtractorRoom,
             "2": roomBounds([62, 10, 109, 49]),
+        };
+        const detection = detect(twoRoomMap(), rooms);
+        expect(detection?.regions.map(found => found.id).sort()).toEqual(["1", "2"]);
+        expectOutline(detection, "1", [10, 10, 59, 49]);
+        expectOutline(detection, "2", [62, 10, 109, 49]);
+        // With outline tracing off, a room with its own outline is left to it, as before #77.
+        const converter = new CoordinatesConverter(syntheticMapCalibration(120, 60));
+        const untraced = RoomColorDetector.detectFromImageData(twoRoomMap(), rooms, converter, {
+            outlineTracing: false,
         });
-        expect(detection?.regions.map(found => found.id)).toEqual(["2"]);
+        expect(untraced?.regions.map(found => found.id)).toEqual(["2"]);
     });
 
     it("follows a changed map: a re-detection after a re-map reflects the new image", () => {
