@@ -106,6 +106,7 @@ const EMPTY_OPTIONAL_KEYS: [string, Record<string, unknown>][] = [
         "map_source.transparent_background",
         { map_source: { camera: "camera.vacuum_map", transparent_background: null } },
     ],
+    ["map_source.room_outlines", { map_source: { camera: "camera.vacuum_map", room_outlines: null } }],
     ["map_source.image", { map_source: { camera: "camera.vacuum_map", image: null } }],
     ["calibration_source.camera", { calibration_source: { camera: null } }],
     ["calibration_source.identity", { calibration_source: { camera: true, identity: null } }],

@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { svg, SVGTemplateResult } from "lit";
 import { forwardHaptic } from "custom-card-helpers";
-import type { LabelConfig, PredefinedPointConfig, RoomConfig, RoomLabelOffsetConfig } from "../types/types";
+import type {
+    LabelConfig,
+    PredefinedPointConfig,
+    RoomConfig,
+    RoomLabelOffsetConfig,
+    RoomOutlinesMode,
+} from "../types/types";
 import { PredefinedZoneConfig, VariablesStorage } from "../types/types";
 import { EVENT_SELECTION_CHANGED } from "../const";
 import { ManualRectangle } from "../model/map_objects/manual-rectangle";
@@ -59,8 +65,13 @@ export function createContext(card: XiaomiVacuumMapCard): Context {
         },
         () => card.mapRotation,
         () => card._getCurrentPreset()?.map_source?.room_labels !== false,
-        () => card._getCurrentPreset()?.map_source?.room_outlines !== false,
+        () => resolveRoomOutlinesMode(card._getCurrentPreset()?.map_source?.room_outlines),
     );
+}
+
+function resolveRoomOutlinesMode(value: RoomOutlinesMode | undefined): RoomOutlinesMode {
+    if (value === false || value === "selected" || value === "never") return value;
+    return true;
 }
 
 /**

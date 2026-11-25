@@ -4,7 +4,7 @@ import { Room } from "./room";
 import { PredefinedPoint } from "./predefined-point";
 import { ManualRectangle } from "./manual-rectangle";
 import { CoordinatesConverter } from "./coordinates-converter";
-import { TranslatableString } from "../../types/types";
+import { RoomOutlinesMode, TranslatableString } from "../../types/types";
 import { resolveRoomPillPalette, RoomPillPalette } from "../room-pill-palette";
 
 const DEFAULT_ROOM_PILL_PALETTE = resolveRoomPillPalette({ background: "", text: "", badge: "" });
@@ -61,10 +61,12 @@ export class Context {
          */
         public readonly showRoomLabels: () => boolean = () => true,
         /**
-         * False when the preset's `map_source.room_outlines` is off: the map image already draws
-         * the walls, so a room is outlined only while hovered, selected, part of a run or stale.
+         * Controls when room outlines are drawn (`map_source.room_outlines`):
+         * `true` always draws them; `false` hides them while idle (shown on hover, selection, active
+         * run, or stale); `"selected"` hides idle and hover outlines; `"never"` hides outlines even
+         * when selected or running (stale rooms still keep their red stale outline).
          */
-        public readonly showRoomOutlines: () => boolean = () => true,
+        public readonly roomOutlinesMode: () => RoomOutlinesMode = () => true,
     ) {}
 
     public roundMap([x, y]: PointArrayNotation): PointArrayNotation {

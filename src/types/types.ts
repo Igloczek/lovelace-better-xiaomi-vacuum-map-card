@@ -136,6 +136,8 @@ export interface LivePathConfig {
     readonly attribute?: string;
 }
 
+export type RoomOutlinesMode = boolean | "selected" | "never";
+
 export interface MapSourceConfig {
     readonly camera?: string;
     readonly image?: string;
@@ -144,10 +146,13 @@ export interface MapSourceConfig {
     /** False when the map image already names the rooms: the card then draws no room names. */
     readonly room_labels?: boolean;
     /**
-     * False when the map image already draws the walls: rooms are outlined only while hovered or
-     * selected (and when stale), and stay tappable.
+     * Controls when room outlines are drawn: `true` (default) always draws them; `false` shows
+     * them only on hover (with a hover-capable pointer), when selected / part of a run, or when
+     * stale; `"selected"` hides idle and hover outlines (selected, running and stale rooms stay
+     * outlined); `"never"` hides outlines even when selected or running (rooms stay tappable with
+     * their selected fill and badged pill/icon, and stale rooms keep their red stale outline).
      */
-    readonly room_outlines?: boolean;
+    readonly room_outlines?: RoomOutlinesMode;
 }
 
 export interface CalibrationSourceConfig {

@@ -79,13 +79,24 @@ function validateMapSource(mapSource: MapSourceConfig): TranslatableString[] {
     if (!isMapping(mapSource)) {
         return [notMapping("map_source")];
     }
+    const errors: TranslatableString[] = [];
     if (!mapSource.camera && !mapSource.image) {
-        return ["validation.preset.map_source.none_provided"];
+        errors.push("validation.preset.map_source.none_provided");
+    } else if (mapSource.camera && mapSource.image) {
+        errors.push("validation.preset.map_source.ambiguous");
     }
-    if (mapSource.camera && mapSource.image) {
-        return ["validation.preset.map_source.ambiguous"];
+    const roomOutlines: unknown = mapSource.room_outlines;
+    if (
+        roomOutlines !== undefined &&
+        roomOutlines !== null &&
+        typeof roomOutlines !== "boolean" &&
+        roomOutlines !== "selected" &&
+        roomOutlines !== "never"
+    ) {
+        const display = typeof roomOutlines === "string" ? roomOutlines : JSON.stringify(roomOutlines);
+        errors.push(["validation.preset.map_source.room_outlines.invalid", "{0}", display]);
     }
-    return [];
+    return errors;
 }
 
 function validateCalibrationPoint(calibrationPoint: CalibrationPoint): TranslatableString[] {
