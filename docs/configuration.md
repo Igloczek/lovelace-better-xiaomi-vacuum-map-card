@@ -334,7 +334,7 @@ its content scrolls inside the cell; the map keeps its aspect ratio instead of b
 | `crop`   | object | no             | _no cropping_ | Images [cropping options](#cropping-options) |
 | `transparent_background` | boolean | no | `false` | Makes near-white map pixels transparent so the map blends into the card |
 | `room_labels` | boolean | no | `true` | Set to `false` when the map image already shows room names (some integrations draw them into the map); the card then draws no room names of its own, and a selected room shows its badge alone (or keeps its icon in the selected colours when the room has an icon) |
-| `room_outlines` | boolean | no | `true` | Set to `false` when the map image already draws the walls; the card then outlines a room only while it is selected, part of a started run or stale, and, with a mouse or trackpad, while the pointer is over it. Rooms stay tappable. The outline colours are the `--map-card-room-outline-*` [CSS variables](css_variables.md) |
+| `room_outlines` | boolean or string | no | `true` | Controls when the card draws room outlines: `true` always draws them; `false` hides them when idle and shows them on hover (with a mouse or trackpad), when selected, part of a started run, or stale; `"selected"` hides idle and hover outlines, showing them only when selected, part of a started run, or stale; `"never"` never draws room outlines (even when selected or running), while rooms stay tappable, selected/running rooms keep their fill (`--map-card-room-outline-fill-color-selected`) and badged pill (or selected icon), and stale rooms keep their red warning outline. The outline colours are the `--map-card-room-outline-*` [CSS variables](css_variables.md) |
 
 <sup>1</sup> Exactly one of `camera` or `image` must be provided
 
@@ -371,7 +371,7 @@ names, and the labels of predefined points and rectangles. Selecting adds a roun
 pill: a room's number in the cleaning order (or a checkmark, see above), and a checkmark for a
 predefined point or rectangle. The pill stays where it is. A room with an icon and a visible name shows its icon next to its pill until it is selected, and the badged pill alone after (a room with no outline keeps its icon so it stays clickable). A room marked only by an icon (no label, or `room_labels: false`) keeps its icon when selected, recoloured with `--map-card-room-icon-color-selected` and `--map-card-room-icon-background-color-selected`, and shows the cleaning-order badge at the icon's corner when `cleaning_order` is on. A room with neither a name nor an icon shows the badge alone once selected. If your map image already shows room names, set
 [`room_labels: false`](#map-source-options) on the map source to hide the card's copies, and if it already draws the walls,
-[`room_outlines: false`](#map-source-options) hides the room outlines until a room is hovered or selected. The rooms of a started run keep their pills. The pill
+[`room_outlines`](#map-source-options) lets you hide the room outlines: `false` hides them until a room is hovered or selected, `"selected"` shows them only when selected or part of a run, and `"never"` hides them completely while keeping the selected fill and badged pill (or selected icon). The rooms of a started run keep their pills. The pill
 stays upright and the same size at any zoom and rotation, and taps go through it to the room.
 
 The pill follows the theme: light with dark text in a light theme, dark with light text in a dark

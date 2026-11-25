@@ -266,55 +266,71 @@ for (const rotation of [0, 90] as const) {
     }
 }
 
+/** Pixels in a screenshot that are pure lime green (selected fill marker, unused by the map). */
+function limePixels(png: Buffer): number {
+    const image = PNG.sync.read(png);
+    let count = 0;
+    for (let i = 0; i < image.data.length; i += 4) {
+        const [r, g, b] = [image.data[i], image.data[i + 1], image.data[i + 2]];
+        if (g > 220 && r < 40 && b < 40) count++;
+    }
+    return count;
+}
+
 /**
- * `map_source.room_outlines: false` (#124): no room is outlined until the pointer is over it or it is
- * selected. The outline colours are set to magenta through the card's own variables (not an
- * override), so the card's hiding rule still decides what is painted, and the pixels say whether an
- * outline is there. The default config is the control: the same variables paint magenta outlines.
+ * `map_source.room_outlines` (#124): `false`, `"selected"`, and `"never"`.
+ * The outline colours are set to magenta through the card's own variables (not an override), so the
+ * card's hiding rules still decide what is painted, and the pixels say whether an outline is there.
+ * The default config is the control: the same variables paint magenta outlines.
  */
 for (const rotation of [0, 90] as const) {
+    const zoom = rotation === 90 ? 0.68 : 1;
+
+    const setupOutlineProbe = async (
+        page: Page,
+        mapSource: Record<string, unknown>,
+        selectedFill = "transparent",
+    ): Promise<() => Promise<Buffer>> => {
+        await mount(page, rotation, mapSource);
+        if (zoom !== 1) await page.evaluate(z => (window as unknown as HarnessWindow).visualHarness.setZoom(z), zoom);
+        await page.addStyleTag({
+            content: `${CARD} {
+                --map-card-room-outline-line-color: rgb(255, 0, 255);
+                --map-card-room-outline-line-color-selected: rgb(255, 0, 255);
+                --map-card-room-outline-fill-color-selected: ${selectedFill};
+                --map-card-room-outline-line-width: 3px;
+                --map-card-room-outline-line-segment-gap: 0px;
+                --map-card-transitions-duration: 0ms;
+            }`,
+        });
+        return async (): Promise<Buffer> => {
+            const zoomer = (await page.locator(CARD).locator("#map-zoomer").boundingBox())!;
+            return page.screenshot({ clip: zoomer, animations: "disabled" });
+        };
+    };
+
+    const away = async (page: Page): Promise<void> => {
+        await page.mouse.move(1, 1);
+        await page.waitForTimeout(150);
+    };
+
     test(`room_outlines: false paints an outline only on the hovered or selected room, rotation ${rotation}`, async ({
         page,
     }) => {
-        const outlinePixels = async (): Promise<number> => {
-            const zoomer = (await page.locator(CARD).locator("#map-zoomer").boundingBox())!;
-            return magentaPixels(await page.screenshot({ clip: zoomer, animations: "disabled" }));
-        };
-        const magentaOutlines = (): Promise<unknown> =>
-            page.addStyleTag({
-                content: `${CARD} {
-                    --map-card-room-outline-line-color: rgb(255, 0, 255);
-                    --map-card-room-outline-line-color-selected: rgb(255, 0, 255);
-                    --map-card-room-outline-fill-color-selected: transparent;
-                    --map-card-room-outline-line-width: 3px;
-                    --map-card-room-outline-line-segment-gap: 0px;
-                    --map-card-transitions-duration: 0ms;
-                }`,
-            });
-        const zoom = rotation === 90 ? 0.68 : 1;
-        const away = async (): Promise<void> => {
-            await page.mouse.move(1, 1);
-            await page.waitForTimeout(150);
-        };
-
-        await mount(page, rotation);
-        if (zoom !== 1) await page.evaluate(z => (window as unknown as HarnessWindow).visualHarness.setZoom(z), zoom);
-        await magentaOutlines();
-        await away();
-        const every = await outlinePixels();
+        const defaultShot = await setupOutlineProbe(page, {});
+        await away(page);
+        const every = magentaPixels(await defaultShot());
         expect(every, "default: every room is outlined").toBeGreaterThan(500);
 
-        await mount(page, rotation, { room_outlines: false });
-        if (zoom !== 1) await page.evaluate(z => (window as unknown as HarnessWindow).visualHarness.setZoom(z), zoom);
-        await magentaOutlines();
-        await away();
-        expect(await outlinePixels(), "room_outlines: false: no room is outlined").toBe(0);
+        const shot = await setupOutlineProbe(page, { room_outlines: false });
+        await away(page);
+        expect(magentaPixels(await shot()), "room_outlines: false: no room is outlined").toBe(0);
 
         // Salon, the largest room: hovering it outlines it and only it.
         const [x, y] = await screenPoint(page, [40, 140], rotation);
         await page.mouse.move(x, y);
         await page.waitForTimeout(150);
-        const hovered = await outlinePixels();
+        const hovered = magentaPixels(await shot());
         expect(hovered, "the hovered room is outlined").toBeGreaterThan(100);
         expect(hovered, "only the hovered room is outlined").toBeLessThan(every * 0.6);
 
@@ -322,13 +338,87 @@ for (const rotation of [0, 90] as const) {
         await page.mouse.click(x, y);
         await page.waitForTimeout(150);
         expect(await selected(page)).toEqual(["11"]);
-        await away();
-        expect(await outlinePixels(), "the selected room stays outlined").toBeGreaterThan(100);
+        await away(page);
+        expect(magentaPixels(await shot()), "the selected room stays outlined").toBeGreaterThan(100);
 
         // Deselected and the pointer gone, nothing is outlined again.
         await page.mouse.click(x, y);
-        await away();
+        await away(page);
         expect(await selected(page)).toEqual([]);
-        expect(await outlinePixels(), "deselected: no room is outlined").toBe(0);
+        expect(magentaPixels(await shot()), "deselected: no room is outlined").toBe(0);
+    });
+
+    test(`room_outlines: "selected" paints an outline only when selected, never idle or on hover, rotation ${rotation}`, async ({
+        page,
+    }) => {
+        const shot = await setupOutlineProbe(page, { room_outlines: "selected" });
+        await away(page);
+        expect(magentaPixels(await shot()), 'room_outlines: "selected": idle paints no outline').toBe(0);
+
+        // Hovering Salon must not paint an outline.
+        const [x, y] = await screenPoint(page, [40, 140], rotation);
+        await page.mouse.move(x, y);
+        await page.waitForTimeout(150);
+        expect(magentaPixels(await shot()), 'room_outlines: "selected": hover paints no outline').toBe(0);
+
+        // Clicking Salon selects it and paints its outline.
+        await page.mouse.click(x, y);
+        await page.waitForTimeout(150);
+        expect(await selected(page)).toEqual(["11"]);
+        await away(page);
+        expect(magentaPixels(await shot()), 'room_outlines: "selected": selected room is outlined').toBeGreaterThan(
+            100,
+        );
+
+        // Deselecting hides the outline again.
+        await page.mouse.click(x, y);
+        await away(page);
+        expect(await selected(page)).toEqual([]);
+        expect(magentaPixels(await shot()), 'room_outlines: "selected": deselected paints no outline').toBe(0);
+    });
+
+    test(`room_outlines: "never" paints no outline idle, hovered or selected, while fill and pill still work, rotation ${rotation}`, async ({
+        page,
+    }) => {
+        const shot = await setupOutlineProbe(page, { room_outlines: "never" }, "rgb(0, 255, 0)");
+        await away(page);
+        const idleShot = await shot();
+        expect(magentaPixels(idleShot), 'room_outlines: "never": idle paints no outline').toBe(0);
+        expect(limePixels(idleShot), 'room_outlines: "never": idle paints no selected fill').toBe(0);
+
+        // Hovering Salon paints neither outline nor selected fill.
+        const [x, y] = await screenPoint(page, [40, 140], rotation);
+        await page.mouse.move(x, y);
+        await page.waitForTimeout(150);
+        expect(magentaPixels(await shot()), 'room_outlines: "never": hover paints no outline').toBe(0);
+
+        // Clicking Salon selects it: 0 outline pixels (hovered or not), >0 fill pixels, and its badged pill is painted.
+        await page.mouse.click(x, y);
+        await page.waitForTimeout(150);
+        expect(await selected(page)).toEqual(["11"]);
+        expect(magentaPixels(await shot()), 'room_outlines: "never": selected + hovered paints no outline').toBe(0);
+
+        await away(page);
+        const selectedShot = await shot();
+        expect(magentaPixels(selectedShot), 'room_outlines: "never": selected paints no outline').toBe(0);
+        expect(limePixels(selectedShot), 'room_outlines: "never": selected still paints its fill').toBeGreaterThan(200);
+
+        const badgedPill = page.locator(CARD).locator(".room-label-layer.room-11-wrapper .room-pill:not(.no-badge)");
+        await expect(badgedPill).toBeVisible();
+        await expect(badgedPill.locator(".room-pill-badge.room-order")).toHaveText("1");
+        const pillBox = (await badgedPill.boundingBox())!;
+        const withPill = await page.screenshot({ clip: pillBox, animations: "disabled" });
+        await setHidden(page, ".room-11-wrapper .room-pill-anchor", true);
+        const withoutPill = await page.screenshot({ clip: pillBox, animations: "disabled" });
+        await setHidden(page, ".room-11-wrapper .room-pill-anchor", false);
+        expect(withPill.equals(withoutPill), 'room_outlines: "never": badged pill is painted').toBe(false);
+
+        // Deselecting clears the fill and keeps 0 outline pixels.
+        await page.mouse.click(x, y);
+        await away(page);
+        const clearedShot = await shot();
+        expect(await selected(page)).toEqual([]);
+        expect(magentaPixels(clearedShot), 'room_outlines: "never": deselected paints no outline').toBe(0);
+        expect(limePixels(clearedShot), 'room_outlines: "never": deselected clears selected fill').toBe(0);
     });
 }

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
+import { validateConfig } from "../../src/config-validators";
 import { ACTIVE_ROOM_RUN_STORE_KEY } from "../../src/const";
 import type { MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/types";
 import type { CardHandle } from "../harness";
@@ -572,19 +573,36 @@ describe("icon-only rooms keep their icon when selected", () => {
 });
 
 describe("map_source.room_outlines (#124)", () => {
-    const outlineClasses = (card: CardHandle): Record<string, boolean> =>
+    afterEach(() => window.localStorage.removeItem(ACTIVE_ROOM_RUN_STORE_KEY));
+
+    const hasOutlineClass = (card: CardHandle, className: string): Record<string, boolean> =>
         Object.fromEntries(
             [...card.shadowRoot.querySelectorAll("g.room-wrapper")].map(group => [
                 /room-(\w+)-wrapper/.exec(group.getAttribute("class") ?? "")?.[1] ?? "?",
-                group.classList.contains("outline-hidden"),
+                group.classList.contains(className),
             ]),
         );
 
+    const outlineModesOn = (card: CardHandle): string[] =>
+        [...card.shadowRoot.querySelectorAll("g.room-wrapper")].flatMap(group =>
+            ["outline-hidden", "outline-selected-only", "outline-never"].filter(cls => group.classList.contains(cls)),
+        );
+
+    it("draws the outlines as before by default and when room_outlines is true", async () => {
+        for (const mapSource of [{}, { room_outlines: true }]) {
+            const card = await mount({}, mapSource);
+            expect(outlineModesOn(card)).toEqual([]);
+            card.element.remove();
+        }
+    });
+
     it("marks every room's outline as hidden when room_outlines is false, and keeps it clickable", async () => {
         const card = await mount({}, { room_outlines: false });
-        const rooms = outlineClasses(card);
+        const rooms = hasOutlineClass(card, "outline-hidden");
         expect(Object.keys(rooms).length).toBeGreaterThan(0);
         expect(Object.values(rooms).every(Boolean)).toBe(true);
+        expect(Object.values(hasOutlineClass(card, "outline-selected-only")).some(Boolean)).toBe(false);
+        expect(Object.values(hasOutlineClass(card, "outline-never")).some(Boolean)).toBe(false);
         // The polygon is still there and still the hit target; selecting keeps its own outline
         // because the hiding rule excludes selected, running and stale rooms.
         await clickRoom(card, "1");
@@ -592,8 +610,104 @@ describe("map_source.room_outlines (#124)", () => {
         expect(wrapper(card, "1").classList.contains("outline-hidden")).toBe(true);
     });
 
-    it("draws the outlines as before by default", async () => {
-        const card = await mount();
-        expect(Object.values(outlineClasses(card)).some(Boolean)).toBe(false);
+    it('marks every room as selected-only when room_outlines is "selected", and keeps it clickable', async () => {
+        const card = await mount({ cleaning_order: true }, { room_outlines: "selected" });
+        const rooms = hasOutlineClass(card, "outline-selected-only");
+        expect(Object.keys(rooms).length).toBeGreaterThan(0);
+        expect(Object.values(rooms).every(Boolean)).toBe(true);
+        expect(Object.values(hasOutlineClass(card, "outline-hidden")).some(Boolean)).toBe(false);
+        expect(Object.values(hasOutlineClass(card, "outline-never")).some(Boolean)).toBe(false);
+
+        await clickRoom(card, "1");
+        expect(wrapper(card, "1").classList.contains("selected")).toBe(true);
+        expect(wrapper(card, "1").classList.contains("outline-selected-only")).toBe(true);
+        expect(pills(card)).toEqual({ "1": { badge: "1", name: "Living room" } });
+
+        // The stylesheet hides idle outlines for selected-only and does not re-show them on hover.
+        const css = JSON.stringify((card.element.constructor as unknown as { styles: unknown }).styles);
+        expect(css).toContain(".room-wrapper.outline-selected-only:not(.selected):not(.room-stale) > .room-outline");
+        expect(css).not.toContain(".outline-selected-only:not(.selected):not(.room-stale):hover");
+    });
+
+    it('marks every room as outline-never when room_outlines is "never", keeps clickability, pill, and selected fill', async () => {
+        const card = await mount({ cleaning_order: true }, { room_outlines: "never" });
+        const rooms = hasOutlineClass(card, "outline-never");
+        expect(Object.keys(rooms).length).toBeGreaterThan(0);
+        expect(Object.values(rooms).every(Boolean)).toBe(true);
+        expect(Object.values(hasOutlineClass(card, "outline-hidden")).some(Boolean)).toBe(false);
+        expect(Object.values(hasOutlineClass(card, "outline-selected-only")).some(Boolean)).toBe(false);
+
+        await clickRoom(card, "1");
+        expect(wrapper(card, "1").classList.contains("selected")).toBe(true);
+        expect(wrapper(card, "1").classList.contains("outline-never")).toBe(true);
+        expect(pills(card)).toEqual({ "1": { badge: "1", name: "Living room" } });
+
+        // Starting a run keeps the room highlighted and still marked outline-never.
+        const button = card.shadowRoot.querySelector(".map-actions-item.main");
+        button?.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+        await settle(card.element, 400);
+        await card.updateHass(
+            withState(card.hass, VACUUM, { state: "cleaning", last_changed: "2026-11-01T10:00:30.000Z" }).hass,
+        );
+        await settle(card.element);
+        expect(wrapper(card, "1").classList.contains("selected")).toBe(true);
+        expect(wrapper(card, "1").classList.contains("running")).toBe(true);
+        expect(wrapper(card, "1").classList.contains("outline-never")).toBe(true);
+        expect(pills(card)).toEqual({ "1": { badge: "1", name: "Living room" } });
+
+        // The stylesheet hides only the stroke (never the selected fill), beats `.room-wrapper.selected > .room-outline`
+        // in specificity, and excludes `.room-stale`.
+        const css = JSON.stringify((card.element.constructor as unknown as { styles: unknown }).styles);
+        const neverRule = /\.room-wrapper\.outline-never:not\(\.room-stale\)\s*>\s*\.room-outline\s*\{([^}]*)\}/.exec(
+            css,
+        )?.[1];
+        expect(neverRule).toBeDefined();
+        expect(neverRule).toContain("stroke: transparent");
+        expect(neverRule).not.toContain("fill:");
+    });
+
+    it('keeps stale rooms marked stale with their warning marker under room_outlines: "never"', async () => {
+        const card = await mount(
+            {
+                predefined_selections: [
+                    {
+                        id: 5,
+                        label: { text: "Old room", x: 500, y: 1100 },
+                        outline: [
+                            [200, 900],
+                            [800, 900],
+                            [800, 1300],
+                            [200, 1300],
+                        ],
+                    },
+                ],
+            } as Partial<MapModeConfig>,
+            { room_outlines: "never" },
+        );
+        const staleWrapper = wrapper(card, "5");
+        expect(staleWrapper.classList.contains("room-stale")).toBe(true);
+        expect(staleWrapper.classList.contains("outline-never")).toBe(true);
+        const marker = card.shadowRoot.querySelector(".room-label-layer.room-5-wrapper text.room-stale-marker");
+        expect(marker?.textContent?.trim()).toBe("!");
+    });
+
+    it("validates map_source.room_outlines and normalizes empty keys to default", async () => {
+        for (const valid of [true, false, "selected", "never", null, ""]) {
+            expect(validateConfig(config({}, { room_outlines: valid })), `valid: ${JSON.stringify(valid)}`).toEqual([]);
+        }
+
+        // Empty YAML keys normalize away so the card renders with outlines on (the default).
+        for (const empty of [null, ""]) {
+            const card = await mount({}, { room_outlines: empty });
+            expect(outlineModesOn(card)).toEqual([]);
+            card.element.remove();
+        }
+
+        for (const invalid of ["always", "none", 123, {}, []]) {
+            const errors = validateConfig(config({}, { room_outlines: invalid }));
+            expect(errors.length, `invalid: ${JSON.stringify(invalid)}`).toBeGreaterThan(0);
+            expect(errors[0]).toContain("room_outlines");
+            expect(errors[0]).not.toMatch(/undefined|\[object Object\]/);
+        }
     });
 });

@@ -40,7 +40,10 @@
             "map_source": {
                 "missing": "Missing property: map_source",
                 "none_provided": "No camera neither image provided",
-                "ambiguous": "Only one map source allowed"
+                "ambiguous": "Only one map source allowed",
+                "room_outlines": {
+                    "invalid": "Invalid map_source.room_outlines: {0}. Use true, false, \"selected\", or \"never\""
+                }
             },
             "calibration_source": {
                 "missing": "Missing property: calibration_source",
