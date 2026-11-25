@@ -673,14 +673,33 @@ describe("interlocking same-coloured rooms keep their own floor", () => {
         }
     });
 
-    it("leaves a room that publishes its own outline to that outline", () => {
-        // A camera that publishes B's own outline leaves B to it: only A is traced, and the pixels
-        // of B's shape are reserved. The attribution must not take them either time: this is the
-        // plain trace's result, kept because a reserved shape cannot be given a floor patch.
+    it("leaves a room that publishes its own outline to that outline when outline tracing is off", () => {
+        // With outline tracing off, a camera that publishes B's own outline leaves B to it: only A
+        // is traced, and the pixels of B's shape are reserved. The attribution must not take them
+        // either time: this is the plain trace's result, kept because a reserved shape cannot be
+        // given a floor patch.
+        const scene = interlockScene("outlined");
+        const rooms = { A: roomBounds(boundsOf(A_SHAPE)), B: metadata(B_SHAPE, true) };
+        const converter = new CoordinatesConverter(syntheticMapCalibration(scene.map.width, scene.map.height));
+        const untraced = RoomColorDetector.detectFromImageData(scene.map, rooms, converter, { outlineTracing: false });
+        expect((untraced?.regions ?? []).map(region => region.id)).toEqual(["A"]);
+        expect(tapOf(untraced, 80, 20)).toBe("A");
+    });
+
+    it("traces a room that publishes its own outline, never worse than that outline (#77)", () => {
+        // B's published outline is its exact L shape: tracing it must give both rooms their own
+        // floor, and B's traced floor must score at least as well as its outline.
         const scene = interlockScene("outlined");
         const rooms = { A: roomBounds(boundsOf(A_SHAPE)), B: metadata(B_SHAPE, true) };
         const traced = detect(scene.map, rooms, true);
-        expect((traced?.regions ?? []).map(region => region.id)).toEqual(["A"]);
+        expect((traced?.regions ?? []).map(region => region.id).sort()).toEqual(["A", "B"]);
         expect(tapOf(traced, 80, 20)).toBe("A");
+        expect(tapOf(traced, 150, 60)).toBe("B");
+        const traceScores = scores(traced, scene);
+        // A is traced exactly as when B is left to its outline, or published with bounds.
+        const converter = new CoordinatesConverter(syntheticMapCalibration(scene.map.width, scene.map.height));
+        const untraced = RoomColorDetector.detectFromImageData(scene.map, rooms, converter, { outlineTracing: false });
+        expect(traceScores.perRoom.A).toBeGreaterThanOrEqual(scores(untraced, scene).perRoom.A - 0.01);
+        expect(traceScores.perRoom.B).toBeGreaterThan(0.95);
     });
 });

@@ -196,6 +196,25 @@ function apartmentCard() {
 }
 
 /**
+ * The apartment as a Valetudo map camera publishes it (issue #77): every room's own convex-hull
+ * outline in Valetudo units (cm, y down), no bounds. The card traces the rooms from the map colours
+ * instead of drawing the hulls (valetudo-room-outlines.spec.ts).
+ */
+function apartmentValetudoCard() {
+    return {
+        ...apartmentCard(),
+        map_source: { camera: "camera.apartment_valetudo_map" },
+        calibration_source: {
+            calibration_points: [
+                { map: { x: 0, y: 0 }, vacuum: { x: 1200, y: 1500 } },
+                { map: { x: 200, y: 0 }, vacuum: { x: 2200, y: 1500 } },
+                { map: { x: 0, y: 200 }, vacuum: { x: 1200, y: 2500 } },
+            ],
+        },
+    };
+}
+
+/**
  * The run card with a second preset for the same vacuum on another map, as a card with one preset
  * per floor has. The second map is the fixture image by URL, with the same room ids: multi-floor
  * Xiaomi, Roborock and Dreame vacuums number every map's segments the same way.
@@ -549,7 +568,10 @@ async function main() {
             title: "E2E apartment",
             config: {
                 title: "E2E apartment",
-                views: [{ title: "Rooms", path: "rooms", cards: [apartmentCard()] }],
+                views: [
+                    { title: "Rooms", path: "rooms", cards: [apartmentCard()] },
+                    { title: "Valetudo", path: "valetudo", cards: [apartmentValetudoCard()] },
+                ],
             },
         },
         {

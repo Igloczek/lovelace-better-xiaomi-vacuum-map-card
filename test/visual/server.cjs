@@ -42,9 +42,12 @@ function resolveFile(urlPath) {
         return path.join(ROOT, "test/visual/harness.js");
     }
     if (urlPath.startsWith(CAMERA_PROXY_PREFIX)) {
-        // Any token/version query is irrelevant. The apartment camera serves the realistic floor plan
+        // Any token/version query is irrelevant. The apartment cameras serve the realistic floor plan
         // (test/fixtures/apartment/); every other camera serves the synthetic three-room map.
-        if (urlPath.startsWith(`${CAMERA_PROXY_PREFIX}camera.apartment_map`)) {
+        if (
+            urlPath.startsWith(`${CAMERA_PROXY_PREFIX}camera.apartment_map`) ||
+            urlPath.startsWith(`${CAMERA_PROXY_PREFIX}camera.apartment_valetudo_map`)
+        ) {
             return path.join(ROOT, "test/fixtures/apartment/map.png");
         }
         return path.join(ROOT, "test/fixtures/synthetic/map.png");

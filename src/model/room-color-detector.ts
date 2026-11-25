@@ -15,8 +15,14 @@ interface RoomEntry {
     readonly bounds: PixelBounds;
     /** The room's metadata shape: its own outline, or its bounds rectangle. */
     readonly polygon: PointType[];
-    /** Only rooms described by bounds are traced from the colours; an own outline is kept as is. */
+    /**
+     * Whether the room is traced from the colours. Rooms described by bounds always are; a room
+     * with its own outline is too, unless an earlier pass found its trace disagrees with that
+     * outline, which is then kept as it is.
+     */
     readonly detectable: boolean;
+    /** The camera publishes the room's own outline, not only its bounds. */
+    readonly ownOutline: boolean;
     /** Colours that cover enough of the room's bounds to be its fill, most frequent first. */
     readonly colorKeys: number[];
 }
@@ -85,6 +91,11 @@ export interface ImageDataLike {
  */
 export interface RoomDetectionOptions {
     readonly roomColorAttribution?: boolean;
+    /**
+     * Whether rooms that publish their own outline are traced too (on by default). Off keeps every
+     * such room to its published outline, as the card did before issue #77.
+     */
+    readonly outlineTracing?: boolean;
 }
 
 export interface RoomColorDetection {
@@ -172,6 +183,16 @@ const FLOOR_FIT = 0.2;
  * wrongly handed it.
  */
 const KEPT_AREA_SHARE = 0.6;
+
+/**
+ * A room the camera publishes with its own outline takes its traced region only when the convex
+ * hulls of the two overlap at least this much (intersection over union). Comparing hulls lets a
+ * coarse published outline (Valetudo's camera publishes each room's convex hull, which fills in an
+ * L-shaped room's notch with its neighbour's floor) be replaced by the room's real shape, while a
+ * trace that found only part of the room, or ran on into an open-plan neighbour, leaves the
+ * published outline in place.
+ */
+const OUTLINE_AGREEMENT = 0.75;
 
 /** Smallest patch that can be a room's floor rather than noise from an anti-aliased edge. */
 const MIN_PATCH = 8;
@@ -341,8 +362,59 @@ export class RoomColorDetector {
         converter: CoordinatesConverter,
         options: RoomDetectionOptions = {},
     ): RoomColorDetection | undefined {
-        const entries = readCameraRooms(rooms)
-            .map(room => this._getEntry(room, imageData, converter))
+        const cameraRooms = readCameraRooms(rooms);
+        const ownOutlines = cameraRooms.filter(room => !room.fromBounds).map(room => room.id);
+        if (options.outlineTracing === false || ownOutlines.length === 0) {
+            return this._detectWith(imageData, rooms, cameraRooms, converter, options, new Set(ownOutlines))?.detection;
+        }
+        // Rooms with their own outline are traced like rooms with bounds. A room whose trace does
+        // not agree with its outline is left to the outline and the rooms are traced again, so its
+        // floor is reserved for it as before; each pass keeps at least one more outline, so this
+        // ends, and with every outline kept it is exactly the earlier detection.
+        const kept = new Set<string>();
+        for (;;) {
+            const result = this._detectWith(imageData, rooms, cameraRooms, converter, options, kept);
+            if (result === undefined) {
+                if (kept.size === ownOutlines.length) return undefined;
+                ownOutlines.forEach(id => kept.add(id));
+                continue;
+            }
+            const rejected = result.regions.filter(region => {
+                const shape = result.ownShapes.get(region.id);
+                if (shape === undefined) return false;
+                return result.runsOn.has(region.id) || this._hullAgreement(region.outline, shape) < OUTLINE_AGREEMENT;
+            });
+            if (rejected.length === 0) return result.detection;
+            rejected.forEach(region => kept.add(region.id));
+        }
+    }
+
+    /**
+     * One detection pass. `keptOutlines` names the rooms with their own outline that are not traced
+     * this time but keep that outline.
+     */
+    private static _detectWith(
+        imageData: ImageDataLike,
+        rooms: Record<string, MapExtractorRoom>,
+        cameraRooms: CameraRoom[],
+        converter: CoordinatesConverter,
+        options: RoomDetectionOptions,
+        keptOutlines: ReadonlySet<string>,
+    ):
+        | {
+              detection: RoomColorDetection;
+              regions: DetectedRoomColor[];
+              /** The published outline of each traced room that has one. */
+              ownShapes: Map<string, PointType[]>;
+              /**
+               * Traced rooms with their own outline whose colour patch runs on past the trace window
+               * (an open-plan neighbour in the same fill): the trace is cut off there, not by a wall.
+               */
+              runsOn: Set<string>;
+          }
+        | undefined {
+        const entries = cameraRooms
+            .map(room => this._getEntry(room, imageData, converter, keptOutlines))
             .filter((entry): entry is RoomEntry => entry !== undefined);
         const candidates: RoomCandidate[] = entries
             .filter(entry => entry.detectable && entry.colorKeys.length > 0)
@@ -533,15 +605,72 @@ export class RoomColorDetector {
 
         if (regions.length === 0) return undefined;
         const detectable = entries.filter(entry => entry.detectable).length;
+        const ownShapes = new Map(
+            entries.filter(entry => entry.detectable && entry.ownOutline).map(entry => [entry.id, entry.polygon]),
+        );
+        const runsOn = new Set(
+            chosen
+                .filter(option => ownShapes.has(option.candidate.id) && option.component.clipped)
+                .map(option => option.candidate.id),
+        );
         return {
-            imageData,
             regions,
-            roomIdByColor,
-            labels,
-            labelRoomIds,
-            geometryKey: this.geometryKey(imageData.width, imageData.height, rooms, converter),
-            complete: regions.length === detectable,
+            ownShapes,
+            runsOn,
+            detection: {
+                imageData,
+                regions,
+                roomIdByColor,
+                labels,
+                labelRoomIds,
+                geometryKey: this.geometryKey(imageData.width, imageData.height, rooms, converter),
+                complete: regions.length === detectable,
+            },
         };
+    }
+
+    /**
+     * How well two outlines in image pixels agree, ignoring concavities: the intersection over
+     * union of their convex hulls, counted at pixel centres.
+     */
+    private static _hullAgreement(first: PointType[], second: PointType[]): number {
+        const hulls = [this._convexHull(first), this._convexHull(second)];
+        if (hulls.some(hull => hull.length < 3)) return 0;
+        const all = [...hulls[0], ...hulls[1]];
+        const left = Math.floor(Math.min(...all.map(point => point[0])));
+        const right = Math.ceil(Math.max(...all.map(point => point[0])));
+        const top = Math.floor(Math.min(...all.map(point => point[1])));
+        const bottom = Math.ceil(Math.max(...all.map(point => point[1])));
+        let intersection = 0;
+        let union = 0;
+        for (let y = top; y < bottom; y++) {
+            for (let x = left; x < right; x++) {
+                const inFirst = this._contains(hulls[0], x + 0.5, y + 0.5);
+                const inSecond = this._contains(hulls[1], x + 0.5, y + 0.5);
+                if (inFirst || inSecond) union++;
+                if (inFirst && inSecond) intersection++;
+            }
+        }
+        return union === 0 ? 0 : intersection / union;
+    }
+
+    /** The convex hull of a polygon's points (monotone chain). */
+    private static _convexHull(points: PointType[]): PointType[] {
+        const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        const cross = (o: PointType, a: PointType, b: PointType): number =>
+            (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        const half = (list: PointType[]): PointType[] => {
+            const chain: PointType[] = [];
+            for (const point of list) {
+                while (chain.length >= 2 && cross(chain[chain.length - 2], chain[chain.length - 1], point) <= 0) {
+                    chain.pop();
+                }
+                chain.push(point);
+            }
+            chain.pop();
+            return chain;
+        };
+        return [...half(sorted), ...half([...sorted].reverse())];
     }
 
     private static _toImageIndex(area: RoomArea, index: number, imageWidth: number): number {
@@ -554,6 +683,7 @@ export class RoomColorDetector {
         room: CameraRoom,
         imageData: ImageDataLike,
         converter: CoordinatesConverter,
+        keptOutlines: ReadonlySet<string>,
     ): RoomEntry | undefined {
         const polygon = room.outline.map(point => converter.vacuumToMap(point[0], point[1]));
         if (polygon.some(point => !Number.isFinite(point[0]) || !Number.isFinite(point[1]))) return undefined;
@@ -563,7 +693,8 @@ export class RoomColorDetector {
             id: room.id,
             bounds,
             polygon,
-            detectable: room.fromBounds,
+            detectable: room.fromBounds || !keptOutlines.has(room.id),
+            ownOutline: !room.fromBounds,
             colorKeys: this._colorKeysIn(bounds, imageData),
         };
     }

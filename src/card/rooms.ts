@@ -152,8 +152,13 @@ export function getRoomsConfig(card: XiaomiVacuumMapCard, requestId?: string): R
                 region && card.coordinatesConverter
                     ? card.coordinatesConverter.mapToVacuum(region.center[0], region.center[1])
                     : undefined;
-            const centerX = room.x ?? detectedCenter?.[0] ?? formatCoord(x, outline.length);
-            const centerY = room.y ?? detectedCenter?.[1] ?? formatCoord(y, outline.length);
+            // The integration's own label point belongs to its own outline. Where the card traced a
+            // room that publishes an outline, that outline is not what is drawn (Valetudo's camera
+            // publishes a convex hull, and its point is the hull's bounding-box centre, which can sit
+            // on a wall or outside an L-shaped room), so the traced room's centre is used instead.
+            const ownPoint = detectedCenter && !room.fromBounds ? undefined : room;
+            const centerX = ownPoint?.x ?? detectedCenter?.[0] ?? formatCoord(x, outline.length);
+            const centerY = ownPoint?.y ?? detectedCenter?.[1] ?? formatCoord(y, outline.length);
 
             roomsConfig.push({
                 id: room.id,

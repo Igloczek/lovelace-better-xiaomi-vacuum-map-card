@@ -158,10 +158,26 @@ async function loadFixtures() {
         unique_id: "apartment_map",
         original_name: "Apartment map",
     };
+    // The same flat as a Valetudo map camera publishes it: each room's own convex-hull outline, no
+    // bounds (`map_source: { camera: "camera.apartment_valetudo_map" }`, issue #77).
+    const valetudoResponse = await fetch("/fixtures/apartment/camera-valetudo.json");
+    if (!valetudoResponse.ok) throw new Error(`visual harness: could not load the apartment Valetudo camera`);
+    const valetudo = await valetudoResponse.json();
+    const valetudoEntry = {
+        ...apartmentEntry,
+        entity_id: valetudo.entity_id,
+        unique_id: "apartment_valetudo_map",
+        original_name: "Apartment Valetudo map",
+    };
     return {
-        states: { ...states, [camera.entity_id]: camera, [apartment.entity_id]: apartment },
+        states: {
+            ...states,
+            [camera.entity_id]: camera,
+            [apartment.entity_id]: apartment,
+            [valetudo.entity_id]: valetudo,
+        },
         camera,
-        registry: [...registry, apartmentEntry],
+        registry: [...registry, apartmentEntry, valetudoEntry],
     };
 }
 
