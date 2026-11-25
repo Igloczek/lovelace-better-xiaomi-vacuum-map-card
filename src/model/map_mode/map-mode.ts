@@ -6,6 +6,7 @@ import {
     LegacyServiceCallSchemaConfig,
     MapModeConfig,
     PredefinedSelectionConfig,
+    RoomLabelOffsetConfig,
     ServiceCallSchemaConfig,
     VariablesStorage,
 } from "../../types/types";
@@ -41,6 +42,8 @@ export class MapMode {
     /** Template schemas for older Home Assistant versions, oldest limit first. */
     public legacyServiceCallSchemas: Array<{ beforeHaVersion: string; schema: ServiceCallSchema }> = [];
     public predefinedSelections: PredefinedSelectionConfig[];
+    /** ROOM modes: the label nudge of each room id (`room_label_offsets`). */
+    public roomLabelOffsets: { [roomId: string]: RoomLabelOffsetConfig };
     public variables: VariablesStorage;
 
     constructor(
@@ -65,6 +68,7 @@ export class MapMode {
         // A config's own legacy schemas belong to its own service_call_schema (an exported config).
         this.legacyServiceCallSchemas = MapMode._legacySchemas(config.legacy_service_call_schemas);
         this.predefinedSelections = config.predefined_selections ?? [];
+        this.roomLabelOffsets = config.room_label_offsets ?? {};
         this.variables = config.variables ?? {};
         this._applyTemplateIfPossible(vacuumPlatform, config, language);
         if (!MapMode.PREDEFINED_SELECTION_TYPES.includes(this.selectionType)) {
@@ -200,6 +204,7 @@ export class MapMode {
                   }))
                 : undefined,
             predefined_selections: this.predefinedSelections,
+            ...(Object.keys(this.roomLabelOffsets).length > 0 ? { room_label_offsets: this.roomLabelOffsets } : {}),
             variables: Object.fromEntries(
                 Object.entries(this.variables ?? {}).map(([k, v]) => [k.substr(2, k.length - 4), v]),
             ),

@@ -72,6 +72,7 @@ export default defineConfig({
                 "rotated-zone.spec.ts",
                 "default-zone.spec.ts",
                 "apartment.spec.ts",
+                "room-label-offsets.spec.ts",
             ],
         },
     ],

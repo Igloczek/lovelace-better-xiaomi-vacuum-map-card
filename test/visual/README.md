@@ -52,6 +52,12 @@ before/after comparison was flaky, because text and edge antialiasing can land a
 between two paints). Hiding a label must still change its pixels (it is painted where it is laid
 out). It takes no baselines.
 
+`room-label-offsets.spec.ts` runs in Chromium and WebKit on the apartment plan, with no baselines.
+The corridor's (13) and the storage room's (14) detected label points put their pills on top of each
+other on the whole plan; `room_label_offsets` on the corridor must move its pill by exactly the
+configured screen pixels at zoom 1 and 2.5 and rotation 0 and 90, clear of the storage pill, painted
+at its new box (hiding it changes those pixels) and gone from the old one, selected or not.
+
 `default-zone.spec.ts` also runs in Chromium and WebKit, with no baselines. For `MANUAL_RECTANGLE` and
 `MANUAL_ROTATABLE_RECTANGLE`, at rotation 0 and 90, the zone mode opens with one zone inside the map
 and painted there (its pixels change when it is hidden); real mouse input then moves and resizes it,
