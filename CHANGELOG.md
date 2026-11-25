@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.14.0
+
+### Fixed
+
+- Room outlines on Valetudo maps now follow the real room shape (#77). The Valetudo map camera
+  publishes each room as a rough convex outline, which on L-shaped or notched rooms crossed walls
+  into the neighbouring rooms, so outlines overlapped and taps could select the wrong room. The
+  card now traces those rooms from the map colours and uses the trace when it agrees with the
+  published outline, keeping the published outline otherwise. Room names sit at the centre of the
+  traced room. Other cameras that publish their own room outlines get the same correction; cameras
+  that publish only room bounds are unchanged.
+
 ## 1.13.0
 
 ### Added
