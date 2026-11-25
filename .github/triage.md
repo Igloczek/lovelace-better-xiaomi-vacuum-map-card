@@ -41,6 +41,13 @@ maintainer.
   drastically changes UX for everyone, or risks degrading overall quality/experience. Otherwise,
   settle the triage thread (`t3_thread_organize` `settle`) once your work and hand-off are done.
 
+## Comments
+
+Follow "GitHub comments" in `AGENTS.md`: every comment an agent posts starts with the
+`<!-- triage-agent -->` AI-agent marker, moves the issue forward (no passive acknowledgements),
+and a shipped issue is closed as `completed` with a comment naming the release, never silently.
+Don't wait on a silent reporter when the cause can be reproduced in the fixtures: start a build.
+
 ## Project-specific rules
 
 - **Bugs** need the card configuration, the camera's `calibration_points`, the vacuum integration

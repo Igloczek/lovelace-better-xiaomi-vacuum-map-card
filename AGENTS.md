@@ -23,6 +23,25 @@ A standing pinned thread titled `Chief of staff` owns day-to-day delivery for th
 
 - Triage and build threads hand ready pull requests, reporter beta confirmations and design calls to `Chief of staff` (`t3_thread_search` for `Chief of staff`), not to the maintainer.
 - `Chief of staff` only escalates to the maintainer for the ~1% calls under "Who decides what ships". Routine merges, opt-in features and releases do not ask for approval.
+- **Keep `master` CI green.** Check `master`'s CI after every push and every release, including `Validate HACS` once the release asset is uploaded (it fails while a release has no `xiaomi-vacuum-map-card.js`). A red check is never a harmless side effect: fix it or re-run it at once.
+- **Don't stall on a silent reporter.** When the likely cause of an open issue can be reproduced in the fixtures, build the fix instead of waiting for user data; ask for data only for what cannot be reproduced locally.
+- **Settle and revive.** Every `Triage #N`, `Build #N`, worker or sweep thread settles itself (`t3_thread_organize`, `settle`) and removes its clean worktree once its work and hand-off are done. The daily sweep checks `master` CI and revives webhook triage threads whose run failed (for example on a quota limit), so no outside comment is dropped.
+
+## GitHub comments
+
+Agents post on GitHub through the maintainer's account, so readers must be able to tell them apart from the maintainer.
+
+- **Mark every autonomous comment.** Any comment an agent posts on its own (triage, build, `Chief of staff`, beta notices, release updates, closing comments) starts with:
+
+  ```markdown
+  <!-- triage-agent -->
+  > 🤖 **AI agent reply.** This is automated delivery, not the maintainer. They may check this issue later.
+  ```
+
+  (A triage run says `automated triage`.) A comment the maintainer approved word for word is theirs and needs no marker.
+- **Every comment moves the issue forward.** No passive acknowledgements ("recorded, leaving open"). Ship what is confirmed right away, even if only one model or case is confirmed on a multi-model issue.
+- **Close shipped issues, never silently.** When a fix ships in a stable release, close the issue as `completed` with a marked comment naming the version, what was verified, and that replying with a problem on that version reopens it.
+- **Release notes are for users.** Write GitHub release notes in plain English about what changed for users, not internal jargon.
 
 ## Fork relationship
 
