@@ -2,7 +2,8 @@
 
 Something wrong with the map, rooms, tiles or the editor? Let an AI agent report it for you. You
 describe the problem in your own words; the agent finds your card setup, removes private data,
-works out what it can, and files a report the maintainer can reproduce.
+works out what it can, shows you the redacted report to confirm, and files a report the maintainer
+can reproduce.
 
 You do less work, and the maintainer gets a report with the versions, configuration and data needed
 to fix it. Agent reports are labelled **`agent-report`** on the tracker, and they get looked at first.
@@ -46,11 +47,12 @@ The agent only reads. Delete the token on the same page when the report is filed
 If your agent can control your browser, it may use your open Home Assistant tab instead and not
 ask for a token.
 
-### 3. Get the link
+### 3. Review and confirm
 
-The agent files the report on GitHub and gives you the link. That is all. If it finds that the
-problem is a setting or an outdated version rather than a bug, it tells you how to fix it instead
-of filing anything.
+The agent shows you the rendered, redacted report (title, summary, configuration, room names and
+log lines) and waits for your **yes** before posting it publicly on GitHub. Once you confirm, it
+files the report and gives you the link. If it finds that the problem is a setting or an outdated
+version rather than a bug, it tells you how to fix it instead of filing anything.
 
 ## If the maintainer asks something
 
@@ -78,8 +80,9 @@ It never contains:
   (entities are renamed to neutral names like `vacuum.vacuum` and `image.map`);
 - the map image.
 
-The agent does not change anything in Home Assistant. The removal of private data is done by the
-report tool, not left to the agent's judgement.
+The agent does not change anything in Home Assistant, and nothing is published until you review the
+rendered report and confirm. The removal of private data is done by the report tool, not left to
+the agent's judgement.
 
 ## No agent?
 

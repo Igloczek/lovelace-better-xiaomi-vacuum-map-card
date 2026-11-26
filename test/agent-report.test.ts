@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
     buildReport,
@@ -303,5 +305,17 @@ describe("agent report issue body", () => {
 
     it("does not rewrite ordinary text", () => {
         expect(scrubSecrets("Vacuum at 192.168.1.5 stops at room 16").hits).toEqual({});
+    });
+});
+
+describe("report-problem skill", () => {
+    const skillPath = path.resolve(__dirname, "../.agents/skills/report-problem/SKILL.md");
+    const skill = fs.readFileSync(skillPath, "utf8");
+
+    it("requires showing the rendered report and waiting for user confirmation before filing", () => {
+        expect(skill).not.toMatch(/do not ask for\s+confirmation before filing/i);
+        expect(skill).not.toMatch(/without further human work/i);
+        expect(skill).toMatch(/show.*rendered report/i);
+        expect(skill).toMatch(/wait for.*(?:yes|confirmation)/i);
     });
 });
