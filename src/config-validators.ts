@@ -366,7 +366,8 @@ function validateMapModeConfig(
 }
 
 /**
- * `room_label_offsets` (#126): a mapping of room ids to `{ offset_x, offset_y }` in screen pixels.
+ * `room_label_offsets` (#126): a mapping of room ids to `{ offset_x, offset_y, unit }`, the offsets in
+ * screen pixels (`unit: px`, the default) or map-image pixels (`unit: map`).
  * An id the mode does not draw is not an error: the camera's rooms come and go with a re-map, and
  * the stale-room warning already covers configured rooms.
  */
@@ -382,7 +383,15 @@ function validateRoomLabelOffsets(value: unknown): TranslatableString[] {
             continue;
         }
         for (const [key, offset] of Object.entries(entry as Record<string, unknown>)) {
-            if (key !== "offset_x" && key !== "offset_y") {
+            if (key === "unit") {
+                if (offset !== undefined && offset !== null && offset !== "px" && offset !== "map") {
+                    errors.push([
+                        "validation.preset.map_modes.room_label_offsets.invalid_unit",
+                        "{0}",
+                        `${field}.unit`,
+                    ]);
+                }
+            } else if (key !== "offset_x" && key !== "offset_y") {
                 errors.push(["validation.preset.map_modes.room_label_offsets.unknown_key", "{0}", `${field}.${key}`]);
             } else if (
                 offset !== undefined &&

@@ -46,6 +46,12 @@ export interface RoomRenderOptions {
      * outline would take taps meant for a detected room it overlaps.
      */
     readonly cardHitTest?: boolean;
+    /**
+     * `room_label_offsets` with `unit: map`: a shift of the label's anchor in map-image pixels. It
+     * moves the label point and the point the label turns around together, inside the shared map
+     * transform, so it scales with the card width and zoom and turns with the map. The icon stays.
+     */
+    readonly labelImageOffset?: readonly [number, number];
 }
 
 export class Room extends PredefinedMapObject {
@@ -54,6 +60,7 @@ export class Room extends PredefinedMapObject {
     private readonly _stale: boolean;
     private readonly _cardHitTest: boolean;
     private readonly _segments: readonly RoomSegment[];
+    private readonly _labelImageOffset?: readonly [number, number];
 
     constructor(config: RoomConfig, context: Context, options: RoomRenderOptions = {}) {
         super(config, context);
@@ -62,6 +69,7 @@ export class Room extends PredefinedMapObject {
         this._stale = options.stale === true;
         this._cardHitTest = options.cardHitTest === true;
         this._segments = options.segments ?? [];
+        this._labelImageOffset = options.labelImageOffset;
         // A stale room exists only to show which configured id no longer matches the map. It must
         // never be selected, including through `default_state` or a state entity, or a service
         // call would clean a room id the camera no longer reports (issue #928).
@@ -262,9 +270,14 @@ export class Room extends PredefinedMapObject {
         const centrePoint = centre ? this.vacuumToScaledMap(centre.x, centre.y) : undefined;
         const point = labelPoint ?? iconPoint ?? centrePoint;
         if (!point) return undefined;
+        const origin = labelPoint ? (iconPoint ?? labelPoint) : point;
+        // A `unit: map` nudge moves the label's anchor and the point it turns around alike, so the
+        // step from the icon is unchanged and the shift lives in map space (image px * realScale).
+        const [shiftX, shiftY] =
+            label && this._labelImageOffset ? this.realScaled2Point([...this._labelImageOffset]) : [0, 0];
         return {
-            origin: labelPoint ? (iconPoint ?? labelPoint) : point,
-            point: [point[0], point[1]],
+            origin: [origin[0] + shiftX, origin[1] + shiftY],
+            point: [point[0] + shiftX, point[1] + shiftY],
             offset: label ? [label.offset_x ?? 0, label.offset_y ?? 0] : [0, 0],
         };
     }

@@ -625,7 +625,7 @@ sensor whose display unit was changed in Home Assistant still shows the right nu
 | `max_repeats`           | integer | no              | 1       | Maximal value of repeats                                                             |
 | `variables`             | object  | no              | -       | Variables that should be passed to `service_call_schema`                             |
 | `predefined_selections` | list    | no<sup>3</sup>  | -       |                                                                                      |
-| `room_label_offsets`    | object  | no              | -       | ROOM modes: move room names on screen without configuring the rooms ([moving a room's label](#room-label-offsets)) |
+| `room_label_offsets`    | object  | no              | -       | ROOM modes: move room names, in screen or map-image pixels, without configuring the rooms ([moving a room's label](#room-label-offsets)) |
 
 > You can override any value from built-in template by providing it in your configuration
 
@@ -832,13 +832,26 @@ Format of data depends on selected `selection_type`:
       room_label_offsets:
         "17": { offset_x: -45, offset_y: -100 }
         "21": { offset_y: 40 }
+        "22": { offset_x: -6, offset_y: -14, unit: map }
   ```
 
   - The keys are the room ids the mode selects: the segment ids, or the area ids in a mode that
     cleans [Home Assistant areas](#cleaning-home-assistant-areas).
-  - `offset_x` and `offset_y` are screen pixels, positive (right, down) or negative (left, up). They
-    are added to the offset the card already gives the name (for example the step below a room's
-    icon) and keep their size and direction at any zoom and rotation.
+  - `offset_x` and `offset_y` are positive (right, down) or negative (left, up). `unit` says what they
+    measure:
+    - `px` (the default): screen pixels. They are added to the offset the card already gives the name
+      (for example the step below a room's icon) and keep their size and direction at any card width,
+      zoom and rotation.
+    - `map`: pixels of the map image. They move the point the name is centred on, as if the room's
+      label point were that many image pixels away, so the shift grows and shrinks with the map and
+      turns with it.
+
+    Pick `map` when the same dashboard is opened on screens of different widths (a phone and a
+    desktop) or at different zoom levels: the map is scaled to the card's width, so a screen-pixel
+    nudge tuned on a wide card moves the name much further across the rooms of a narrow one. With
+    `map` the name keeps its place relative to the rooms everywhere. Measure a `map` offset in the
+    camera's image at full size: on a card the map is usually drawn smaller, so the same value moves
+    the name fewer screen pixels than `px` would.
   - Only the name moves, and its badge once the room is selected. The room's outline, icon, where a
     tap selects it, and which rooms the mode offers stay as they are; the key configures no room, so
     an area mode keeps offering every mapped area.

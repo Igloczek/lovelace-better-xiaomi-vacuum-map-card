@@ -222,6 +222,8 @@ export function setCurrentMode(
                     ? areaRoom.imageOutline && { outline: areaRoom.imageOutline }
                     : detectedRegions.get(String(room.id));
                 const center = room.label ? [room.label.x, room.label.y] : undefined;
+                const nudge = newMode.roomLabelOffsets[String(room.id)];
+                const mapNudge = nudge?.unit === "map";
                 const config: RoomConfig = {
                     ...configured,
                     ...room,
@@ -243,7 +245,7 @@ export function setCurrentMode(
                         region && room.label && !areaRoom
                             ? { ...room.label, offset_x: 0, offset_y: 0 }
                             : (room.label ?? configured?.label),
-                        newMode.roomLabelOffsets[String(room.id)],
+                        mapNudge ? undefined : nudge,
                     ),
                     variables: configured?.variables,
                     default_state: configured?.default_state,
@@ -254,6 +256,7 @@ export function setCurrentMode(
                     imageOutline: region?.outline,
                     stale,
                     segments,
+                    labelImageOffset: mapNudge ? [nudge.offset_x ?? 0, nudge.offset_y ?? 0] : undefined,
                     // In an area mode only an area drawn from camera rooms is hit-tested by the card;
                     // an icon-only area or one with its own outline keeps its own click targets.
                     cardHitTest: card.roomColorDetection !== undefined && (!sendsAreaIds || segments.length > 0),

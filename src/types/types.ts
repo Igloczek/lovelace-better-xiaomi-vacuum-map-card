@@ -203,6 +203,12 @@ export interface MapModeConfig {
 export interface RoomLabelOffsetConfig {
     readonly offset_x?: number;
     readonly offset_y?: number;
+    /**
+     * `px` (the default): screen pixels added to the label's offset, the same size at any card width
+     * and zoom. `map`: pixels of the map image, moving the point the label is anchored on, so the
+     * nudge scales with the card width and zoom and turns with the map.
+     */
+    readonly unit?: "px" | "map";
 }
 
 export interface LegacyServiceCallSchemaConfig {
