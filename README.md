@@ -1,5 +1,6 @@
 # Better Xiaomi Vacuum Map Card
 
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/default)
 [![Latest release](https://img.shields.io/github/v/release/Igloczek/lovelace-better-xiaomi-vacuum-map-card)](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/releases/latest)
 [![Build](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/actions/workflows/build.yml/badge.svg)](https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -116,17 +117,16 @@ Its own card type, upstream-compatible YAML: [switching takes a minute](#coming-
 
 [![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=Igloczek&repository=lovelace-better-xiaomi-vacuum-map-card&category=plugin)
 
-The button opens this repository in the Marketplace (Home Assistant 2026.11 and newer) or in HACS
-(older versions) and offers to add it. If it doesn't open, follow the steps for your setup.
+The button opens **Better Xiaomi Vacuum Map Card** in the Marketplace (Home Assistant 2026.11 and
+newer) or in HACS (older versions). If it doesn't open, search for it in the catalog using the
+steps below.
 
 <details>
 <summary><b>Marketplace</b> (Home Assistant 2026.11 and newer)</summary>
 
-1. Open **Settings → Marketplace** and accept the first-run warning.
-2. **Connect GitHub** when asked. A custom repository can't be added without an account.
-3. Add `https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card` as a **Dashboard
-   resource** and install it.
-4. Reload the browser. Marketplace registers the dashboard resource for you.
+1. Open **Settings → Marketplace** and accept the first-run warning if prompted.
+2. Search for **Better Xiaomi Vacuum Map Card** and install it.
+3. Reload the browser. Marketplace registers the dashboard resource for you.
 
 Upgrading Home Assistant from a HACS install migrates its entries and resources automatically.
 </details>
@@ -134,10 +134,8 @@ Upgrading Home Assistant from a HACS install migrates its entries and resources 
 <details>
 <summary><b>HACS</b> (older Home Assistant)</summary>
 
-1. Open HACS → **Frontend** → three-dot menu → **Custom repositories**.
-2. Add `https://github.com/Igloczek/lovelace-better-xiaomi-vacuum-map-card` with category
-   **Dashboard**.
-3. Install **Better Xiaomi Vacuum Map Card**, then reload the browser.
+1. Open **HACS** and search for **Better Xiaomi Vacuum Map Card**.
+2. Install it, then reload the browser.
 </details>
 
 <details>
@@ -204,8 +202,9 @@ Other vacuums still work with the `default` platform and your own service calls.
 ## Reporting a problem
 
 Let an AI agent report it. Describe the problem to your agent and it gathers your card setup,
-removes private data, works out what it can and files the report. Agent reports are labelled
-`agent-report` and handled first, because they come with everything needed to reproduce the bug.
+removes private data, works out what it can, shows you the redacted report to confirm, and files
+it. Agent reports are labelled `agent-report` and handled first, because they come with everything
+needed to reproduce the bug.
 
 Give your agent (Claude Code, Codex, Cursor or similar) this instruction, with your problem at the end:
 

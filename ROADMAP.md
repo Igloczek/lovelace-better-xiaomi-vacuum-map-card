@@ -15,16 +15,6 @@ until someone can provide that evidence.
 Every change is expected to come with a test that fails first, pass the repository gates, and be
 reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local workflow.
 
-## Now
-
-- **Default Marketplace listing.** The README button adds the repository as a custom repository.
-  The pull request adding it to `plugin` in `hacs/default` is open:
-  [hacs/default#14136](https://github.com/hacs/default/pull/14136). Since 1.4.0 the card has its own
-  element name, which the HACS maintainers ask of a fork listed next to its original. The HACS bot
-  never labelled the PR, so its catalog checks are skipped; this is a known bot bug
-  ([hacs/integration#5673](https://github.com/hacs/integration/issues/5673)), reported there with
-  this PR. Once it merges, switch the install steps to a catalog search and add the default badge.
-
 ## Next
 
 - **Roborock status and battery templates.** The generic duration handling is in place; the
