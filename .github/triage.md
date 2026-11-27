@@ -24,6 +24,9 @@ maintainer.
 - **API shapes go through a council first:** before proposing a new or changed option, value or
   event on GitHub or starting a build on it, convene the adversarial Fable 5.2 council described in
   "API changes go through a council" in `AGENTS.md`.
+- **Report in:** as soon as the triage run starts working, message `Chief of staff` (`t3_thread_send`)
+  with this thread's link, the issue and the plan in one line, and again with the outcome. A build
+  thread you start does the same ("Every thread reports to `Chief of staff`" in `AGENTS.md`).
 - **Build what is safe and sensible:** when a bug reproduces or a feature/follow-up request is real,
   non-breaking, does not drastically change UX and cannot degrade overall quality, start a
   `Build #<number>` thread and notify the repository's standing `Chief of staff` thread
