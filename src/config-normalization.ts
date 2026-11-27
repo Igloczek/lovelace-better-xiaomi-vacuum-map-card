@@ -38,17 +38,6 @@ function isMapping(value: unknown): value is Record<string, unknown> {
  */
 const EMPTY_STRING_MEANS_NONE = new Set(["label", "icon"]);
 
-/**
- * Mappings whose entries are all names, where `""` is a choice ("show no name") and only `null` (an
- * empty YAML key) is an unset entry: `room_names` (#133).
- */
-const NAME_MAPPINGS = new Set(["room_names"]);
-
-function withoutNullEntries(value: Record<string, unknown>): Record<string, unknown> {
-    if (!Object.values(value).includes(null)) return value;
-    return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== null));
-}
-
 function isEmptyScalar(key: string, value: unknown): boolean {
     return value === null || (value === "" && !EMPTY_STRING_MEANS_NONE.has(key));
 }
@@ -73,11 +62,7 @@ function normalizeValue(value: unknown): unknown {
             changed = true;
             continue;
         }
-        const next = DATA_MAPPINGS.has(key)
-            ? entry
-            : NAME_MAPPINGS.has(key) && isMapping(entry)
-              ? withoutNullEntries(entry)
-              : normalizeValue(entry);
+        const next = DATA_MAPPINGS.has(key) ? entry : normalizeValue(entry);
         changed = changed || next !== entry;
         normalized[key] = next;
     }

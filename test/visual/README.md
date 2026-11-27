@@ -62,8 +62,8 @@ at its new box (hiding it changes those pixels) and gone from the old one, selec
 and 90, painted at its new box.
 
 `room-names.spec.ts` runs in Chromium and WebKit on the apartment plan, with no baselines.
-`room_names` renames the bathroom (16) and hides the name of the room the camera does not name (18,
-"Room 18"). At zoom 1 and 2.5 and rotation 0 and 90 the renamed pill shows the new name and is
+`room_names` renames the bathroom (16), and the name of the room the camera does not name (18,
+"Room 18") is hidden with `false`. At zoom 1 and 2.5 and rotation 0 and 90 the renamed pill shows the new name and is
 painted at its box; the hidden room has no pill, and hiding its whole label layer changes no pixel
 where its pill was (on the plain card it does), while its outline stays and a tap selects it, its
 order badge painted.

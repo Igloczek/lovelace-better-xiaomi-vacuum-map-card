@@ -407,14 +407,22 @@ function validateRoomLabelOffsets(value: unknown): TranslatableString[] {
 }
 
 /**
- * `room_names` (#133): a mapping of room ids to the name to show, `""` to show none. As with
- * `room_label_offsets`, an id the mode does not draw is not an error.
+ * `room_names` (#133): a mapping of room ids to the name to show, or `false` to hide it. A number is
+ * accepted as its text; `true` or a list is reported. As with `room_label_offsets`, an id the mode
+ * does not draw is not an error.
  */
 function validateRoomNames(value: unknown): TranslatableString[] {
     if (value === undefined || value === null) return [];
     if (!isMapping(value)) return [notMapping("room_names")];
     return Object.entries(value as Record<string, unknown>)
-        .filter(([, name]) => name !== undefined && name !== null && typeof name !== "string")
+        .filter(
+            ([, name]) =>
+                name !== undefined &&
+                name !== null &&
+                name !== false &&
+                typeof name !== "string" &&
+                !(typeof name === "number" && Number.isFinite(name)),
+        )
         .map(([roomId]): TranslatableString => [
             "validation.preset.map_modes.room_names.not_text",
             "{0}",

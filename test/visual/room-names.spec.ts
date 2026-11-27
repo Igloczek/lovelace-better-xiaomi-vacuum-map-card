@@ -16,7 +16,9 @@ import type { MapModeConfig, XiaomiVacuumMapCardConfig } from "../../src/types/t
 const CARD = "better-xiaomi-vacuum-map-card";
 const BATHROOM = "16";
 const UNNAMED = "18";
-const NAMES = { [BATHROOM]: "Ванная", [UNNAMED]: "" };
+const HIDING: Record<string, Partial<MapModeConfig>> = {
+    false: { room_names: { [BATHROOM]: "Ванная", [UNNAMED]: false } },
+};
 
 interface HarnessWindow {
     visualHarness: {
@@ -36,7 +38,7 @@ interface Box {
     height: number;
 }
 
-function config(rotation: number, names?: MapModeConfig["room_names"]): XiaomiVacuumMapCardConfig {
+function config(rotation: number, names?: Partial<MapModeConfig>): XiaomiVacuumMapCardConfig {
     return {
         type: "custom:better-xiaomi-vacuum-map-card",
         entity: "vacuum.roborock_s7",
@@ -48,7 +50,7 @@ function config(rotation: number, names?: MapModeConfig["room_names"]): XiaomiVa
                 template: "vacuum_clean_segment",
                 cleaning_order: true,
                 max_selections: 10,
-                ...(names ? { room_names: names } : {}),
+                ...names,
             } as MapModeConfig,
         ],
         map_rotation: rotation,
@@ -139,49 +141,53 @@ async function hidingChanges(page: Page, selector: string, area: Box): Promise<b
     return !shown.equals(hidden);
 }
 
-for (const zoom of [1, 2.5] as const) {
-    for (const rotation of [0, 90] as const) {
-        test(`a renamed room shows its new name and a hidden one paints no pill at zoom ${zoom} and rotation ${rotation}`, async ({
-            page,
-        }) => {
-            await mount(page, config(rotation), zoom);
-            expect(await text(page, `${pillSelector(UNNAMED)} .room-pill-name`)).toBe("Room 18");
-            const unnamedPill = await box(page, pillSelector(UNNAMED));
-            // The check below can see a pill: hiding the plain card's label layer changes its pixels.
-            expect(await hidingChanges(page, layerSelector(UNNAMED), core(unnamedPill)), "plain pill painted").toBe(
-                true,
-            );
+for (const [hiding, NAMES] of Object.entries(HIDING))
+    for (const zoom of [1, 2.5] as const) {
+        for (const rotation of [0, 90] as const) {
+            test(`a renamed room shows its new name and a hidden one (${hiding}) paints no pill at zoom ${zoom} and rotation ${rotation}`, async ({
+                page,
+            }) => {
+                await mount(page, config(rotation), zoom);
+                expect(await text(page, `${pillSelector(UNNAMED)} .room-pill-name`)).toBe("Room 18");
+                const unnamedPill = await box(page, pillSelector(UNNAMED));
+                // The check below can see a pill: hiding the plain card's label layer changes its pixels.
+                expect(await hidingChanges(page, layerSelector(UNNAMED), core(unnamedPill)), "plain pill painted").toBe(
+                    true,
+                );
 
-            // Renamed, and painted at its box (zoomed in on the bathroom, so it is on the map).
-            await mount(page, config(rotation, NAMES), zoom, BATHROOM);
-            expect(await text(page, `${pillSelector(BATHROOM)} .room-pill-name`)).toBe("Ванная");
-            const bathroom = await box(page, pillSelector(BATHROOM));
-            expect(await hidingChanges(page, pillSelector(BATHROOM), bathroom), "renamed pill painted").toBe(true);
+                // Renamed, and painted at its box (zoomed in on the bathroom, so it is on the map).
+                await mount(page, config(rotation, NAMES), zoom, BATHROOM);
+                expect(await text(page, `${pillSelector(BATHROOM)} .room-pill-name`)).toBe("Ванная");
+                const bathroom = await box(page, pillSelector(BATHROOM));
+                expect(await hidingChanges(page, pillSelector(BATHROOM), bathroom), "renamed pill painted").toBe(true);
 
-            await mount(page, config(rotation, NAMES), zoom);
+                await mount(page, config(rotation, NAMES), zoom);
 
-            // Hidden: no pill and nothing of the room's labels painted where its pill was; its outline
-            // is still drawn.
-            expect(await exists(page, pillSelector(UNNAMED)), "no pill for a hidden name").toBe(false);
-            expect(await hidingChanges(page, layerSelector(UNNAMED), core(unnamedPill)), "nothing painted there").toBe(
-                false,
-            );
-            expect(await exists(page, `.room-${UNNAMED}-wrapper .room-outline`), "outline drawn").toBe(true);
+                // Hidden: no pill and nothing of the room's labels painted where its pill was; its outline
+                // is still drawn.
+                expect(await exists(page, pillSelector(UNNAMED)), "no pill for a hidden name").toBe(false);
+                expect(
+                    await hidingChanges(page, layerSelector(UNNAMED), core(unnamedPill)),
+                    "nothing painted there",
+                ).toBe(false);
+                expect(await exists(page, `.room-${UNNAMED}-wrapper .room-outline`), "outline drawn").toBe(true);
 
-            // Still selectable: a tap selects it, and its order badge (no name) is painted.
-            const point = await page.evaluate(
-                id => (window as unknown as HarnessWindow).visualHarness.roomPoint(id, 0.5, 0.15),
-                UNNAMED,
-            );
-            await page.mouse.click(point.x, point.y);
-            await expect
-                .poll(() => page.evaluate(() => (window as unknown as HarnessWindow).visualHarness.selectedRoomIds()))
-                .toContain(UNNAMED);
-            await page.waitForTimeout(200);
-            expect(await text(page, pillSelector(UNNAMED))).toBe("1");
-            expect(await exists(page, `${pillSelector(UNNAMED)} .room-pill-name`)).toBe(false);
-            const badge = await box(page, pillSelector(UNNAMED));
-            expect(await hidingChanges(page, pillSelector(UNNAMED), badge), "badge painted").toBe(true);
-        });
+                // Still selectable: a tap selects it, and its order badge (no name) is painted.
+                const point = await page.evaluate(
+                    id => (window as unknown as HarnessWindow).visualHarness.roomPoint(id, 0.5, 0.15),
+                    UNNAMED,
+                );
+                await page.mouse.click(point.x, point.y);
+                await expect
+                    .poll(() =>
+                        page.evaluate(() => (window as unknown as HarnessWindow).visualHarness.selectedRoomIds()),
+                    )
+                    .toContain(UNNAMED);
+                await page.waitForTimeout(200);
+                expect(await text(page, pillSelector(UNNAMED))).toBe("1");
+                expect(await exists(page, `${pillSelector(UNNAMED)} .room-pill-name`)).toBe(false);
+                const badge = await box(page, pillSelector(UNNAMED));
+                expect(await hidingChanges(page, pillSelector(UNNAMED), badge), "badge painted").toBe(true);
+            });
+        }
     }
-}
