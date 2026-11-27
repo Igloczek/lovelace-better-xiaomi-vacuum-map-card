@@ -66,7 +66,7 @@ export const computeStateDisplayFromEntityAttributes = (
         if (
             attributes.device_class === "duration" &&
             attributes.unit_of_measurement &&
-            UNIT_TO_MILLISECOND_CONVERT[attributes.unit_of_measurement]
+            UNIT_TO_MILLISECOND_CONVERT[attributes.unit_of_measurement as keyof typeof UNIT_TO_MILLISECOND_CONVERT]
         ) {
             try {
                 return formatDuration(state, attributes.unit_of_measurement);

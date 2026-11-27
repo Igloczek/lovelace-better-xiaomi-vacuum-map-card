@@ -55,14 +55,16 @@ export class MapMode {
         this.icon = config.icon ?? "mdi:help";
         this.idType = config.id_type;
         this.selectionType = config.selection_type
-            ? SelectionType[config.selection_type]
+            ? SelectionType[config.selection_type as unknown as keyof typeof SelectionType]
             : SelectionType.PREDEFINED_POINT;
         this.maxSelections = config.max_selections ?? 999;
         this.cleaningOrder = config.cleaning_order === true;
         this.coordinatesRounding = config.coordinates_rounding ?? true;
         this.coordinatesToMetersDivider = config.coordinates_to_meters_divider ?? 1000;
         this.runImmediately = config.run_immediately ?? false;
-        this.repeatsType = config.repeats_type ? RepeatsType[config.repeats_type] : RepeatsType.NONE;
+        this.repeatsType = config.repeats_type
+            ? RepeatsType[config.repeats_type as unknown as keyof typeof RepeatsType]
+            : RepeatsType.NONE;
         this.maxRepeats = config.max_repeats ?? 1;
         this.serviceCallSchema = new ServiceCallSchema(config.service_call_schema ?? ({} as ServiceCallSchemaConfig));
         // A config's own legacy schemas belong to its own service_call_schema (an exported config).
@@ -217,7 +219,7 @@ export class MapMode {
         if (!config.name && templateValue.name) this.name = localize(templateValue.name, language);
         if (!config.icon && templateValue.icon) this.icon = templateValue.icon;
         if (!config.selection_type && templateValue.selection_type)
-            this.selectionType = SelectionType[templateValue.selection_type];
+            this.selectionType = SelectionType[templateValue.selection_type as unknown as keyof typeof SelectionType];
         if (!config.id_type && templateValue.id_type) this.idType = templateValue.id_type;
         if (!config.max_selections && templateValue.max_selections) this.maxSelections = templateValue.max_selections;
         if (config.coordinates_rounding === undefined && templateValue.coordinates_rounding !== undefined)
@@ -230,7 +232,7 @@ export class MapMode {
         if (config.run_immediately === undefined && templateValue.run_immediately !== undefined)
             this.runImmediately = templateValue.run_immediately;
         if (!config.repeats_type && templateValue.repeats_type)
-            this.repeatsType = RepeatsType[templateValue.repeats_type];
+            this.repeatsType = RepeatsType[templateValue.repeats_type as unknown as keyof typeof RepeatsType];
         if (!config.max_repeats && templateValue.max_repeats) this.maxRepeats = templateValue.max_repeats;
         if (!config.service_call_schema && templateValue.service_call_schema) {
             this.serviceCallSchema = new ServiceCallSchema(templateValue.service_call_schema);

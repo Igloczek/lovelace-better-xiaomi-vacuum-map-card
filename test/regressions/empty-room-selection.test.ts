@@ -220,7 +220,6 @@ describe("a ROOM selection that would send no room ids", () => {
             ]),
             hass,
         );
-        const toast = vi.spyOn(card.element as unknown as { _showToast: (...a: unknown[]) => void }, "_showToast");
         expect(selectedIds(card)).toEqual(["0", "1"]);
 
         const shifted = await shiftOneRoomId(card, hass);

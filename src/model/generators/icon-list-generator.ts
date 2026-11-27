@@ -253,7 +253,7 @@ export class IconListGenerator {
                 menu_id: "fan_speed",
                 icon:
                     fanSpeed in IconListGenerator._ICON_MAPPING
-                        ? IconListGenerator._ICON_MAPPING[fanSpeed]
+                        ? IconListGenerator._ICON_MAPPING[fanSpeed as keyof typeof IconListGenerator._ICON_MAPPING]
                         : "mdi:fan-alert",
                 label: localize("tile.fan_speed.value." + fanSpeed.toLowerCase(), language, fanSpeed),
                 conditions: [
@@ -278,7 +278,11 @@ export class IconListGenerator {
             icons.push({
                 icon_id: "fan_speed_unknown",
                 icon: "mdi:fan-alert",
-                conditions: fanSpeeds.map(f => ({ entity: vacuumEntity, attribute: "fan_speed", value_not: f })),
+                conditions: fanSpeeds.map((f: string) => ({
+                    entity: vacuumEntity,
+                    attribute: "fan_speed",
+                    value_not: f,
+                })),
                 tooltip: localize("icon.vacuum_set_fan_speed", language),
                 tap_action: {
                     action: "call-service",
@@ -335,7 +339,7 @@ export class IconListGenerator {
             },
         };
         if (Object.prototype.hasOwnProperty.call(iconConfig, "unique_id_regex")) {
-            delete iconConfig["unique_id_regex"];
+            delete (iconConfig as { unique_id_regex?: string }).unique_id_regex;
         }
         return [iconConfig];
     }
@@ -355,7 +359,7 @@ export class IconListGenerator {
             icon: iconTemplate.icon ?? matched.icon ?? matched.original_icon,
         };
         if (Object.prototype.hasOwnProperty.call(iconConfig, "unique_id_regex")) {
-            delete iconConfig["unique_id_regex"];
+            delete (iconConfig as { unique_id_regex?: string }).unique_id_regex;
         }
         return [iconConfig];
     }

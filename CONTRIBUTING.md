@@ -38,7 +38,10 @@ npm run build
 
 The toolchain is the [Oxc](https://oxc.rs/) stack: Rolldown bundles and minifies
 (`rolldown.config.mjs`), `npm run lint` runs oxlint and `npm run format` runs oxfmt. TypeScript only
-type-checks (`npx tsc --noEmit`). The whole code base is oxfmt-formatted and CI fails on unformatted
+type-checks (`npx tsc --noEmit`, strict with `noImplicitAny` and `noImplicitOverride`). oxlint runs
+type-aware (`oxlint-tsgolint`): besides its correctness and suspicious rules it refuses floating or
+misused promises (an `async` function handed to an event listener), numbers sorted as strings,
+`eval`-like calls and needless type assertions. Drop a promise on purpose with `void`. The whole code base is oxfmt-formatted and CI fails on unformatted
 files, so run `npm run format` before committing. Lit `html`/`css` template contents are left as
 written (`embeddedLanguageFormatting: "off"`): their whitespace is part of what renders.
 

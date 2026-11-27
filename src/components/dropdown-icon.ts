@@ -15,7 +15,7 @@ export class DropdownIcon extends RootlessLitElement {
     @property({ attribute: false })
     private onAction!: ActionHandlerFunctionCreator;
 
-    public render(): TemplateResult {
+    public override render(): TemplateResult {
         const items = this.config.map(i => {
             return {
                 icon: i.icon,
@@ -30,7 +30,7 @@ export class DropdownIcon extends RootlessLitElement {
                 .title="${this.isInEditor ? `menu_id: ${this.config[0].menu_id}` : (this.config[currentIndex].tooltip ?? "")}"
                 .values=${items}
                 .currentIndex=${currentIndex}
-                .setValue=${selected => {
+                .setValue=${(selected: number) => {
                     return this.onAction(this.config[selected])();
                 }}
                 .renderNameCollapsed=${false}
@@ -39,7 +39,7 @@ export class DropdownIcon extends RootlessLitElement {
         `;
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .dropdown-icon * .dropdown-menu-button-button {
               background-color: transparent;

@@ -32,7 +32,7 @@ export class Tile extends RootlessLitElement {
     @property({ attribute: false })
     private internalVariables!: VariablesStorage;
 
-    protected render(): TemplateResult | void {
+    protected override render(): TemplateResult | void {
         if (!this.config || !this.hass || !this.onAction || !this.internalVariables) {
             return;
         }
@@ -185,7 +185,7 @@ export class Tile extends RootlessLitElement {
               : ` ${this.config.unit}`;
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
           .tile-wrapper {
             min-width: fit-content;

@@ -33,7 +33,7 @@ export class PresetSelector extends RootlessLitElement {
     @property({ attribute: false })
     private nextPresetIndex!: number;
 
-    public render(): TemplateResult | void {
+    public override render(): TemplateResult | void {
         if (this.availablePresets.length < 2) {
             return;
         }
@@ -64,7 +64,7 @@ export class PresetSelector extends RootlessLitElement {
         `;
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
           .preset-selector-wrapper {
             width: 100%;

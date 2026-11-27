@@ -325,7 +325,7 @@ export class TilesGenerator {
         tile_id: string | undefined,
         language: Language,
     ): Record<string, string> {
-        const output = {};
+        const output: Record<string, string> = {};
         if (tile_id) {
             keys.forEach(k => {
                 const translation = localize(`tile.${tile_id}.value.${k}`, language, "");

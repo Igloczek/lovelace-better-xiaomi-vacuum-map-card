@@ -264,7 +264,7 @@ export function updateCalibration(card: XiaomiVacuumMapCard, config: CardPresetC
 }
 
 export function setInternalVariable(card: XiaomiVacuumMapCard, variable: string, value: ReplacedKey) {
-    const newValues = { ...card.internalVariables };
+    const newValues: Record<string, ReplacedKey> = { ...card.internalVariables };
     newValues[variable] = value;
     card.internalVariables = newValues;
     card.requestUpdate();

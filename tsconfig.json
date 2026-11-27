@@ -10,10 +10,19 @@
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
         "strict": true,
-        "noImplicitAny": false,
+        "noImplicitOverride": true,
+        "noUnusedLocals": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "noUncheckedSideEffectImports": true,
+        "isolatedModules": true,
         "skipLibCheck": true,
         "resolveJsonModule": true,
         "experimentalDecorators": true,
-        "useDefineForClassFields": false
+        "useDefineForClassFields": false,
+        "paths": {
+            // The package's `exports` map has no `types` condition, so its declarations are not found.
+            "pointer-tracker": ["./node_modules/pointer-tracker/dist/index.d.ts"]
+        }
     }
 }

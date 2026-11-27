@@ -197,7 +197,6 @@ async function mountWithView(overrides: Partial<XiaomiVacuumMapCardConfig> = {})
 }
 
 async function remount(card: CardHandle, config: XiaomiVacuumMapCardConfig): Promise<CardHandle> {
-    const parent = card.element.parentElement as HTMLElement;
     card.element.remove();
     const next = await mountCard(config, card.hass);
     giveMapLayout(next);

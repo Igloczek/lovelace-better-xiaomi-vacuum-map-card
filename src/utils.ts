@@ -75,7 +75,7 @@ export function getWatchedEntitiesForPreset(config: CardPresetConfig, language: 
             if (e) watchedEntities.add(e);
         });
     (config.icons ?? []).forEach(i => {
-        if (Object.prototype.hasOwnProperty.call(i, "entity")) watchedEntities.add(i["entity"]);
+        if (Object.prototype.hasOwnProperty.call(i, "entity")) watchedEntities.add((i as { entity: string }).entity);
     });
     (config.icons ?? [])
         .filter(i => i.conditions)
@@ -348,7 +348,7 @@ export function getReplacedValue(value: string, variables: VariablesStorage): Re
 export function replaceInStr(
     value: string,
     variables: VariablesStorage,
-    kr: (string) => ReplacedKey | null,
+    kr: (key: string) => ReplacedKey | null,
 ): ReplacedKey {
     let output = value;
     Object.keys(variables).forEach(tv => {
@@ -373,7 +373,7 @@ export function getFilledTemplate(
     for (const variablesStorage of variablesStorages) {
         variables = { ...variablesStorage, ...variables };
     }
-    const keyReplacer = v => getReplacedValue(v, variables);
+    const keyReplacer = (v: string) => getReplacedValue(v, variables);
     replaceInTarget(target, keyReplacer);
     return target;
 }

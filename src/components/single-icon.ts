@@ -17,7 +17,7 @@ export class SingleIcon extends RootlessLitElement {
     @property({ attribute: false })
     private onAction!: ActionHandlerFunctionCreator;
 
-    public render(): TemplateResult {
+    public override render(): TemplateResult {
         return html`
             <paper-button
                 class="single-icon clickable ripple"
@@ -32,7 +32,7 @@ export class SingleIcon extends RootlessLitElement {
         `;
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
           .single-icon {
             float: left;

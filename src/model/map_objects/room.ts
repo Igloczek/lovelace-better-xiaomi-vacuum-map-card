@@ -84,7 +84,7 @@ export class Room extends PredefinedMapObject {
         return !this._stale && super.defaultSelected();
     }
 
-    public restoreSelected(selected: boolean): void {
+    public override restoreSelected(selected: boolean): void {
         if (this._stale) return;
         super.restoreSelected(selected);
     }
@@ -429,7 +429,7 @@ export class Room extends PredefinedMapObject {
         this.update();
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .room-wrapper {
             }

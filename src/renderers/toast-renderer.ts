@@ -1,4 +1,5 @@
 import { css, CSSResultGroup, html, TemplateResult } from "lit";
+import type { TranslatableString } from "../types/types";
 import { delay } from "../utils";
 
 /** How long Home Assistant shows a message, in ms. A failure carries a reason worth reading. */
@@ -57,7 +58,7 @@ export class ToastRenderer {
      */
     public static showToast(
         host: HTMLElement,
-        localize: (TranslatableString) => string,
+        localize: (text: TranslatableString) => string,
         idPrefix: string,
         text: string,
         icon: string,

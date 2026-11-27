@@ -15,7 +15,7 @@ export abstract class PredefinedMapObject extends MapObject {
         }
     }
 
-    public get variables(): VariablesStorage {
+    public override get variables(): VariablesStorage {
         return this._common_config.variables ?? super.variables;
     }
 

@@ -14,7 +14,6 @@ import {
     fireRoomConfig,
     fixtureConfig,
     fixtureHass,
-    fixtureStates,
     loadSyntheticFixture,
     mountEditor,
     mountPage,
@@ -29,7 +28,6 @@ const SECOND_CAMERA = "camera.vacuum_map_b";
 const SECOND_VACUUM = "vacuum.roborock_s8";
 
 const ROOMS_A = ["0", "1", "2"];
-const ROOMS_B = ["7", "8"];
 
 function secondVacuumRooms(): Record<string, MapExtractorRoom> {
     return {

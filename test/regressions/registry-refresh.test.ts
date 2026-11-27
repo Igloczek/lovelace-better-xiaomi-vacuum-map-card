@@ -203,7 +203,6 @@ describe("registry-only renames", () => {
         const hass = baseHass();
         const card = await mountCard(generatedTileConfig(), withRegistries(hass, { devices: DEVICES }));
         expect(generatedFilterIcon(card)).toBe("mdi:air-filter");
-        const callsBefore = registryCalls(hass);
 
         const changed = withRegistries(withRegistryEntries(hass, [{ ...FILTER_ENTRY, icon: "mdi:water" }]), {
             devices: DEVICES,

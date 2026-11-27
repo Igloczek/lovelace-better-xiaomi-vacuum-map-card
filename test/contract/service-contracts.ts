@@ -233,7 +233,7 @@ const ECOVACS =
     'home-assistant/core ecovacs/vacuum.py L375-405; deebot-client commands/json/clean.py `",".join(str(i) for i in area)`';
 const VALETUDO = "Hypfer/Valetudo backend/lib/mqtt/capabilities/*MqttHandle.js";
 const VALETUDO_RE = "rand256/valetudo lib/MqttClient.js L570-720 (a string segment id is looked up as a room name)";
-const MQTT = "home-assistant/core mqtt/services.py L46-63 (payload Any(cv.string, None))";
+// MQTT: home-assistant/core mqtt/services.py L46-63 (payload Any(cv.string, None)).
 const PERSISTENT = "home-assistant/core persistent_notification/services.py L70-87";
 
 const mqttPublish = (payload: Validator): Validator =>
@@ -952,7 +952,6 @@ function selectionFor(mode: MapMode, ids: IdVariant | undefined, repeats: number
         case SelectionType.MANUAL_PATH:
             return mode.repeatSelection(PATH.map(withRepeats), repeats);
     }
-    return [];
 }
 
 export function contractCases(): ContractCase[] {

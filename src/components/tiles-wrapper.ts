@@ -22,7 +22,7 @@ export class TilesWrapper extends RootlessLitElement {
     @property({ attribute: false })
     private internalVariables!: VariablesStorage;
 
-    protected render(): TemplateResult | void {
+    protected override render(): TemplateResult | void {
         if ((this.tiles?.length ?? 0) === 0) {
             return;
         }
@@ -42,7 +42,7 @@ export class TilesWrapper extends RootlessLitElement {
         `;
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
           .tiles-wrapper {
             display: flex;

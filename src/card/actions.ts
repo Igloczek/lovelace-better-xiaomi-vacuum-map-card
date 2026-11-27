@@ -1,6 +1,6 @@
 import { ActionHandlerEvent, handleAction, HomeAssistant } from "custom-card-helpers";
 
-import type { ActionableObjectConfig, ActionHandlerFunction } from "../types/types";
+import type { ActionableObjectConfig, ActionHandlerFunction, ReplacedKey, VariablesStorage } from "../types/types";
 import { ServiceCallSchema } from "../model/map_mode/service-call-schema";
 import { TemplatableItemValue } from "../model/map_mode/templatable-value";
 import { getFilledTemplate } from "../utils";
@@ -31,16 +31,16 @@ export function handleActionWithConfig(
     if (node.hass && config && action) {
         const currentPreset = node._getCurrentPreset();
         const currentMode = node._getCurrentMode();
-        let itemVariables = {};
+        let itemVariables: VariablesStorage = {};
         itemVariables[TemplatableItemValue.VACUUM_ENTITY_ID] = currentPreset.entity;
         if (Object.prototype.hasOwnProperty.call(config, "attribute")) {
-            itemVariables[TemplatableItemValue.ATTRIBUTE] = config["attribute"];
+            itemVariables[TemplatableItemValue.ATTRIBUTE] = (config as { attribute: ReplacedKey }).attribute;
         }
         if (Object.prototype.hasOwnProperty.call(config, "variables")) {
             itemVariables = { ...itemVariables, ...config["variables"] };
         }
         const entity_id = Object.prototype.hasOwnProperty.call(config, "entity")
-            ? config["entity"]
+            ? (config as { entity: string }).entity
             : currentPreset.entity;
         const { selection, variables } = node._getSelection(currentMode);
         const defaultVariables = ServiceCallSchema.getDefaultVariables(

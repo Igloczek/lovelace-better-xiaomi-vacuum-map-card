@@ -95,7 +95,7 @@ export class PredefinedPoint extends PredefinedMapObject {
         this.update();
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .predefined-point-wrapper {
             }

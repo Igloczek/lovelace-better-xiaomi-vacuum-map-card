@@ -31,7 +31,6 @@ enum DragMode {
 export class ManualRectangle extends MapObject {
     public _id: string;
 
-    private _selectedTarget!: EventTarget | null;
     private _selectedElement!: SVGGraphicsElement | null;
     private _dragMode: DragMode;
 
@@ -247,7 +246,6 @@ export class ManualRectangle extends MapObject {
             return;
         }
         stopEvent(event);
-        this._selectedTarget = event.target;
         const targetElement = event.target as SVGGraphicsElement;
         if (targetElement.classList.contains("movable")) {
             this._dragMode = DragMode.MOVE;
@@ -385,7 +383,6 @@ export class ManualRectangle extends MapObject {
     private _endDrag(event: MouseEvent | TouchEvent): void {
         stopEvent(event);
         this._selectedElement = null;
-        this._selectedTarget = null;
         this.update();
     }
 
@@ -401,7 +398,7 @@ export class ManualRectangle extends MapObject {
         }
     }
 
-    private _toVacuumFromDimensions(x, y, width, height): [number, number, number, number] {
+    private _toVacuumFromDimensions(x: number, y: number, width: number, height: number): ZoneType {
         const imageX = this.realScaled(x);
         const imageY = this.realScaled(y);
         const imageWidth = this.realScaled(width);
@@ -411,7 +408,7 @@ export class ManualRectangle extends MapObject {
         return orderedZone([vacuumStart[0], vacuumStart[1], vacuumEnd[0], vacuumEnd[1]]);
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .resizer {
                 cursor: nwse-resize;

@@ -84,23 +84,6 @@ test("zoom 2.5 and rotation 90 keep the overlays on the rooms", async ({ loggedI
         return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
     });
 
-    /** The pixel at a page point, or null when the point is outside the captured card. */
-    const sample = (png: PNG, point: { x: number; y: number }): [number, number, number] | null => {
-        const x = point.x - cardBox!.x;
-        const y = point.y - cardBox!.y;
-        if (x < 2 || y < 2 || x >= png.width - 2 || y >= png.height - 2) return null;
-        // A room can extend past the map viewport into the controls area, where the pixels are not
-        // the map: only points inside both the map and the captured card are meaningful.
-        if (
-            point.x < mapBox.left + 2 ||
-            point.x > mapBox.right - 2 ||
-            point.y < mapBox.top + 2 ||
-            point.y > mapBox.bottom - 2
-        )
-            return null;
-        const offset = (png.width * Math.round(y) + Math.round(x)) * 4;
-        return [png.data[offset], png.data[offset + 1], png.data[offset + 2]];
-    };
     const distance = (a: [number, number, number], b: [number, number, number]): number =>
         Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
 

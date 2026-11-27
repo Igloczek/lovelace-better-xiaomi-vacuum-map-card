@@ -26,7 +26,7 @@ export class IconsWrapper extends RootlessLitElement {
     @property({ attribute: false })
     private onAction!: ActionHandlerFunctionCreator;
 
-    public render(): TemplateResult | void {
+    public override render(): TemplateResult | void {
         if ((this.icons?.length ?? 0) === 0) {
             return;
         }
@@ -47,7 +47,7 @@ export class IconsWrapper extends RootlessLitElement {
         `;
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
           .icons-wrapper {
             display: flex;
@@ -123,7 +123,7 @@ export class IconsWrapper extends RootlessLitElement {
     ): IconActionConfig[] {
         const entity = hass.states[icon.entity];
         const values = entity.attributes[icon.available_values_attribute] ?? [];
-        return values.map(v => {
+        return values.map((v: string) => {
             return {
                 ...icon,
                 label:
@@ -136,7 +136,7 @@ export class IconsWrapper extends RootlessLitElement {
                     {
                         entity: icon.entity,
                         attribute: icon.current_value_attribute,
-                        value: `${v}`,
+                        value: String(v),
                     },
                 ],
                 variables: {

@@ -158,7 +158,7 @@ windowWithCards.customCards.push({
     type: CARD_CUSTOM_ELEMENT_NAME,
     name: "Better Xiaomi Vacuum Map Card",
     description: localize("common.description"),
-    getEntitySuggestion: (hass, entityId) => {
+    getEntitySuggestion: (hass: HomeAssistantFixed, entityId: string) => {
         if (entityId.split(".")[0] !== "vacuum") {
             return null;
         }
@@ -413,7 +413,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         return this.config?.layout === "horizontal" ? "horizontal" : "vertical";
     }
 
-    connectedCallback(): void {
+    override connectedCallback(): void {
         super.connectedCallback();
         // Store the result: `disconnectedCallback` cannot re-evaluate it after the element has
         // been detached, because the editor-preview parents are no longer reachable from the card.
@@ -437,7 +437,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         this._scheduleDelayedCallback(() => this.requestUpdate(), 100);
     }
 
-    disconnectedCallback(): void {
+    override disconnectedCallback(): void {
         super.disconnectedCallback();
         // Use the flag from `connectedCallback`, not a fresh `_isInEditor()`: a directly removed
         // editor-preview card has no parent chain left, so re-evaluating would leak its listeners.
@@ -528,7 +528,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         this._restoreMapView();
     }
 
-    protected shouldUpdate(changedProps: PropertyValues): boolean {
+    protected override shouldUpdate(changedProps: PropertyValues): boolean {
         if (changedProps.has("layout") && this.config) {
             // `layout` is set by hui-card after the element is created; the reflected attribute
             // drives the sections-view height rules even when no watched entity changed.
@@ -550,7 +550,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         return hasConfigOrAnyEntityChanged(this.watchedEntities, changedProps, false, this.hass);
     }
 
-    protected render(): TemplateResult | void {
+    protected override render(): TemplateResult | void {
         if (this.oldConfig) {
             return showOldConfig(this);
         }
@@ -714,7 +714,7 @@ export class XiaomiVacuumMapCard extends LitElement {
                                         <better-xvmc-dropdown-menu
                                             .values=${modes}
                                             .currentIndex=${this.selectedMode}
-                                            .setValue=${selected => setCurrentMode(this, selected)}
+                                            .setValue=${(selected: number) => setCurrentMode(this, selected)}
                                             .renderNameCollapsed=${true}>
                                         </better-xvmc-dropdown-menu>
                                         `,
@@ -782,7 +782,7 @@ export class XiaomiVacuumMapCard extends LitElement {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    protected updated(changedProperties: PropertyValues): void {
+    protected override updated(changedProperties: PropertyValues): void {
         if (changedProperties.has("config")) {
             this._scheduleDelayedCallback(() => {
                 const mapImage = this._getMapImage();
@@ -1023,7 +1023,7 @@ export class XiaomiVacuumMapCard extends LitElement {
         return showToast(this, text, icon, successful, additionalText);
     }
 
-    static get styles(): CSSResultGroup {
+    static override get styles(): CSSResultGroup {
         return cardStyles;
     }
 }
