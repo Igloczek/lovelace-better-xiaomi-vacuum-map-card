@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.15.0
+
+### Added
+
+- `room_label_offsets` entries take an optional `unit: map` (#126). The offsets are then pixels of
+  the map image instead of screen pixels, so a name nudged once stays in the same place on the map
+  on a wide desktop card and a narrow phone card, at any zoom and rotation. Without `unit`, or with
+  `unit: px`, offsets work exactly as before.
+
+### Fixed
+
+- Another card's `fire-dom-event` actions no longer make this card throw an error.
+- The editor's copy buttons now work when Home Assistant is opened over plain `http`.
+- The card no longer adds extra page-wide listeners each time a hold action reconnects.
+
 ## 1.14.0
 
 ### Fixed
