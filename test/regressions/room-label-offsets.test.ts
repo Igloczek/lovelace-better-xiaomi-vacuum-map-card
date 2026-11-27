@@ -236,6 +236,91 @@ describe("room_label_offsets (#126)", () => {
     });
 });
 
+/**
+ * `unit: map` (#126 follow-up): screen pixels overshoot on a narrower card or at another zoom, since
+ * the map scales with the card while a screen offset does not. A `map` offset is in pixels of the map
+ * image and moves the point the pill is anchored on (and turns around), inside the shared map
+ * transform, so it scales and turns with the map. Without `unit`, or with `px`, nothing changes.
+ */
+describe("room_label_offsets with unit: map", () => {
+    afterEach(() => {
+        window.localStorage.removeItem(ACTIVE_ROOM_RUN_STORE_KEY);
+        vi.restoreAllMocks();
+    });
+
+    /** The pill's anchor point in layout pixels, as numbers. */
+    const anchorPoint = (card: CardHandle, id: string): [number, number] => {
+        const [x, y] = pillAnchor(card, id);
+        return [parseFloat(x), parseFloat(y)];
+    };
+
+    it("moves a detected room's anchor by image pixels and leaves its screen offset alone", async () => {
+        vi.spyOn(RoomColorDetector, "detect").mockReturnValue(detectionOfRoom1());
+        const plain = await mount(segmentConfig());
+        const card = await mount(
+            segmentConfig({ room_label_offsets: { "1": { offset_x: 20, offset_y: -10, unit: "map" } } }),
+        );
+        const scale = card.element.realScale;
+        expect(scale).toBeGreaterThan(0);
+        const [x0, y0] = anchorPoint(plain, "1");
+        const [x1, y1] = anchorPoint(card, "1");
+        expect(x1).toBeCloseTo(x0 + 20 * scale, 5);
+        expect(y1).toBeCloseTo(y0 - 10 * scale, 5);
+        expect(pillOffset(card, "1")).toEqual(pillOffset(plain, "1"));
+        expect(pillAnchor(card, "1")[2]).toBe(pillAnchor(plain, "1")[2]);
+        expect(pillAnchor(card, "0")).toEqual(pillAnchor(plain, "0"));
+        expect(pillOffset(card, "0")).toEqual(pillOffset(plain, "0"));
+    });
+
+    it("moves the point a pill under an icon turns around, not the icon", async () => {
+        const icon = { name: "mdi:silverware-fork-knife", x: 500, y: 450 };
+        const outline: [number, number][] = [
+            [200, 200],
+            [800, 200],
+            [800, 700],
+            [200, 700],
+        ];
+        const configured = { id: 0, icon, label: { text: "Kitchen", x: 500, y: 450, offset_y: 30 }, outline };
+        const plain = await mount(segmentConfig({ predefined_selections: [configured] }));
+        const card = await mount(
+            segmentConfig({
+                predefined_selections: [configured],
+                room_label_offsets: { "0": { offset_x: 12, offset_y: 8, unit: "map" } },
+            }),
+        );
+        const scale = card.element.realScale;
+        const [x0, y0] = anchorPoint(plain, "0");
+        const [x1, y1] = anchorPoint(card, "0");
+        expect(x1).toBeCloseTo(x0 + 12 * scale, 5);
+        expect(y1).toBeCloseTo(y0 + 8 * scale, 5);
+        // The step below the icon is still a screen offset, unchanged.
+        expect(pillOffset(card, "0")).toEqual(pillOffset(plain, "0"));
+        expect(roomConfig(card, "0").icon).toEqual(roomConfig(plain, "0").icon);
+        const iconHtml = (target: CardHandle) =>
+            roomQuery(target.shadowRoot, "0", ".room-icon-wrapper")?.closest("foreignObject")?.outerHTML;
+        expect(iconHtml(card)).toBe(iconHtml(plain));
+    });
+
+    it("keeps the nudge on the selected pill", async () => {
+        const plain = await mount(segmentConfig());
+        const card = await mount(segmentConfig({ room_label_offsets: { "1": { offset_y: 15, unit: "map" } } }));
+        await clickRoom(card, "1");
+        expect(roomQuery(card.shadowRoot, "1", ".room-pill:not(.no-badge)")).not.toBeNull();
+        expect(anchorPoint(card, "1")[1]).toBeCloseTo(anchorPoint(plain, "1")[1] + 15 * card.element.realScale, 5);
+    });
+
+    it("renders unit: px exactly as an offset without a unit", async () => {
+        const labels = (target: CardHandle) =>
+            [...target.shadowRoot.querySelectorAll(".room-label-layer")].map(layer => layer.outerHTML).join("");
+        const bare = await mount(segmentConfig({ room_label_offsets: { "1": { offset_x: -45, offset_y: 40 } } }));
+        const px = await mount(
+            segmentConfig({ room_label_offsets: { "1": { offset_x: -45, offset_y: 40, unit: "px" } } }),
+        );
+        expect(labels(px)).toBe(labels(bare));
+        expect(pillOffset(px, "1")).toEqual(shifted(pillOffset(await mount(segmentConfig()), "1"), -45, 40));
+    });
+});
+
 describe("room_label_offsets configuration", () => {
     const withRoomMode = (extra: Record<string, unknown>): XiaomiVacuumMapCardConfig => ({
         ...fixtureConfig(loadSyntheticFixture()),
@@ -272,6 +357,32 @@ describe("room_label_offsets configuration", () => {
         expect(validateConfig(withRoomMode({ room_label_offsets: { "17": { y: 40 } } })).join(" ")).toContain(
             "room_label_offsets.17.y",
         );
+    });
+
+    it("accepts unit px and map, and reports any other unit by field", () => {
+        expect(
+            validateConfig(
+                withRoomMode({
+                    room_label_offsets: { "17": { offset_x: 4, unit: "map" }, "18": { offset_y: -4, unit: "px" } },
+                }),
+            ),
+        ).toEqual([]);
+        for (const unit of ["cm", "MAP", 1, true]) {
+            const errors = validateConfig(withRoomMode({ room_label_offsets: { "17": { offset_x: 4, unit } } })).join(
+                " ",
+            );
+            expect(errors, String(unit)).toContain("room_label_offsets.17.unit");
+        }
+        // An empty `unit:` is absent, so the default (px).
+        expect(validateConfig(normalizeConfig(withRoomMode({ room_label_offsets: { "17": { unit: null } } })))).toEqual(
+            [],
+        );
+    });
+
+    it("keeps the unit in an exported mode config", () => {
+        const offsets = { "17": { offset_x: -45, unit: "map" as const } };
+        const mode = new MapMode("Roborock", { template: "vacuum_clean_segment", room_label_offsets: offsets }, "en");
+        expect(mode.toMapModeConfig().room_label_offsets).toEqual(offsets);
     });
 
     it("is kept in an exported mode config and left out when absent", () => {

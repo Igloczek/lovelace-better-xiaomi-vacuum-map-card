@@ -56,7 +56,10 @@ out). It takes no baselines.
 The corridor's (13) and the storage room's (14) detected label points put their pills on top of each
 other on the whole plan; `room_label_offsets` on the corridor must move its pill by exactly the
 configured screen pixels at zoom 1 and 2.5 and rotation 0 and 90, clear of the storage pill, painted
-at its new box (hiding it changes those pixels) and gone from the old one, selected or not.
+at its new box (hiding it changes those pixels) and gone from the old one, selected or not. A
+`unit: map` nudge must keep the pill at the same fraction of the map image at card widths 400 and
+700 (a `px` one does not), and move exactly as an image point does at zoom 1 and 2.5 and rotation 0
+and 90, painted at its new box.
 
 `default-zone.spec.ts` also runs in Chromium and WebKit, with no baselines. For `MANUAL_RECTANGLE` and
 `MANUAL_ROTATABLE_RECTANGLE`, at rotation 0 and 90, the zone mode opens with one zone inside the map

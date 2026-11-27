@@ -60,9 +60,12 @@ function config(rotation: number, offsets?: MapModeConfig["room_label_offsets"])
     } as XiaomiVacuumMapCardConfig;
 }
 
-async function mount(page: Page, cardConfig: XiaomiVacuumMapCardConfig, zoom: number): Promise<void> {
+async function mount(page: Page, cardConfig: XiaomiVacuumMapCardConfig, zoom: number, width = 400): Promise<void> {
     await page.goto("/");
     await page.waitForFunction(() => (window as unknown as HarnessWindow).visualHarness?.ready);
+    await page.evaluate(w => {
+        (document.getElementById("card-root") as HTMLElement).style.width = `${w}px`;
+    }, width);
     await page.evaluate(input => (window as unknown as HarnessWindow).visualHarness.mount(input), cardConfig);
     await expect(page.locator(CARD)).toBeVisible();
     await expect.poll(() => page.locator(CARD).locator(".room-wrapper").count(), { message: "rooms detected" }).toBe(9);
@@ -171,6 +174,83 @@ for (const zoom of [1, 2.5] as const) {
             const selected = await pillBox(page, CORRIDOR);
             if (collides) expect(overlaps(selected, storage), "the selected pill stays clear").toBe(false);
             expect(await hidingChanges(page, CORRIDOR, selected), "the selected pill is painted there").toBe(true);
+        });
+    }
+}
+
+/**
+ * `unit: map` (#126 follow-up): a screen-pixel nudge tuned on a wide card overshoots on a narrow one,
+ * because the map scales with the card and the nudge does not. A `map` nudge is in pixels of the map
+ * image: the pill must keep the same place relative to the rooms at two card widths, and under zoom
+ * and rotation it must move exactly as the image does (proven against the painted image rectangle,
+ * and by its pixels).
+ */
+const MAP_NUDGE = { offset_x: -6, offset_y: -14, unit: "map" as const };
+
+/** Where an image pixel lands on screen, from the map image's painted rectangle. */
+function screenPoint(page: Page, [px, py]: [number, number], rotation: number): Promise<[number, number]> {
+    return page.locator(CARD).evaluate(
+        (card: Element, input: { px: number; py: number; rotation: number }) => {
+            const rect = (card.shadowRoot!.getElementById("map-image") as HTMLElement).getBoundingClientRect();
+            const source = card.shadowRoot!.getElementById("map-image-source") as HTMLImageElement;
+            const u = input.px / source.naturalWidth;
+            const v = input.py / source.naturalHeight;
+            if (input.rotation === 90) return [rect.left + (1 - v) * rect.width, rect.top + u * rect.height];
+            return [rect.left + u * rect.width, rect.top + v * rect.height];
+        },
+        { px, py, rotation },
+    ) as Promise<[number, number]>;
+}
+
+const centre = (box: Box): [number, number] => [box.x + box.width / 2, box.y + box.height / 2];
+
+/** A pill's centre as a fraction of the painted map image (rotation 0). */
+function relativeCentre(page: Page, id: string): Promise<[number, number]> {
+    return page.locator(CARD).evaluate((card: Element, selector: string) => {
+        const rect = (card.shadowRoot!.getElementById("map-image") as HTMLElement).getBoundingClientRect();
+        const pill = card.shadowRoot!.querySelector(selector)!.getBoundingClientRect();
+        return [
+            (pill.x + pill.width / 2 - rect.left) / rect.width,
+            (pill.y + pill.height / 2 - rect.top) / rect.height,
+        ];
+    }, pillSelector(id)) as Promise<[number, number]>;
+}
+
+test("a unit: map nudge keeps the pill's place on the map at two card widths, unlike px", async ({ page }) => {
+    const relative: Record<string, [number, number]> = {};
+    for (const width of [400, 700]) {
+        await mount(page, config(0, { [CORRIDOR]: MAP_NUDGE }), 1, width);
+        relative[`map-${width}`] = await relativeCentre(page, CORRIDOR);
+        expect(await hidingChanges(page, CORRIDOR, await pillBox(page, CORRIDOR)), `painted at ${width}px`).toBe(true);
+        await mount(page, config(0, { [CORRIDOR]: { offset_x: MAP_NUDGE.offset_x * 2, offset_y: -30 } }), 1, width);
+        relative[`px-${width}`] = await relativeCentre(page, CORRIDOR);
+    }
+    // Same place on the map, to a fraction of a pixel of the 700 px image.
+    expect(relative["map-700"][0]).toBeCloseTo(relative["map-400"][0], 3);
+    expect(relative["map-700"][1]).toBeCloseTo(relative["map-400"][1], 3);
+    // A screen-pixel nudge is a smaller share of a wider map: it lands elsewhere on the map.
+    expect(Math.abs(relative["px-700"][1] - relative["px-400"][1])).toBeGreaterThan(0.02);
+});
+
+for (const zoom of [1, 2.5] as const) {
+    for (const rotation of [0, 90] as const) {
+        test(`a unit: map nudge moves the pill as the map image moves at zoom ${zoom} and rotation ${rotation}`, async ({
+            page,
+        }) => {
+            await mount(page, config(rotation), zoom);
+            const before = centre(await pillBox(page, CORRIDOR));
+            const storageBefore = await pillBox(page, STORAGE);
+            await mount(page, config(rotation, { [CORRIDOR]: MAP_NUDGE }), zoom);
+            const box = await pillBox(page, CORRIDOR);
+            const after = centre(box);
+            // The image shift on screen: the same vector the map transform gives any image point.
+            const [ax, ay] = await screenPoint(page, [100, 100], rotation);
+            const [bx, by] = await screenPoint(page, [100 + MAP_NUDGE.offset_x, 100 + MAP_NUDGE.offset_y], rotation);
+            expect(after[0] - before[0]).toBeCloseTo(bx - ax, 0);
+            expect(after[1] - before[1]).toBeCloseTo(by - ay, 0);
+            expect(await pillBox(page, STORAGE)).toEqual(storageBefore);
+            // Painted at its new box, in Chromium and WebKit alike.
+            expect(await hidingChanges(page, CORRIDOR, box), "painted where it moved to").toBe(true);
         });
     }
 }
