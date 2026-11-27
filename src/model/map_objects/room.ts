@@ -6,6 +6,7 @@ import { Context } from "./context";
 import { deleteFromArray } from "../../utils";
 import { LabelConfig, RoomConfig } from "../../types/types";
 import { PredefinedMapObject } from "./predefined-map-object";
+import { visibleText } from "../visible-text";
 
 /**
  * Free space from a room's label point along one screen direction, in map units: how far the marker
@@ -163,7 +164,8 @@ export class Room extends PredefinedMapObject {
         // no outline also keeps its icon so it can still be deselected. A stale room is never
         // highlighted: it is not a valid part of a run.
         const pill = highlighted && !stale;
-        const name = this._context.showRoomLabels() ? this._config.label?.text?.trim() || undefined : undefined;
+        // A name without a visible character is no name: no pill is drawn around nothing (#133).
+        const name = this._context.showRoomLabels() ? visibleText(this._config.label?.text) : undefined;
         const hasIcon = this._config.icon != null;
         const hasOutline =
             this._segments.length > 0 || this._imageOutline !== undefined || (this._config.outline?.length ?? 0) > 0;

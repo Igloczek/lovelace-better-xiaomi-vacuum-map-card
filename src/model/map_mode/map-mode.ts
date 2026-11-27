@@ -44,6 +44,8 @@ export class MapMode {
     public predefinedSelections: PredefinedSelectionConfig[];
     /** ROOM modes: the label nudge of each room id (`room_label_offsets`). */
     public roomLabelOffsets: { [roomId: string]: RoomLabelOffsetConfig };
+    /** ROOM modes: the displayed name of each room id, `""` for none (`room_names`). */
+    public roomNames: { [roomId: string]: string };
     public variables: VariablesStorage;
 
     constructor(
@@ -71,6 +73,7 @@ export class MapMode {
         this.legacyServiceCallSchemas = MapMode._legacySchemas(config.legacy_service_call_schemas);
         this.predefinedSelections = config.predefined_selections ?? [];
         this.roomLabelOffsets = config.room_label_offsets ?? {};
+        this.roomNames = config.room_names ?? {};
         this.variables = config.variables ?? {};
         this._applyTemplateIfPossible(vacuumPlatform, config, language);
         if (!MapMode.PREDEFINED_SELECTION_TYPES.includes(this.selectionType)) {
@@ -207,6 +210,7 @@ export class MapMode {
                 : undefined,
             predefined_selections: this.predefinedSelections,
             ...(Object.keys(this.roomLabelOffsets).length > 0 ? { room_label_offsets: this.roomLabelOffsets } : {}),
+            ...(Object.keys(this.roomNames).length > 0 ? { room_names: this.roomNames } : {}),
             variables: Object.fromEntries(
                 Object.entries(this.variables ?? {}).map(([k, v]) => [k.substr(2, k.length - 4), v]),
             ),

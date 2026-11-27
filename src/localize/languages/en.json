@@ -140,6 +140,9 @@
                     "unknown_key": "Invalid {0}: a room label offset takes only offset_x, offset_y and unit",
                     "invalid_unit": "{0} must be px or map"
                 },
+                "room_names": {
+                    "not_text": "{0} must be text (the room's name, or \"\" to hide it)"
+                },
                 "service_call_schema": {
                     "missing": "Missing service call schema",
                     "service": {

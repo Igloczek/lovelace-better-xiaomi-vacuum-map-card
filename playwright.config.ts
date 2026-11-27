@@ -73,6 +73,7 @@ export default defineConfig({
                 "default-zone.spec.ts",
                 "apartment.spec.ts",
                 "room-label-offsets.spec.ts",
+                "room-names.spec.ts",
                 "valetudo-outlines.spec.ts",
             ],
         },

@@ -197,6 +197,12 @@ export interface MapModeConfig {
      * and configured rooms alike, without configuring the room (#126).
      */
     readonly room_label_offsets?: { readonly [roomId: string]: RoomLabelOffsetConfig };
+    /**
+     * ROOM modes: the name shown for each room id the mode draws, replacing the camera's, the area's
+     * or the configured name; `""` hides that room's name. Only the displayed name changes, for
+     * camera, detected, area and configured rooms alike (#133).
+     */
+    readonly room_names?: { readonly [roomId: string]: string };
     readonly variables?: VariablesStorage;
 }
 
