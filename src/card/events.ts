@@ -69,25 +69,30 @@ export function handleRoomsConfigGet(card: XiaomiVacuumMapCard, e: Event): void 
     window.dispatchEvent(event);
 }
 
+function isRecord(value: unknown): value is Record<string, any> {
+    return typeof value === "object" && value !== null;
+}
+
+/**
+ * Handles this card's `fire-dom-event` actions. Home Assistant sends every `ll-custom` event to
+ * every card on the page, and other cards and integrations decide what is in `detail`, so anything
+ * that is not this card's payload is ignored instead of throwing.
+ */
 export async function handleLovelaceDomEvent(card: XiaomiVacuumMapCard, e: Event): Promise<void> {
-    const lovelaceEvent = e as LovelaceDomEvent;
-    if (
-        EVENT_LOVELACE_DOM_DETAIL in lovelaceEvent.detail &&
-        "action_handler_id" in lovelaceEvent.detail[EVENT_LOVELACE_DOM_DETAIL] &&
-        lovelaceEvent.detail[EVENT_LOVELACE_DOM_DETAIL]["action_handler_id"] ===
-            (card.config.action_handler_id ?? "this")
-    ) {
-        const details = lovelaceEvent.detail[EVENT_LOVELACE_DOM_DETAIL];
+    const detail: unknown = (e as LovelaceDomEvent).detail;
+    const details: unknown = isRecord(detail) ? detail[EVENT_LOVELACE_DOM_DETAIL] : undefined;
+    if (isRecord(details) && details["action_handler_id"] === (card.config?.action_handler_id ?? "this")) {
         if (details["action"] === undefined) return;
         const action = details["action"] as ActionType;
-        const data = details["data"];
+        const data: Record<string, any> = isRecord(details["data"]) ? details["data"] : {};
         const currentMode = card._getCurrentMode();
         switch (action) {
             case ActionType.CLEANING_START:
                 await runSelection(card, false);
                 break;
             case ActionType.INTERNAL_VARIABLE_SET:
-                setInternalVariable(card, data["variable"], data["value"]);
+                // Without a variable name the old code stored the value under "undefined".
+                if (typeof data["variable"] === "string") setInternalVariable(card, data["variable"], data["value"]);
                 break;
             case ActionType.MAP_MODE_NEXT:
                 setCurrentMode(card, (card.selectedMode + 1) % card.modes.length, false);
@@ -96,7 +101,10 @@ export async function handleLovelaceDomEvent(card: XiaomiVacuumMapCard, e: Event
                 setCurrentMode(card, (card.selectedMode - 1 + card.modes.length) % card.modes.length, false);
                 break;
             case ActionType.MAP_MODE_SET:
-                setCurrentMode(card, data["index"] % card.modes.length, false);
+                // A quoted YAML number ("2") keeps working; a missing index is ignored, not NaN.
+                if (Number.isInteger(Number(data["index"]))) {
+                    setCurrentMode(card, Number(data["index"]) % card.modes.length, false);
+                }
                 break;
             case ActionType.MAP_VIEW_RESET:
                 card._resetMapView();
@@ -112,8 +120,8 @@ export async function handleLovelaceDomEvent(card: XiaomiVacuumMapCard, e: Event
                 }
                 break;
             case ActionType.REPEATS_SET:
-                if (currentMode) {
-                    card.repeats = ((data["value"] + currentMode.maxRepeats - 1) % currentMode.maxRepeats) + 1;
+                if (currentMode && Number.isInteger(Number(data["value"]))) {
+                    card.repeats = ((Number(data["value"]) + currentMode.maxRepeats - 1) % currentMode.maxRepeats) + 1;
                 }
                 break;
             case ActionType.SELECTION_CLEAR:

@@ -407,9 +407,7 @@ export class ManualRectangle extends MapObject {
         const imageHeight = this.realScaled(height);
         const vacuumStart = this.realMapToVacuum(imageX, imageY);
         const vacuumEnd = this.realMapToVacuum(imageX + imageWidth, imageY + imageHeight);
-        const v1 = [vacuumStart[0], vacuumEnd[0]].sort();
-        const v2 = [vacuumStart[1], vacuumEnd[1]].sort();
-        return [v1[0], v2[0], v1[1], v2[1]];
+        return orderedZone([vacuumStart[0], vacuumStart[1], vacuumEnd[0], vacuumEnd[1]]);
     }
 
     public static get styles(): CSSResultGroup {
