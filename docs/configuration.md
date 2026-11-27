@@ -369,7 +369,7 @@ the platforms that number by default.
 Every label on the map is drawn the same way, as a pill, in the style of the Xiaomi Home app: room
 names, and the labels of predefined points and rectangles. Selecting adds a round badge to the
 pill: a room's number in the cleaning order (or a checkmark, see above), and a checkmark for a
-predefined point or rectangle. The pill stays where it is. A room with an icon and a visible name shows its icon next to its pill until it is selected, and the badged pill alone after (a room with no outline keeps its icon so it stays clickable). A room marked only by an icon (no label, or `room_labels: false`) keeps its icon when selected, recoloured with `--map-card-room-icon-color-selected` and `--map-card-room-icon-background-color-selected`, and shows the cleaning-order badge at the icon's corner when `cleaning_order` is on. A room with neither a name nor an icon shows the badge alone once selected. If your map image already shows room names, set
+predefined point or rectangle. The pill stays where it is. A room with an icon and a visible name shows its icon next to its pill until it is selected, and the badged pill alone after (a room with no outline keeps its icon so it stays clickable). A room marked only by an icon (no label, or `room_labels: false`) keeps its icon when selected, recoloured with `--map-card-room-icon-color-selected` and `--map-card-room-icon-background-color-selected`, and shows the cleaning-order badge at the icon's corner when `cleaning_order` is on. A room with neither a name nor an icon shows the badge alone once selected. A name made only of spaces or invisible characters counts as no name, and [`room_names`](#room-names) renames or hides one room's name. If your map image already shows room names, set
 [`room_labels: false`](#map-source-options) on the map source to hide the card's copies, and if it already draws the walls,
 [`room_outlines`](#map-source-options) lets you hide the room outlines: `false` hides them until a room is hovered or selected, `"selected"` shows them only when selected or part of a run, and `"never"` hides them completely while keeping the selected fill and badged pill (or selected icon). The rooms of a started run keep their pills. The pill
 stays upright and the same size at any zoom and rotation, and taps go through it to the room.
@@ -626,6 +626,7 @@ sensor whose display unit was changed in Home Assistant still shows the right nu
 | `variables`             | object  | no              | -       | Variables that should be passed to `service_call_schema`                             |
 | `predefined_selections` | list    | no<sup>3</sup>  | -       |                                                                                      |
 | `room_label_offsets`    | object  | no              | -       | ROOM modes: move room names, in screen or map-image pixels, without configuring the rooms ([moving a room's label](#room-label-offsets)) |
+| `room_names`            | object  | no              | -       | ROOM modes: rename a room, or hide its name with `""`, without configuring the rooms ([renaming or hiding a room's name](#room-names)) |
 
 > You can override any value from built-in template by providing it in your configuration
 
@@ -860,6 +861,35 @@ Format of data depends on selected `selection_type`:
   A label's own `offset_x`/`offset_y` in `predefined_selections` keeps its meaning for a configured
   room. On a room whose outline the card detects from the map colours it is dropped, together with
   the configured label point it belongs to; use `room_label_offsets` there.
+
+  <a id="room-names"></a>
+  **Renaming or hiding a room's name**
+
+  A room read from the camera's `rooms` attribute shows the name the camera gives it, and a
+  `label.text` in `predefined_selections` does not replace it (the camera's name stays current when
+  you rename the room in the vacuum's app). Some integrations also name every unnamed room
+  (Xiaomi Cloud Map Extractor's `Room 23` or `房间23`), which can cover the map in names.
+  `room_names` on the `ROOM` mode renames a room, or hides its name, without configuring the room:
+
+  ```yaml
+  map_modes:
+    - template: vacuum_clean_segment
+      room_names:
+        "16": Кладовка   # shown instead of the camera's name
+        "23": ""         # no name for this room
+  ```
+
+  - The keys are the room ids the mode selects, as for `room_label_offsets`: the segment ids, or the
+    area ids in a mode that cleans [Home Assistant areas](#cleaning-home-assistant-areas).
+  - A name replaces the room's name on the map, selected or not. It works for rooms from the camera,
+    from the map colours, from the area mapping and from `predefined_selections` alike.
+  - `""` hides the name. The room is still drawn and selectable and is cleaned like any other; it is
+    shown like a room without a name (its icon, if it has one, and only its badge once selected).
+    Quote the empty name: `"23": ""`. An empty key (`"23":`) is ignored, like a key never written.
+  - Only the displayed name changes: the id sent to the vacuum, the outline, the icon and which rooms
+    the mode offers stay as they are. A room with no name at all (a configured room without a
+    `label`) has no name to replace. An id the mode does not draw is ignored.
+  - [`room_labels: false`](#map-source-options) on the map source still hides every name.
 
   <a id="cleaning-home-assistant-areas"></a>
   **Cleaning Home Assistant areas**
