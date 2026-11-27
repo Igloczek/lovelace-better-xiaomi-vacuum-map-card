@@ -7,6 +7,9 @@ import { ACTION_HANDLER_CUSTOM_ELEMENT_NAME } from "./const";
 
 const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
+/** Document events that end a pending hold. */
+const CANCEL_EVENTS = ["touchcancel", "mouseout", "mouseup", "touchmove", "mousewheel", "wheel", "scroll"];
+
 interface XiaomiVacuumMapCardActionHandlerInterface extends HTMLElement {
     holdTime: number;
 
@@ -53,18 +56,20 @@ export class XiaomiVacuumMapCardActionHandler extends HTMLElement implements Xia
         this.appendChild(this.ripple);
         this.ripple.primary = true;
 
-        ["touchcancel", "mouseout", "mouseup", "touchmove", "mousewheel", "wheel", "scroll"].forEach(ev => {
-            document.addEventListener(
-                ev,
-                () => {
-                    clearTimeout(this.timer);
-                    this.stopAnimation();
-                    this.timer = undefined;
-                },
-                { passive: true },
-            );
-        });
+        CANCEL_EVENTS.forEach(ev => document.addEventListener(ev, this.cancel, { passive: true }));
     }
+
+    // The element is shared on `document.body` and is connected again whenever it is moved, so the
+    // document listeners are removed here; each connect used to add another set of them.
+    public disconnectedCallback(): void {
+        CANCEL_EVENTS.forEach(ev => document.removeEventListener(ev, this.cancel));
+    }
+
+    private readonly cancel = (): void => {
+        clearTimeout(this.timer);
+        this.stopAnimation();
+        this.timer = undefined;
+    };
 
     public bind(element: XiaomiVacuumMapCardActionHandlerElement, options: ActionHandlerOptions): void {
         if (element.actionHandler) {

@@ -235,6 +235,12 @@ export async function delay(ms: number): Promise<void> {
     await new Promise<void>(resolve => setTimeout(() => resolve(), ms));
 }
 
+/**
+ * Copies text for the editor's copy buttons. The textarea and `execCommand` copy works on every
+ * frontend; the clipboard API is tried as well where it exists. Browsers leave
+ * `navigator.clipboard` undefined outside a secure context (Home Assistant over plain http), and
+ * its write rejects when the document is not focused, so neither may throw out of a click.
+ */
 export function copyMessage(val: string): void {
     const selBox = document.createElement("textarea");
     selBox.style.position = "fixed";
@@ -247,7 +253,7 @@ export function copyMessage(val: string): void {
     selBox.select();
     document.execCommand("copy");
     document.body.removeChild(selBox);
-    navigator.clipboard.writeText(val);
+    navigator.clipboard?.writeText(val).catch(() => undefined);
 }
 
 const JINJA_TEMPLATE_TIMEOUT_MS = 10000;
