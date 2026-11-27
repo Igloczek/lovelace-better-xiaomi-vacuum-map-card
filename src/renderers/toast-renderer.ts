@@ -94,7 +94,7 @@ export class ToastRenderer {
             toastIcon.style.color = successful
                 ? "var(--map-card-internal-toast-successful-icon-color)"
                 : "var(--map-card-internal-toast-unsuccessful-icon-color)";
-            delay(timeout).then(() => (toast.className = toast.className.replace(" show", "")));
+            void delay(timeout).then(() => (toast.className = toast.className.replace(" show", "")));
         }
     }
 

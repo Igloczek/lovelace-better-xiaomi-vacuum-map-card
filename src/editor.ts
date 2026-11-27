@@ -124,7 +124,7 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
 
     public setConfig(config: XiaomiVacuumMapCardConfig): void {
         this._config = normalizeConfig(config);
-        this.loadCardHelpers();
+        void this.loadCardHelpers();
     }
 
     connectedCallback(): void {
@@ -262,7 +262,7 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
                         ${this._localize("editor.label.copy_service_call")}
                     </ha-button>
                     ${conditional(
-                        this._config?.debug == true,
+                        this._config?.debug === true,
                         () => html`
                                 <ha-button size="small" variant="brand" appearance="filled"
                                            @click="${async () => this._copyEntityInfo(this.hass)}">
@@ -379,7 +379,7 @@ export class XiaomiVacuumMapCardEditor extends LitElement implements Omit<Lovela
         // The promise never settles on a frontend without `ha-select` and cannot be cancelled, so it
         // holds the editor only weakly: a closed editor stays collectable.
         const editor = new WeakRef(this);
-        customElements.whenDefined("ha-select").then(() => {
+        void customElements.whenDefined("ha-select").then(() => {
             const self = editor.deref();
             if (!self || token !== self._selectDefinitionToken) return;
             window.clearTimeout(self._selectDefinitionTimer);

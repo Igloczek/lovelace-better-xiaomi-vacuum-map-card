@@ -39,7 +39,7 @@ export function configuredRoomIds(mode: MapMode): Array<string | number> {
 
 /** Home Assistant's area registry, as the frontend exposes it. */
 export function getAreas(card: XiaomiVacuumMapCard): AreaRegistry {
-    return card.hass?.areas as AreaRegistry;
+    return card.hass?.areas;
 }
 
 /**
@@ -174,7 +174,7 @@ export function getRoomsConfig(card: XiaomiVacuumMapCard, requestId?: string): R
                     offset_y: 35,
                 },
                 outline: outline,
-            } as RoomConfig);
+            });
         }
         return {
             modeIndex: modeIndex,
@@ -218,7 +218,7 @@ export function detectRoomColors(card: XiaomiVacuumMapCard): void {
     const detectionKey = cameraRefreshKey({
         cameraId: camera,
         lastUpdated: entity.last_updated ?? entity.last_changed,
-        entityPicture: entity.attributes.entity_picture as string | undefined,
+        entityPicture: entity.attributes.entity_picture,
     });
     if (detectionKey === card.lastRoomColorDetectionKey) return;
     // The canvas shows the snapshot the refresh policy last fetched, which lags the live entity

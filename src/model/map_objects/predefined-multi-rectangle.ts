@@ -61,7 +61,7 @@ export class PredefinedMultiRectangle extends PredefinedMapObject {
                     </polygon>
                 `,
                 )}
-                ${this.renderIcon(this._config.icon, () => this._click(), "predefined-rectangle-icon-wrapper")}
+                ${this.renderIcon(this._config.icon, () => void this._click(), "predefined-rectangle-icon-wrapper")}
                 ${this.renderLabelPill(this._config.label, "predefined-rectangle-label", this._config.icon, this._selected ? "check" : undefined)}
             </g>
         `;

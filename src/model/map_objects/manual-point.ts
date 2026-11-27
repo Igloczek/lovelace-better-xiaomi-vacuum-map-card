@@ -6,6 +6,8 @@ import { MapPoint } from "./map-point";
 import { PointType, PointWithRepeatsType } from "../../types/types";
 
 export class ManualPoint extends MapPoint {
+    // Not redundant: it makes `MapPoint`'s protected constructor public.
+    // oxlint-disable-next-line no-useless-constructor
     constructor(x: number, y: number, context: Context) {
         super(x, y, context);
     }

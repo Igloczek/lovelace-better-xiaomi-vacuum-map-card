@@ -181,7 +181,7 @@ const getActionHandler = (): XiaomiVacuumMapCardActionHandlerInterface => {
     const actionhandler = document.createElement(ACTION_HANDLER_CUSTOM_ELEMENT_NAME);
     body.appendChild(actionhandler);
 
-    return actionhandler as XiaomiVacuumMapCardActionHandlerInterface;
+    return actionhandler;
 };
 
 export const actionHandlerBind = (

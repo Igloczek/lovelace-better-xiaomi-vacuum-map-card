@@ -6,7 +6,6 @@ import {
     IconActionConfig,
     IconConfig,
     LabelConfig,
-    LivePathConfig,
     Language,
     MapModeConfig,
     MapSourceConfig,
@@ -124,7 +123,7 @@ function validateCalibrationSource(calibrationSource: CalibrationSourceConfig): 
     if (!isMapping(calibrationSource)) {
         return [notMapping("calibration_source")];
     }
-    if (Object.keys(calibrationSource).filter(k => k != "attribute").length > 1) {
+    if (Object.keys(calibrationSource).filter(k => k !== "attribute").length > 1) {
         return ["validation.preset.calibration_source.ambiguous"];
     }
     if (calibrationSource.calibration_points) {
@@ -209,7 +208,7 @@ function validatePredefinedRectangleConfig(ps: PredefinedSelectionConfig): Trans
         errors.push("validation.preset.map_modes.predefined_selections.zones.missing");
     } else if (typeof config.zones !== "string" && !Array.isArray(config.zones)) {
         errors.push(notList("zones"));
-    } else if (typeof config.zones !== "string" && config.zones.some(z => !Array.isArray(z) || z.length != 4)) {
+    } else if (typeof config.zones !== "string" && config.zones.some(z => !Array.isArray(z) || z.length !== 4)) {
         errors.push("validation.preset.map_modes.predefined_selections.zones.invalid_parameters_number");
     }
     if (config.icon) {
@@ -230,7 +229,7 @@ function validatePredefinedPointConfig(ps: PredefinedSelectionConfig): Translata
     if (!config.position) {
         errors.push("validation.preset.map_modes.predefined_selections.points.position.missing");
     }
-    if (typeof config.position !== "string" && (!Array.isArray(config.position) || config.position.length != 2)) {
+    if (typeof config.position !== "string" && (!Array.isArray(config.position) || config.position.length !== 2)) {
         errors.push("validation.preset.map_modes.predefined_selections.points.position.invalid_parameters_number");
     }
     if (config.icon) {
@@ -259,7 +258,7 @@ function validateRoomConfig(ps: PredefinedSelectionConfig): TranslatableString[]
     }
     if (config.outline !== undefined && config.outline !== null && !Array.isArray(config.outline)) {
         errors.push(notList("outline"));
-    } else if ((config.outline ?? []).some(o => !Array.isArray(o) || o.length != 2)) {
+    } else if ((config.outline ?? []).some(o => !Array.isArray(o) || o.length !== 2)) {
         errors.push("validation.preset.map_modes.predefined_selections.rooms.outline.invalid_parameters_number");
     }
     if (config.icon) {
@@ -299,14 +298,11 @@ function validateMapModeConfig(
         return [["validation.preset.map_modes.template.invalid", "{0}", config.template]];
     }
     const errors: TranslatableString[] = [];
-    const selectionTypeError = validateEnumName(
-        config.selection_type,
-        SelectionType as unknown as Record<string, unknown>,
-    );
+    const selectionTypeError = validateEnumName(config.selection_type, SelectionType);
     if (selectionTypeError !== undefined) {
         return [["validation.preset.map_modes.selection_type.invalid", "{0}", selectionTypeError]];
     }
-    const repeatsTypeError = validateEnumName(config.repeats_type, RepeatsType as unknown as Record<string, unknown>);
+    const repeatsTypeError = validateEnumName(config.repeats_type, RepeatsType);
     if (repeatsTypeError !== undefined) {
         return [["validation.preset.map_modes.repeats_type.invalid", "{0}", repeatsTypeError]];
     }
@@ -407,7 +403,7 @@ function validateLivePath(config: CardPresetConfig): TranslatableString[] {
         return [["validation.preset.live_path.invalid", "{0}", JSON.stringify(livePath)]];
     }
     const errors: TranslatableString[] = [];
-    const mapping = livePath === true ? {} : (livePath as LivePathConfig);
+    const mapping = livePath === true ? {} : livePath;
     for (const field of ["entity", "attribute"] as const) {
         if (mapping[field] !== undefined && typeof mapping[field] !== "string") {
             errors.push(["validation.preset.live_path.invalid_field", "{0}", field]);
@@ -448,7 +444,7 @@ function validatePreset(config: CardPresetConfig, nameRequired: boolean, languag
         validateServiceCallSchemaConfig(config.activate, "activate").forEach(e => errors.push(e));
     // An empty `calibration_source:` key is YAML `null`: absent, as upstream treated it.
     if (config.calibration_source !== undefined && config.calibration_source !== null)
-        validateCalibrationSource(config.calibration_source as CalibrationSourceConfig).forEach(e => errors.push(e));
+        validateCalibrationSource(config.calibration_source).forEach(e => errors.push(e));
     if (
         config.vacuum_platform &&
         !PlatformGenerator.getPlatforms().includes(PlatformGenerator.getPlatformName(config.vacuum_platform))

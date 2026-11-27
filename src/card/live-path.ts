@@ -76,7 +76,7 @@ function toLayout(card: XiaomiVacuumMapCard, x: number, y: number): [number, num
     const converter = card.coordinatesConverter;
     if (!converter?.calibrated) return undefined;
     try {
-        const [mx, my] = converter.vacuumToMap(x, y) as unknown as [number, number];
+        const [mx, my] = converter.vacuumToMap(x, y);
         const scale = card.realScale;
         if (!Number.isFinite(mx) || !Number.isFinite(my) || !Number.isFinite(scale)) return undefined;
         return [mx * scale, my * scale];

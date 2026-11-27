@@ -75,7 +75,7 @@ export function getWatchedEntitiesForPreset(config: CardPresetConfig, language: 
             if (e) watchedEntities.add(e);
         });
     (config.icons ?? []).forEach(i => {
-        if (i.hasOwnProperty("entity")) watchedEntities.add(i["entity"]);
+        if (Object.prototype.hasOwnProperty.call(i, "entity")) watchedEntities.add(i["entity"]);
     });
     (config.icons ?? [])
         .filter(i => i.conditions)
@@ -125,10 +125,13 @@ export function isConditionMet(
         const entity = hass.states[condition.entity];
         currentValue = condition.attribute ? entity?.attributes?.[condition.attribute] : entity?.state;
     }
+    // Loose on purpose: a state is a string and the YAML value may be a number (`value: 1`).
     if (condition.value) {
+        // oxlint-disable-next-line eqeqeq
         return currentValue == condition.value;
     }
     if (condition.value_not) {
+        // oxlint-disable-next-line eqeqeq
         return currentValue != condition.value_not;
     }
     return false;
@@ -155,7 +158,7 @@ export function hasConfigOrAnyEntityChanged(
     const entitesChanged = !oldHass || watchedEntities.some(entity => oldHass.states[entity] !== hass?.states[entity]);
     if (entitesChanged) return true;
     const changedKeys = Array.from(changedProps.keys());
-    return changedKeys.length > 1 || (changedKeys.length == 1 && changedKeys[0] != "_hass");
+    return changedKeys.length > 1 || (changedKeys.length === 1 && changedKeys[0] !== "_hass");
 }
 
 export function checkIfEntitiesChanged(
@@ -328,10 +331,10 @@ export function replaceInTarget(target: Record<string, unknown>, keyReplacer: Ke
         if (value === null) {
             continue;
         }
-        if (typeof value == "object") {
+        if (typeof value === "object") {
             replaceInTarget(value as Record<string, unknown>, keyReplacer);
-        } else if (typeof value == "string") {
-            target[key] = keyReplacer(value as string);
+        } else if (typeof value === "string") {
+            target[key] = keyReplacer(value);
         }
     }
 }
@@ -350,7 +353,7 @@ export function replaceInStr(
     let output = value;
     Object.keys(variables).forEach(tv => {
         let replaced = kr(tv);
-        if (typeof replaced == "object") {
+        if (typeof replaced === "object") {
             replaced = JSON.stringify(replaced);
         }
         output = output.replaceAll(tv, `${replaced}`);

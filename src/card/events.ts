@@ -19,7 +19,7 @@ export function isInEditor(card: XiaomiVacuumMapCard): boolean {
                 "preview" in (e.parentElement?.attributes ?? [])) ||
             e.parentElement?.tagName?.toLowerCase() === "hui-card-preview" ||
             (e.parentElement != null && isInEditor(e.parentElement)) ||
-            (e.parentNode?.toString() == "[object ShadowRoot]" && isInEditor((e.getRootNode() as ShadowRoot).host))
+            (e.parentNode?.toString() === "[object ShadowRoot]" && isInEditor((e.getRootNode() as ShadowRoot).host))
         );
     }
     return isInEditor(card);

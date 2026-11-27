@@ -339,7 +339,7 @@ export class TilesGenerator {
         const toRemove = ["unique_id_regex", "translation_keys", "duration_unit"];
         const e = tileConfig as unknown as Record<string, unknown>;
         for (const key in e) {
-            if (e.hasOwnProperty(key) && toRemove.includes(key)) {
+            if (Object.prototype.hasOwnProperty.call(e, key) && toRemove.includes(key)) {
                 delete e[key];
             }
         }

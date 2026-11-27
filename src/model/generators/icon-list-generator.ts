@@ -274,7 +274,7 @@ export class IconListGenerator {
                 },
             });
         }
-        if (fanSpeeds.length != 0) {
+        if (fanSpeeds.length !== 0) {
             icons.push({
                 icon_id: "fan_speed_unknown",
                 icon: "mdi:fan-alert",
@@ -308,10 +308,10 @@ export class IconListGenerator {
         iconTemplate: IconTemplate,
         entityRegistryEntries: EntityRegistryEntry[],
     ): IconActionConfig[] {
-        if (iconTemplate.type == "single") {
+        if (iconTemplate.type === "single") {
             return IconListGenerator.createSingleIcon(iconTemplate as SingleIconTemplate, entityRegistryEntries);
         }
-        if (iconTemplate.type == "menu") {
+        if (iconTemplate.type === "menu") {
             return IconListGenerator.createMenuIcon(iconTemplate as MenuIconTemplate, entityRegistryEntries);
         }
         return [iconTemplate];
@@ -334,7 +334,7 @@ export class IconListGenerator {
                 entity: matched.entity_id,
             },
         };
-        if (iconConfig.hasOwnProperty("unique_id_regex")) {
+        if (Object.prototype.hasOwnProperty.call(iconConfig, "unique_id_regex")) {
             delete iconConfig["unique_id_regex"];
         }
         return [iconConfig];
@@ -354,7 +354,7 @@ export class IconListGenerator {
             entity: matched.entity_id,
             icon: iconTemplate.icon ?? matched.icon ?? matched.original_icon,
         };
-        if (iconConfig.hasOwnProperty("unique_id_regex")) {
+        if (Object.prototype.hasOwnProperty.call(iconConfig, "unique_id_regex")) {
             delete iconConfig["unique_id_regex"];
         }
         return [iconConfig];

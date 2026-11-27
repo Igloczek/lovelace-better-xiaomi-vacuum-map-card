@@ -89,7 +89,7 @@ export class ServiceCallSchema {
 
     private static isPoint(selection: unknown[], pointSelection?: boolean): boolean {
         const numbers = typeof selection[0] === "number" && typeof selection[1] === "number";
-        if (pointSelection === undefined) return numbers && selection.length == 2;
-        return pointSelection && numbers && (selection.length == 2 || selection.length == 3);
+        if (pointSelection === undefined) return numbers && selection.length === 2;
+        return pointSelection && numbers && (selection.length === 2 || selection.length === 3);
     }
 }

@@ -30,7 +30,7 @@ export function getMapSrc(card: XiaomiVacuumMapCard, config: CardPresetConfig): 
         return DISCONNECTED_IMAGE;
     }
     if (config.map_source.image) {
-        return `${config.map_source.image}`;
+        return config.map_source.image;
     }
     return DISCONNECTED_IMAGE;
 }
@@ -60,7 +60,7 @@ export function decideCardMapRefresh(card: XiaomiVacuumMapCard, camera: string):
         camera: {
             cameraId: camera,
             lastUpdated: entity?.last_updated ?? entity?.last_changed,
-            entityPicture: entity?.attributes?.entity_picture as string | undefined,
+            entityPicture: entity?.attributes?.entity_picture,
         },
         previous: card.mapRefreshState,
         now,
@@ -121,7 +121,7 @@ export function mapImageSettled(card: XiaomiVacuumMapCard): void {
     const liveKey = cameraRefreshKey({
         cameraId: camera,
         lastUpdated: entity.last_updated ?? entity.last_changed,
-        entityPicture: entity.attributes?.entity_picture as string | undefined,
+        entityPicture: entity.attributes?.entity_picture,
     });
     if (liveKey !== card.mapRefreshState.cameraKey) {
         card.requestUpdate();

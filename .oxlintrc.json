@@ -2,7 +2,8 @@
     "$schema": "./node_modules/oxlint/configuration_schema.json",
     "plugins": ["typescript", "eslint", "oxc", "import"],
     "categories": {
-        "correctness": "error"
+        "correctness": "error",
+        "suspicious": "error"
     },
     "env": {
         "browser": true,
@@ -11,6 +12,38 @@
     "ignorePatterns": ["dist/**", "node_modules/**"],
     "rules": {
         "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-        "typescript/no-explicit-any": "warn"
+        "typescript/no-explicit-any": "warn",
+
+        "no-underscore-dangle": "off",
+        "typescript/no-extraneous-class": "off",
+        "import/no-unassigned-import": "off",
+        "no-shadow": "off",
+        "typescript/no-base-to-string": "off",
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/unbound-method": "off",
+        "typescript/no-unsafe-enum-assignment": "off",
+        "typescript/no-unnecessary-type-conversion": "off",
+        "typescript/no-unnecessary-type-parameters": "off",
+        "typescript/no-unnecessary-boolean-literal-compare": "off",
+        "typescript/restrict-template-expressions": "off",
+
+        "no-eval": "error",
+        "no-new-func": "error",
+        "no-script-url": "error",
+        "no-proto": "error",
+        "no-caller": "error",
+        "no-extend-native": "error",
+        "no-prototype-builtins": "error",
+        "radix": "error",
+        "eqeqeq": ["error", "always", { "null": "ignore" }],
+
+        "typescript/no-floating-promises": "error",
+        "typescript/no-misused-promises": "error",
+        "typescript/await-thenable": "error",
+        "typescript/no-implied-eval": "error",
+        "typescript/only-throw-error": "error",
+        "typescript/no-for-in-array": "error",
+        "typescript/require-array-sort-compare": ["error", { "ignoreStringArrays": true }],
+        "typescript/no-unnecessary-type-assertion": "error"
     }
 }

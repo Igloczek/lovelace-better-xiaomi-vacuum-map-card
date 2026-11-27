@@ -101,7 +101,7 @@ function evaluateForLanguage(string: string, lang: string): string | undefined {
 
 export function localize(ts: TranslatableString, lang?: Language, fallback?: string): string {
     if (typeof ts === "string") {
-        return localizeString(ts as string, "", "", lang, fallback);
+        return localizeString(ts, "", "", lang, fallback);
     } else {
         return localizeString(...ts, lang, fallback);
     }

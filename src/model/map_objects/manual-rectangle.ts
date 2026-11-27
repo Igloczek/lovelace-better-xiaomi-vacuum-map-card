@@ -100,7 +100,7 @@ export class ManualRectangle extends MapObject {
             .filter(p => !isNaN(p[0]) && !isNaN(p[1]))
             .map(p => p.join(", "))
             .join(" ");
-        if (points.length == 3) console.error(`Points: ${points}`);
+        if (points.length === 3) console.error(`Points: ${points}`);
         return points;
     }
 
@@ -232,7 +232,7 @@ export class ManualRectangle extends MapObject {
     }
 
     private _startDrag(event: MouseEvent | TouchEvent): void {
-        if (window.TouchEvent && event instanceof TouchEvent && (event as TouchEvent).touches.length > 1) {
+        if (window.TouchEvent && event instanceof TouchEvent && event.touches.length > 1) {
             return;
         }
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -267,7 +267,7 @@ export class ManualRectangle extends MapObject {
     }
 
     private _drag(event: MouseEvent | TouchEvent): void {
-        if (window.TouchEvent && event instanceof TouchEvent && (event as TouchEvent).touches.length > 1) {
+        if (window.TouchEvent && event instanceof TouchEvent && event.touches.length > 1) {
             return;
         }
         if (this._selectedElement) {
@@ -316,9 +316,10 @@ export class ManualRectangle extends MapObject {
                             this._vacRect[1] = this._vacRectSnapshot[1] + diffY;
                         }
                         if (
-                            Math.sign(this._vacRect[0] - this._vacRect[2]) !=
+                            Math.sign(this._vacRect[0] - this._vacRect[2]) !==
                                 Math.sign(tmpSnapshot[0] - tmpSnapshot[2]) ||
-                            Math.sign(this._vacRect[1] - this._vacRect[3]) != Math.sign(tmpSnapshot[1] - tmpSnapshot[3])
+                            Math.sign(this._vacRect[1] - this._vacRect[3]) !==
+                                Math.sign(tmpSnapshot[1] - tmpSnapshot[3])
                         )
                             this._vacRect = tmpSnapshot;
                         this._setup(this._corners()[0]);

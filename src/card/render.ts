@@ -1,5 +1,5 @@
 import { html, TemplateResult } from "lit";
-import { forwardHaptic, LovelaceCard } from "custom-card-helpers";
+import { forwardHaptic } from "custom-card-helpers";
 import { actionHandler } from "../action-handler-directive";
 import { CARD_VERSION } from "../const";
 import { SelectionType } from "../model/map_mode/selection-type";
@@ -96,7 +96,7 @@ export function createMapControls(card: XiaomiVacuumMapCard): TemplateResult[] {
 
 export function showConfigErrors(card: XiaomiVacuumMapCard, errors: string[]): TemplateResult {
     errors.forEach(e => console.error(e));
-    const errorCard = document.createElement("hui-error-card") as LovelaceCard;
+    const errorCard = document.createElement("hui-error-card");
     try {
         errorCard.setConfig({
             type: "error",

@@ -130,7 +130,7 @@ export class MapMode {
                 replaceInTarget(serviceData, v =>
                     v.endsWith(Modifier.JSONIFY_JINJA) ? JSON.parse(v.replace(Modifier.JSONIFY_JINJA, "")) : v,
                 );
-                serviceCall = { ...serviceCall, serviceData: serviceData };
+                serviceCall = new ServiceCall(serviceCall.domain, serviceCall.service, serviceData, serviceCall.target);
             } catch (e) {
                 console.error("Failed to parse template output", output);
                 throw e;

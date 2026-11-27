@@ -33,13 +33,15 @@ export function handleActionWithConfig(
         const currentMode = node._getCurrentMode();
         let itemVariables = {};
         itemVariables[TemplatableItemValue.VACUUM_ENTITY_ID] = currentPreset.entity;
-        if (config.hasOwnProperty("attribute")) {
+        if (Object.prototype.hasOwnProperty.call(config, "attribute")) {
             itemVariables[TemplatableItemValue.ATTRIBUTE] = config["attribute"];
         }
-        if (config.hasOwnProperty("variables")) {
+        if (Object.prototype.hasOwnProperty.call(config, "variables")) {
             itemVariables = { ...itemVariables, ...config["variables"] };
         }
-        const entity_id = config.hasOwnProperty("entity") ? config["entity"] : currentPreset.entity;
+        const entity_id = Object.prototype.hasOwnProperty.call(config, "entity")
+            ? config["entity"]
+            : currentPreset.entity;
         const { selection, variables } = node._getSelection(currentMode);
         const defaultVariables = ServiceCallSchema.getDefaultVariables(
             entity_id,
@@ -98,5 +100,5 @@ export function withCallServiceActions(config: ActionableObjectConfig): Actionab
             data: service_data ?? data,
         };
     }
-    return result as unknown as ActionableObjectConfig;
+    return result;
 }
