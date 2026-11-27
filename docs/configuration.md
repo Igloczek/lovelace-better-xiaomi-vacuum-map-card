@@ -881,6 +881,8 @@ Format of data depends on selected `selection_type`:
         "23": false
   ```
 
+  - Add `room_names` to your existing room-cleaning mode (one with `selection_type: ROOM` or a
+    `template:`), not as a new entry in `map_modes`: each entry in `map_modes` is a separate mode.
   - The keys are room ids, not the names shown on the map: the room ids the mode selects, as for
     `room_label_offsets` (the segment ids, or the area ids in a mode that cleans
     [Home Assistant areas](#cleaning-home-assistant-areas)). Find them in the map camera's `rooms`
