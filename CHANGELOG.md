@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.16.0
+
+### Added
+
+- `room_names` on a `ROOM` mode renames a room, or hides its name with `""`, without configuring
+  the room (#133). It works for rooms from the map camera, rooms traced from the map colours, area
+  rooms and configured rooms alike; the room stays selectable and only the displayed name changes.
+  Useful when the map camera publishes placeholder names such as `房间1`.
+
+### Fixed
+
+- A room whose name is made only of invisible characters (such as a zero-width space) no longer
+  shows an empty pill. It counts as a room without a name, like a blank one.
+
 ## 1.15.0
 
 ### Added
