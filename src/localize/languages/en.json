@@ -141,7 +141,7 @@
                     "invalid_unit": "{0} must be px or map"
                 },
                 "room_names": {
-                    "not_text": "{0} must be text (the room's name, or \"\" to hide it)"
+                    "not_text": "{0} must be a room name, or false to hide it (quote a name such as \"Yes\" or \"On\")"
                 },
                 "service_call_schema": {
                     "missing": "Missing service call schema",

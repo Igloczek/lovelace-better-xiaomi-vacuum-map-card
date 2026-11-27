@@ -17,6 +17,7 @@ import { evaluateJinjaTemplate, normalizeJinjaQuotes, replaceInTarget } from "..
 import { Modifier } from "./modifier";
 import { HomeAssistantFixed } from "../../types/fixes";
 import { isHaVersionBefore } from "../ha-version";
+import { visibleText } from "../visible-text";
 
 export class MapMode {
     private static readonly PREDEFINED_SELECTION_TYPES = [
@@ -44,9 +45,35 @@ export class MapMode {
     public predefinedSelections: PredefinedSelectionConfig[];
     /** ROOM modes: the label nudge of each room id (`room_label_offsets`). */
     public roomLabelOffsets: { [roomId: string]: RoomLabelOffsetConfig };
-    /** ROOM modes: the displayed name of each room id, `""` for none (`room_names`). */
-    public roomNames: { [roomId: string]: string };
+    /** ROOM modes: the configured `room_names`, a number as its text and `false` for a hidden name. */
+    public roomNames: { [roomId: string]: string | false };
     public variables: VariablesStorage;
+
+    /** `room_names` with a number as its text; an entry that is not text, a number or `false` is left out. */
+    private static _roomNames(names: MapModeConfig["room_names"]): { [roomId: string]: string | false } {
+        if (typeof names !== "object" || names === null || Array.isArray(names)) return {};
+        return Object.fromEntries(
+            Object.entries(names)
+                .filter(
+                    ([, name]) =>
+                        name === false ||
+                        typeof name === "string" ||
+                        (typeof name === "number" && Number.isFinite(name)),
+                )
+                .map(([id, name]) => [id, name === false ? false : String(name)]),
+        );
+    }
+
+    /**
+     * The name a ROOM mode shows for a room: `null` when its `room_names` entry is `false` (the name is
+     * hidden), the replacement name, or undefined to keep the room's own name - also for a blank
+     * entry, which is no name, like an empty key.
+     */
+    public roomNameOverride(roomId: string | number): string | null | undefined {
+        const name = this.roomNames[String(roomId)];
+        if (name === undefined) return undefined;
+        return name === false ? null : visibleText(name);
+    }
 
     constructor(
         vacuumPlatform: string,
@@ -73,7 +100,7 @@ export class MapMode {
         this.legacyServiceCallSchemas = MapMode._legacySchemas(config.legacy_service_call_schemas);
         this.predefinedSelections = config.predefined_selections ?? [];
         this.roomLabelOffsets = config.room_label_offsets ?? {};
-        this.roomNames = config.room_names ?? {};
+        this.roomNames = MapMode._roomNames(config.room_names);
         this.variables = config.variables ?? {};
         this._applyTemplateIfPossible(vacuumPlatform, config, language);
         if (!MapMode.PREDEFINED_SELECTION_TYPES.includes(this.selectionType)) {

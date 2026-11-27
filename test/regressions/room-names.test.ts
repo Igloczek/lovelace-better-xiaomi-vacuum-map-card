@@ -17,6 +17,7 @@ import {
     settle,
     useHarnessClock,
     withRegistryEntries,
+    withState,
 } from "../harness";
 
 /**
@@ -128,8 +129,8 @@ describe("room_names (#133)", () => {
         expect(pillName(card, "1")).toBe("Гостиная");
     });
 
-    it('hides a camera room\'s name with "", exactly like a room shown without names', async () => {
-        const card = await mount(segmentConfig({ room_names: { "1": "" } }));
+    it("hides a camera room's name with false, exactly like a room shown without names", async () => {
+        const card = await mount(segmentConfig({ room_names: { "1": false } }));
         expect(pillName(card, "1")).toBeUndefined();
         expect(roomQuery(card.shadowRoot, "1", ".room-pill")).toBeNull();
         expect(pillName(card, "0")).toBe("Kitchen");
@@ -147,7 +148,7 @@ describe("room_names (#133)", () => {
     });
 
     it("shows only the order badge on a hidden name when it is selected with cleaning_order", async () => {
-        const card = await mount(segmentConfig({ cleaning_order: true, room_names: { "1": "" } }));
+        const card = await mount(segmentConfig({ cleaning_order: true, room_names: { "1": false } }));
         await clickRoom(card, "0");
         await clickRoom(card, "1");
         const badge = roomQuery(card.shadowRoot, "1", ".room-pill:not(.no-badge)");
@@ -171,7 +172,7 @@ describe("room_names (#133)", () => {
         const bundle = loadSyntheticFixture();
         bundle.camera = { ...bundle.camera, attributes: { ...bundle.camera.attributes, rooms: undefined } };
         const card = await mount(
-            segmentConfig({ predefined_selections: configured, room_names: { "7": "Кладовка", "8": "" } }),
+            segmentConfig({ predefined_selections: configured, room_names: { "7": "Кладовка", "8": false } }),
             fixtureHass(bundle),
         );
         expect(offered(card)).toEqual(["7", "8"]);
@@ -181,7 +182,7 @@ describe("room_names (#133)", () => {
 
     it("ignores an id the mode does not draw", async () => {
         const plain = await mount(segmentConfig());
-        const card = await mount(segmentConfig({ room_names: { "99": "Nowhere", "98": "" } }));
+        const card = await mount(segmentConfig({ room_names: { "99": "Nowhere", "98": false } }));
         expect(["0", "1", "2"].map(id => labelLayer(card, id))).toEqual(
             ["0", "1", "2"].map(id => labelLayer(plain, id)),
         );
@@ -250,7 +251,7 @@ describe("room_names (#133)", () => {
         it("renames and hides areas by area id without restricting the mode to configured areas", async () => {
             const plain = await mount(areaConfig(), hass());
             expect(pillName(plain, "flur")).toBe("Flur");
-            const card = await mount(areaConfig({ room_names: { flur: "Diele", kueche: "" } }), hass());
+            const card = await mount(areaConfig({ room_names: { flur: "Diele", kueche: false } }), hass());
             expect(offered(card)).toEqual(offered(plain));
             expect(pillName(card, "flur")).toBe("Diele");
             expect(pillName(card, "kueche")).toBeUndefined();
@@ -284,9 +285,9 @@ describe("a name without visible characters (#133)", () => {
         expect(pillName(card, "1")).toBe("Room 1");
     });
 
-    it("draws no empty pill for a configured or renamed name of invisible characters", async () => {
+    it("ignores a rename made of invisible characters instead of drawing an empty pill", async () => {
         const card = await mount(segmentConfig({ room_names: { "1": "​⁠" } }));
-        expect(roomQuery(card.shadowRoot, "1", ".room-pill")).toBeNull();
+        expect(pillName(card, "1")).toBe("Living room");
     });
 });
 
@@ -296,32 +297,230 @@ describe("room_names configuration", () => {
         map_modes: [{ template: "vacuum_clean_segment", ...extra } as MapModeConfig],
     });
 
-    it("accepts a mapping of room ids to names, an empty name too", () => {
-        expect(validateConfig(withRoomMode({ room_names: { "16": "Кладовка", "23": "", hallway: "Flur" } }))).toEqual(
-            [],
-        );
+    it("accepts a mapping of room ids to names or false", () => {
+        expect(
+            validateConfig(withRoomMode({ room_names: { "16": "Кладовка", "23": false, hallway: "Flur" } })),
+        ).toEqual([]);
     });
 
-    it("treats an empty key as absent and keeps an explicit empty name", () => {
+    it('treats an empty value, null or "", as a key never written and keeps false', () => {
         expect(validateConfig(normalizeConfig(withRoomMode({ room_names: null })))).toEqual([]);
-        const normalized = normalizeConfig(withRoomMode({ room_names: { "16": null, "23": "" } }));
+        const normalized = normalizeConfig(withRoomMode({ room_names: { "16": null, "23": "", "24": false } }));
         expect(validateConfig(normalized)).toEqual([]);
-        expect((normalized.map_modes![0] as MapModeConfig).room_names).toEqual({ "23": "" });
+        expect((normalized.map_modes![0] as MapModeConfig).room_names).toEqual({ "24": false });
     });
 
     it("reports a whole value that is not a mapping and a name that is not text, by field", () => {
         expect(validateConfig(withRoomMode({ room_names: ["Kitchen"] })).join(" ")).toContain("room_names");
-        for (const name of [5, true, { text: "Kitchen" }, ["Kitchen"]]) {
+        // A number is a name (`16: 2`) and `false` hides; `true` means nothing and is reported.
+        for (const name of [true, { text: "Kitchen" }, ["Kitchen"]]) {
             const errors = validateConfig(withRoomMode({ room_names: { "16": name } })).join(" ");
             expect(errors, JSON.stringify(name)).toContain("room_names.16");
         }
     });
 
     it("is kept in an exported mode config and left out when absent", () => {
-        const names = { "16": "Кладовка", "23": "" };
+        const names = { "16": "Кладовка", "23": false as const };
         const mode = new MapMode("Roborock", { template: "vacuum_clean_segment", room_names: names }, "en");
         expect(mode.toMapModeConfig().room_names).toEqual(names);
         const bare = new MapMode("Roborock", { template: "vacuum_clean_segment" }, "en");
         expect("room_names" in bare.toMapModeConfig()).toBe(false);
+    });
+});
+
+/**
+ * `false` in `room_names` (#133 follow-up): hiding a name is `false`, the per-room form of
+ * `map_source.room_labels: false`. A blank name has no special meaning: like any empty value in the
+ * card's configuration it is a key never written, so the room keeps its own name.
+ */
+describe("room_names: false (#133)", () => {
+    afterEach(() => {
+        window.localStorage.removeItem(ACTIVE_ROOM_RUN_STORE_KEY);
+        vi.restoreAllMocks();
+    });
+
+    it('ignores a blank name ("", spaces) like an empty key: the room keeps its own name', async () => {
+        const plain = await mount(segmentConfig());
+        const card = await mount(segmentConfig({ room_names: { "1": "", "2": "   " } }));
+        for (const id of ["0", "1", "2"]) expect(labelLayer(card, id)).toBe(labelLayer(plain, id));
+        expect(pillName(card, "1")).toBe("Living room");
+    });
+
+    it("hides several names, each room still selectable", async () => {
+        const card = await mount(segmentConfig({ room_names: { "1": false, "2": false } }));
+        expect(pillName(card, "0")).toBe("Kitchen");
+        expect(pillName(card, "1")).toBeUndefined();
+        expect(pillName(card, "2")).toBeUndefined();
+        expect(offered(card)).toEqual(["0", "1", "2"]);
+        await clickRoom(card, "2");
+        expect(card.element.selectedRooms.map(room => String(room.toVacuum()))).toEqual(["2"]);
+    });
+
+    it("ignores an id the mode does not draw", async () => {
+        const plain = await mount(segmentConfig());
+        const card = await mount(segmentConfig({ room_names: { "99": false, hallway: false } }));
+        expect(["0", "1", "2"].map(id => labelLayer(card, id))).toEqual(
+            ["0", "1", "2"].map(id => labelLayer(plain, id)),
+        );
+    });
+
+    it("keeps renamed and hidden names on the rooms of a started run", async () => {
+        const card = await mount(segmentConfig({ cleaning_order: true, room_names: { "2": "Спальня", "0": false } }));
+        await clickRoom(card, "2");
+        await clickRoom(card, "0");
+        card.shadowRoot
+            .querySelector(".map-actions-item.main")
+            ?.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+        await settle(card.element, 400);
+        await card.updateHass(
+            withState(card.hass, VACUUM, { state: "cleaning", last_changed: "2026-11-01T10:00:30.000Z" }).hass,
+        );
+        await settle(card.element);
+        expect(card.element.selectedRooms).toHaveLength(0);
+        expect(roomQuery(card.shadowRoot, "2", ".room-pill")?.textContent?.replace(/\s+/g, "")).toBe("1Спальня");
+        expect(roomQuery(card.shadowRoot, "0", ".room-pill")?.textContent?.trim()).toBe("2");
+        expect(pillName(card, "0")).toBeUndefined();
+    });
+
+    it("hides an area's name by area id", async () => {
+        const AREAS = areaRegistry([
+            ["flur", "Flur"],
+            ["kueche", "Küche"],
+        ]);
+        const hass = withRegistryEntries(fixtureHass(loadSyntheticFixture(), { areas: AREAS }), [
+            {
+                entity_id: VACUUM,
+                unique_id: "roborock_s7",
+                device_id: "device-roborock-s7",
+                platform: "roborock",
+                name: null,
+                original_name: "Roborock S7",
+                options: {
+                    vacuum: {
+                        area_mapping: { kueche: ["1_0"], flur: ["1_1"] },
+                        last_seen_segments: [
+                            { id: "1_0", name: "Kitchen", group: "Map 1" },
+                            { id: "1_1", name: "Living room", group: "Map 1" },
+                        ],
+                    },
+                },
+            },
+        ]);
+        const card = await mount(
+            {
+                ...fixtureConfig(loadSyntheticFixture()),
+                vacuum_platform: "Roborock",
+                map_modes: [
+                    {
+                        name: "Räume",
+                        icon: "mdi:broom",
+                        selection_type: "ROOM",
+                        max_selections: 10,
+                        room_names: { kueche: false },
+                        service_call_schema: {
+                            service: "vacuum.clean_area",
+                            service_data: { entity_id: "[[entity_id]]", cleaning_area_id: "[[selection]]" },
+                        },
+                    } as MapModeConfig,
+                ],
+                tiles: [],
+                icons: [],
+                persist_map_view: false,
+            },
+            hass,
+        );
+        expect(offered(card).sort()).toEqual(["flur", "kueche"]);
+        expect(pillName(card, "flur")).toBe("Flur");
+        expect(pillName(card, "kueche")).toBeUndefined();
+    });
+});
+
+/**
+ * A configured room without a `label` had no name for `room_names` to replace, so a rename did
+ * nothing. It now gets a label where the card would put one.
+ */
+describe("room_names on a room without a label (#133)", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const outline: [number, number][] = [
+        [200, 200],
+        [800, 200],
+        [800, 700],
+        [200, 700],
+    ];
+    const withoutCameraRooms = (): MockHass => {
+        const bundle = loadSyntheticFixture();
+        bundle.camera = { ...bundle.camera, attributes: { ...bundle.camera.attributes, rooms: undefined } };
+        return fixtureHass(bundle);
+    };
+    const roomLabel = (card: CardHandle, id: string) =>
+        (
+            card.element.selectableRooms.find(room => String(room.toVacuum()) === id) as unknown as {
+                _config: { label?: unknown };
+            }
+        )._config.label;
+
+    it("names a room under its icon, as the card places a camera room's name", async () => {
+        const icon = { name: "mdi:fridge", x: 500, y: 450 };
+        const card = await mount(
+            segmentConfig({ predefined_selections: [{ id: 7, icon, outline }], room_names: { "7": "Кладовка" } }),
+            withoutCameraRooms(),
+        );
+        expect(pillName(card, "7")).toBe("Кладовка");
+        expect(roomLabel(card, "7")).toEqual({ text: "Кладовка", x: 500, y: 450, offset_y: 35 });
+    });
+
+    it("names a room without an icon in the middle of its outline", async () => {
+        const card = await mount(
+            segmentConfig({ predefined_selections: [{ id: 7, outline }], room_names: { "7": "Кладовка" } }),
+            withoutCameraRooms(),
+        );
+        expect(pillName(card, "7")).toBe("Кладовка");
+        expect(roomLabel(card, "7")).toEqual({ text: "Кладовка", x: 500, y: 450 });
+    });
+});
+
+describe("room_names: false configuration", () => {
+    const withRoomMode = (extra: Record<string, unknown>): XiaomiVacuumMapCardConfig => ({
+        ...fixtureConfig(loadSyntheticFixture()),
+        map_modes: [{ template: "vacuum_clean_segment", ...extra } as MapModeConfig],
+    });
+
+    it("accepts false and a number as a name", () => {
+        expect(validateConfig(withRoomMode({ room_names: { "9": false, "16": 2, hallway: "Flur" } }))).toEqual([]);
+        const mode = new MapMode(
+            "Roborock",
+            { template: "vacuum_clean_segment", room_names: { "9": false, "16": 2, "17": "" } },
+            "en",
+        );
+        expect(mode.roomNameOverride(9)).toBeNull();
+        expect(mode.roomNameOverride(16)).toBe("2");
+        expect(mode.roomNameOverride("17")).toBeUndefined();
+        expect(mode.roomNameOverride(18)).toBeUndefined();
+        // Zero is a name, not "no name".
+        expect(
+            new MapMode(
+                "Roborock",
+                { template: "vacuum_clean_segment", room_names: { "5": 0 } },
+                "en",
+            ).roomNameOverride(5),
+        ).toBe("0");
+    });
+
+    it("keeps false through normalisation", () => {
+        const normalized = normalizeConfig(withRoomMode({ room_names: { "9": false, "16": null } }));
+        expect((normalized.map_modes![0] as MapModeConfig).room_names).toEqual({ "9": false });
+    });
+
+    it("tells how to hide when a name is true", () => {
+        const errors = validateConfig(withRoomMode({ room_names: { "23": true } })).join(" ");
+        expect(errors).toContain("room_names.23");
+        expect(errors).toContain("false to hide");
+    });
+
+    it("keeps false in an exported mode config", () => {
+        const names = { "9": false as const, "16": "Кладовка" };
+        const mode = new MapMode("Roborock", { template: "vacuum_clean_segment", room_names: names }, "en");
+        expect(mode.toMapModeConfig().room_names).toEqual(names);
     });
 });

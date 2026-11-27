@@ -224,32 +224,32 @@ export function setCurrentMode(
                 const center = room.label ? [room.label.x, room.label.y] : undefined;
                 const nudge = newMode.roomLabelOffsets[String(room.id)];
                 const mapNudge = nudge?.unit === "map";
+                // An area drawn from camera rooms has its icon placed by `buildAreaRooms`.
+                const icon = drawnArea
+                    ? room.icon
+                    : configured?.icon
+                      ? {
+                            ...configured.icon,
+                            x: center?.[0] ?? configured.icon.x,
+                            y: center?.[1] ?? configured.icon.y,
+                        }
+                      : undefined;
+                // An area room's label is placed by `buildAreaRooms` already. A detected room's label
+                // sits on the detected centre: a configured label point and offset belong to the
+                // configured outline, so they are dropped.
+                const label =
+                    region && room.label && !areaRoom
+                        ? { ...room.label, offset_x: 0, offset_y: 0 }
+                        : (room.label ?? configured?.label);
                 const config: RoomConfig = {
                     ...configured,
                     ...room,
-                    // An area drawn from camera rooms has its icon placed by `buildAreaRooms`.
-                    icon: drawnArea
-                        ? room.icon
-                        : configured?.icon
-                          ? {
-                                ...configured.icon,
-                                x: center?.[0] ?? configured.icon.x,
-                                y: center?.[1] ?? configured.icon.y,
-                            }
-                          : undefined,
-                    // An area room's label is placed by `buildAreaRooms` already. A detected room's
-                    // label sits on the detected centre: a configured label point and offset belong
-                    // to the configured outline, so they are dropped. `room_label_offsets` nudges
-                    // it on top of that (#126).
-                    // `room_names` replaces the name it shows, or hides it with "" (#133).
-                    label: renameLabel(
-                        nudgeLabel(
-                            region && room.label && !areaRoom
-                                ? { ...room.label, offset_x: 0, offset_y: 0 }
-                                : (room.label ?? configured?.label),
-                            mapNudge ? undefined : nudge,
-                        ),
-                        newMode.roomNames[String(room.id)],
+                    icon,
+                    // `room_names` changes or hides the name it shows (#133), and
+                    // `room_label_offsets` nudges it on top of that (#126).
+                    label: nudgeLabel(
+                        nameLabel(label, newMode.roomNameOverride(room.id), { icon, outline: room.outline }),
+                        mapNudge ? undefined : nudge,
                     ),
                     variables: configured?.variables,
                     default_state: configured?.default_state,
@@ -607,14 +607,26 @@ function pushRectangle(card: XiaomiVacuumMapCard, currentMode: MapMode): void {
 }
 
 /**
- * A room label renamed by a mode's `room_names` entry: a name replaces the label's text, `""` leaves
- * the room without a name (icon or badge only, as under `room_labels: false`). The label point stays,
- * so the selected badge and a later rename sit where the name did. A room with no label has no name
- * to replace and is left as it is.
+ * A room's label with the name its mode gives it (#133): `null` hides the name - the room shows like
+ * a room without one (icon or badge only), and the label point stays where the selected badge goes -
+ * a string replaces it, and undefined keeps the room's own name. A room with no label that is given a
+ * name gets one where the card would put it: under the icon (as a camera room's), else on the middle
+ * of the outline. A room with neither keeps no name. Only a configured room can lack a label: the
+ * card labels every camera, detected and area room itself.
  */
-function renameLabel(label: LabelConfig | undefined, name: string | undefined): LabelConfig | undefined {
-    if (!label || typeof name !== "string") return label;
-    return { ...label, text: name };
+function nameLabel(
+    label: LabelConfig | undefined,
+    name: string | null | undefined,
+    place: { icon?: { x: number; y: number }; outline?: number[][] },
+): LabelConfig | undefined {
+    if (name === undefined) return label;
+    if (label) return { ...label, text: name ?? "" };
+    if (name === null) return undefined;
+    if (place.icon) return { text: name, x: place.icon.x, y: place.icon.y, offset_y: 35 };
+    const outline = place.outline ?? [];
+    if (outline.length === 0) return undefined;
+    const sum = outline.reduce((acc, point) => [acc[0] + point[0], acc[1] + point[1]], [0, 0]);
+    return { text: name, x: sum[0] / outline.length, y: sum[1] / outline.length };
 }
 
 /**
