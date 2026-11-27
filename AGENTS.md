@@ -103,6 +103,14 @@ suite grows with every bug and the same class of problem cannot come back.
 - **Never weaken the suite to pass.** Do not delete, loosen or skip a test to make a change pass; a test that needs updating keeps what it proved. A flaky test is a bug of its own.
 - In the hand-off or report, name the test that was red before the fix and the gap in the suite it closes.
 
+## API changes go through a council
+
+The card's API is everything users write or depend on: configuration keys and their shapes, accepted values and special values, defaults, template variables, events, element names, service call schemas and the agent-report format. An API lives for years and cannot be taken back without breaking someone, so no API shape ships on one agent's judgement. No cheap, dirty, lazy or sloppy additions: an option bolted on beside a similar one, a magic value, one more top-level key where an existing structure should grow, or a shape that only fits the one issue that asked for it.
+
+- **Any agent that adds or changes the API convenes a council before building it**, whether it is triage proposing a shape, a build thread, the sweep or `Chief of staff`. It spawns a stronger model, Claude Fable 5.2 (`claude-fable-5-2`, effort `high` or above, via `delegate_task`), as an **adversarial reviewer**. Brief it with the problem, the user's request, the code and the existing options around it. Don't send your conclusion: the reviewer forms its own view first.
+- **Debate it thoroughly.** The reviewer attacks the proposal: consistency with the existing options and upstream, how it composes with neighbouring options, edge cases, naming, discoverability, a future second or third request in the same area, migration and what a user would get wrong. Answer each objection or change the design, and send the revised design back to the same reviewer for another round. Stop only when the reviewer has no remaining objection that holds. When the two of you cannot agree, the question goes to the maintainer as a bucket 3 decision.
+- **Nothing reaches users before the council.** Don't post an API shape on GitHub, start a build on it or merge it before the council has agreed. A pull request that adds or changes API names its council run (who reviewed it and the objections that changed the design) in the hand-off to `Chief of staff`. `Chief of staff` does not merge an API change without one, and reviews the shape itself, not only the tests.
+
 ## Who decides what ships
 
 Agents drive this project end to end: they investigate, reproduce, decide option names and shapes, build, test, review, merge and release without waiting to be asked. Sort every change into one of these three buckets:

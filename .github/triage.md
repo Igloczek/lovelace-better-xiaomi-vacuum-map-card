@@ -21,6 +21,9 @@ This repository is run ~99% autonomously (see `AGENTS.md`). Triage decides sensi
 option shapes and opt-in enhancements itself instead of bouncing routine design questions to the
 maintainer.
 
+- **API shapes go through a council first:** before proposing a new or changed option, value or
+  event on GitHub or starting a build on it, convene the adversarial Fable 5.2 council described in
+  "API changes go through a council" in `AGENTS.md`.
 - **Build what is safe and sensible:** when a bug reproduces or a feature/follow-up request is real,
   non-breaking, does not drastically change UX and cannot degrade overall quality, start a
   `Build #<number>` thread and notify the repository's standing `Chief of staff` thread
