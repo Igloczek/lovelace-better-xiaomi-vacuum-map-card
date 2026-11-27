@@ -241,11 +241,15 @@ export function setCurrentMode(
                     // label sits on the detected centre: a configured label point and offset belong
                     // to the configured outline, so they are dropped. `room_label_offsets` nudges
                     // it on top of that (#126).
-                    label: nudgeLabel(
-                        region && room.label && !areaRoom
-                            ? { ...room.label, offset_x: 0, offset_y: 0 }
-                            : (room.label ?? configured?.label),
-                        mapNudge ? undefined : nudge,
+                    // `room_names` replaces the name it shows, or hides it with "" (#133).
+                    label: renameLabel(
+                        nudgeLabel(
+                            region && room.label && !areaRoom
+                                ? { ...room.label, offset_x: 0, offset_y: 0 }
+                                : (room.label ?? configured?.label),
+                            mapNudge ? undefined : nudge,
+                        ),
+                        newMode.roomNames[String(room.id)],
                     ),
                     variables: configured?.variables,
                     default_state: configured?.default_state,
@@ -600,6 +604,17 @@ function pushRectangle(card: XiaomiVacuumMapCard, currentMode: MapMode): void {
     const height = actualHeight / 3 / card.mapScale;
     const rotatable = currentMode.selectionType === SelectionType.MANUAL_ROTATABLE_RECTANGLE;
     card.selectedManualRectangles.push(new ManualRectangle(x, y, width, height, name, createContext(card), rotatable));
+}
+
+/**
+ * A room label renamed by a mode's `room_names` entry: a name replaces the label's text, `""` leaves
+ * the room without a name (icon or badge only, as under `room_labels: false`). The label point stays,
+ * so the selected badge and a later rename sit where the name did. A room with no label has no name
+ * to replace and is left as it is.
+ */
+function renameLabel(label: LabelConfig | undefined, name: string | undefined): LabelConfig | undefined {
+    if (!label || typeof name !== "string") return label;
+    return { ...label, text: name };
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { OutlineType } from "../types/types";
+import { visibleText } from "./visible-text";
 
 /** One usable room from a camera's `rooms` attribute, with its geometry checked and numeric. */
 export interface CameraRoom {
@@ -62,7 +63,8 @@ function toRoom(id: string, raw: unknown): CameraRoom | undefined {
         id,
         outline,
         fromBounds,
-        name: typeof room.name === "string" && room.name.trim() !== "" ? room.name : undefined,
+        // A name of only invisible characters is no name, like a blank one (#133).
+        name: typeof room.name === "string" && visibleText(room.name) !== undefined ? room.name : undefined,
         icon: typeof room.icon === "string" && room.icon !== "" ? room.icon : undefined,
         ...(x !== undefined && y !== undefined ? { x, y } : {}),
     };

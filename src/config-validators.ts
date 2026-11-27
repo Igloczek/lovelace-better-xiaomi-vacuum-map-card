@@ -314,6 +314,7 @@ function validateMapModeConfig(
         return [notList("predefined_selections")];
     }
     errors.push(...validateRoomLabelOffsets(config.room_label_offsets));
+    errors.push(...validateRoomNames(config.room_names));
     const cleaningOrder: unknown = config.cleaning_order;
     if (cleaningOrder !== undefined && cleaningOrder !== null && typeof cleaningOrder !== "boolean") {
         // A typo such as `cleaning_order: yes` would otherwise silently hide the numbers.
@@ -403,6 +404,22 @@ function validateRoomLabelOffsets(value: unknown): TranslatableString[] {
         }
     }
     return errors;
+}
+
+/**
+ * `room_names` (#133): a mapping of room ids to the name to show, `""` to show none. As with
+ * `room_label_offsets`, an id the mode does not draw is not an error.
+ */
+function validateRoomNames(value: unknown): TranslatableString[] {
+    if (value === undefined || value === null) return [];
+    if (!isMapping(value)) return [notMapping("room_names")];
+    return Object.entries(value as Record<string, unknown>)
+        .filter(([, name]) => name !== undefined && name !== null && typeof name !== "string")
+        .map(([roomId]): TranslatableString => [
+            "validation.preset.map_modes.room_names.not_text",
+            "{0}",
+            `room_names.${roomId}`,
+        ]);
 }
 
 function validateLivePath(config: CardPresetConfig): TranslatableString[] {
