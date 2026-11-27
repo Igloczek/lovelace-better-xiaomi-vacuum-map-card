@@ -9,13 +9,13 @@ export abstract class PredefinedMapObject extends MapObject {
     protected constructor(config: PredefinedSelectionCommonConfig, context: Context) {
         super(context);
         this._common_config = config;
-        this._selected = config.default_state == SelectionState.SELECTED;
+        this._selected = config.default_state === SelectionState.SELECTED;
         if (this._common_config.state_entity) {
-            this._selected = this._context.getState(this._common_config.state_entity) == "on";
+            this._selected = this._context.getState(this._common_config.state_entity) === "on";
         }
     }
 
-    public get variables(): VariablesStorage {
+    public override get variables(): VariablesStorage {
         return this._common_config.variables ?? super.variables;
     }
 
@@ -25,7 +25,7 @@ export abstract class PredefinedMapObject extends MapObject {
 
     protected _toggleSelected(): void {
         if (this._common_config.state_entity) {
-            this._selected = this._context.getState(this._common_config.state_entity) != "on";
+            this._selected = this._context.getState(this._common_config.state_entity) !== "on";
             this._context.toggleEntity(this._common_config.state_entity);
         } else {
             this._selected = !this._selected;
@@ -50,7 +50,7 @@ export abstract class PredefinedMapObject extends MapObject {
     }
 
     public defaultSelected(): boolean {
-        return this._common_config.default_state == SelectionState.SELECTED;
+        return this._common_config.default_state === SelectionState.SELECTED;
     }
 
     /** How much of `max_selections` this object uses. */

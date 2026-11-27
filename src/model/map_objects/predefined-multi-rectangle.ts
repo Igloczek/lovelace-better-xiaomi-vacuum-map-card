@@ -61,7 +61,7 @@ export class PredefinedMultiRectangle extends PredefinedMapObject {
                     </polygon>
                 `,
                 )}
-                ${this.renderIcon(this._config.icon, () => this._click(), "predefined-rectangle-icon-wrapper")}
+                ${this.renderIcon(this._config.icon, () => void this._click(), "predefined-rectangle-icon-wrapper")}
                 ${this.renderLabelPill(this._config.label, "predefined-rectangle-label", this._config.icon, this._selected ? "check" : undefined)}
             </g>
         `;
@@ -71,7 +71,7 @@ export class PredefinedMultiRectangle extends PredefinedMapObject {
         return JSON.stringify(this._config.zones);
     }
 
-    public selectionSize(): number {
+    public override selectionSize(): number {
         return this.size();
     }
 
@@ -115,7 +115,7 @@ export class PredefinedMultiRectangle extends PredefinedMapObject {
         this.update();
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .predefined-rectangle-wrapper {
             }

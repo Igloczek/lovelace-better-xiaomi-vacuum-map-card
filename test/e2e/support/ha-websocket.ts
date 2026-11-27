@@ -1,3 +1,4 @@
+// @ts-expect-error -- a plain JavaScript module without declarations.
 import { freshAccessToken as harnessFreshAccessToken } from "./harness.cjs";
 import { haUrl } from "./instance";
 

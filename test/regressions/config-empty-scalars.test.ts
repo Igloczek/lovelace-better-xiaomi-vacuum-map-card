@@ -375,7 +375,9 @@ describe("the card renders instead of throwing", () => {
         expect(card.shadowRoot.querySelector("ha-card")).not.toBeNull();
         expect(card.shadowRoot.querySelector("hui-error-card, hui-warning")).toBeNull();
         expect(uncaught).toEqual([]);
-        expect(consoleError.mock.calls.filter(args => args.some(a => a instanceof TypeError))).toEqual([]);
+        expect(
+            consoleError.mock.calls.filter((args: unknown[]) => args.some((a: unknown) => a instanceof TypeError)),
+        ).toEqual([]);
         await card.cleanup();
     });
 
@@ -394,7 +396,9 @@ describe("the card renders instead of throwing", () => {
         expect(shown).not.toBeNull();
         expect(card.element.configErrors.join(" ")).toContain(message);
         expect(uncaught).toEqual([]);
-        expect(consoleError.mock.calls.filter(args => args.some(a => a instanceof TypeError))).toEqual([]);
+        expect(
+            consoleError.mock.calls.filter((args: unknown[]) => args.some((a: unknown) => a instanceof TypeError)),
+        ).toEqual([]);
         await card.cleanup();
     });
 

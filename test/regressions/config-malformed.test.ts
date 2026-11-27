@@ -128,7 +128,9 @@ describe("malformed YAML produces messages, not crashes", () => {
             expect(uncaught).toEqual([]);
             const shown = card.shadowRoot.querySelector("hui-error-card, pre");
             expect(shown).not.toBeNull();
-            const typeErrors = consoleError.mock.calls.filter(args => args.some(a => a instanceof TypeError));
+            const typeErrors = consoleError.mock.calls.filter((args: unknown[]) =>
+                args.some((a: unknown) => a instanceof TypeError),
+            );
             expect(typeErrors).toEqual([]);
             await card.cleanup();
         });

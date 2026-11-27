@@ -17,7 +17,7 @@ export class Icon extends RootlessLitElement {
     @property({ attribute: false })
     private onAction!: ActionHandlerFunctionCreator;
 
-    public render(): TemplateResult {
+    public override render(): TemplateResult {
         if (Array.isArray(this.config)) {
             return html`
                 <better-xvmc-dropdown-icon
@@ -36,7 +36,7 @@ export class Icon extends RootlessLitElement {
         `;
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
           ${SingleIcon.styles}
           ${DropdownIcon.styles}

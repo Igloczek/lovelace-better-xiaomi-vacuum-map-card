@@ -14,6 +14,7 @@ import {
     scrubSecrets,
     BODY_LIMIT,
     MARKER,
+    // @ts-expect-error -- a plain JavaScript module without declarations.
 } from "../scripts/agent-report/core.mjs";
 
 const JWT = "eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxMjM0NTY3ODkwYWJjZGVmIn0.c2lnbmF0dXJlLXNpZ25hdHVyZQ";
@@ -123,7 +124,7 @@ function rawSnapshot() {
     };
 }
 
-function filled(report) {
+function filled(report: any) {
     return {
         ...report,
         agent: { name: "Claude Code", model: "claude-opus-5-5" },
@@ -232,12 +233,12 @@ describe("agent report redaction", () => {
         expect(report.card_config.map_source.camera).toBe("image.map");
         expect(report.card_config.tiles[0].entity).toBe("sensor.battery");
         expect(Object.keys(report.states).sort()).toEqual(["image.map", "sensor.battery", "vacuum.vacuum"]);
-        expect(report.registry.map(e => e.entity_id)).toContain("sensor.main_brush_time_left");
-        expect(report.registry.find(e => e.entity_id === "sensor.main_brush_time_left").renamed).toBe(true);
+        expect(report.registry.map((e: any) => e.entity_id)).toContain("sensor.main_brush_time_left");
+        expect(report.registry.find((e: any) => e.entity_id === "sensor.main_brush_time_left").renamed).toBe(true);
     });
 
     it("keeps the unique_id words platform templates match", () => {
-        const ids = report.registry.map(e => e.unique_id);
+        const ids = report.registry.map((e: any) => e.unique_id);
         expect(ids).toContain("main_brush_time_left_ID1");
         expect(ids).toContain("battery_ID1");
         expect(ids).toContain("ID1_map_0");

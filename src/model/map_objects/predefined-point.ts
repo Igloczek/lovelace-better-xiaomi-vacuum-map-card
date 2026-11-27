@@ -55,7 +55,7 @@ export class PredefinedPoint extends PredefinedMapObject {
     public render(): SVGTemplateResult {
         return svg`
             <g class="predefined-point-wrapper ${this._selected ? "selected" : ""}">
-                ${this.renderIcon(this._iconConfig, () => this._click(), "predefined-point-icon-wrapper")}
+                ${this.renderIcon(this._iconConfig, () => void this._click(), "predefined-point-icon-wrapper")}
                 ${this.renderLabelPill(this._config.label, "predefined-point-label", this._iconConfig, this._selected ? "check" : undefined)}
             </g>
         `;
@@ -95,7 +95,7 @@ export class PredefinedPoint extends PredefinedMapObject {
         this.update();
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .predefined-point-wrapper {
             }

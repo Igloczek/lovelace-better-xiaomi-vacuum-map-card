@@ -13,7 +13,7 @@ const CANCEL_EVENTS = ["touchcancel", "mouseout", "mouseup", "touchmove", "mouse
 interface XiaomiVacuumMapCardActionHandlerInterface extends HTMLElement {
     holdTime: number;
 
-    bind(element: Element, options): void;
+    bind(element: Element, options: ActionHandlerOptions | undefined): void;
 }
 
 interface XiaomiVacuumMapCardActionHandlerElement extends HTMLElement {
@@ -136,7 +136,7 @@ export class XiaomiVacuumMapCardActionHandler extends HTMLElement implements Xia
         };
 
         const handleEnter = (ev: KeyboardEvent): void => {
-            if (ev.keyCode !== 13) {
+            if (ev.key !== "Enter") {
                 return;
             }
             end(ev);
@@ -181,7 +181,7 @@ const getActionHandler = (): XiaomiVacuumMapCardActionHandlerInterface => {
     const actionhandler = document.createElement(ACTION_HANDLER_CUSTOM_ELEMENT_NAME);
     body.appendChild(actionhandler);
 
-    return actionhandler as XiaomiVacuumMapCardActionHandlerInterface;
+    return actionhandler;
 };
 
 export const actionHandlerBind = (
@@ -197,7 +197,7 @@ export const actionHandlerBind = (
 
 export const actionHandler = directive(
     class extends Directive {
-        update(part: AttributePart, [options]: DirectiveParameters<this>): typeof noChange {
+        override update(part: AttributePart, [options]: DirectiveParameters<this>): typeof noChange {
             actionHandlerBind(part.element as XiaomiVacuumMapCardActionHandlerElement, options);
             return noChange;
         }

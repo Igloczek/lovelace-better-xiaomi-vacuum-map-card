@@ -325,7 +325,7 @@ export class TilesGenerator {
         tile_id: string | undefined,
         language: Language,
     ): Record<string, string> {
-        const output = {};
+        const output: Record<string, string> = {};
         if (tile_id) {
             keys.forEach(k => {
                 const translation = localize(`tile.${tile_id}.value.${k}`, language, "");
@@ -339,7 +339,7 @@ export class TilesGenerator {
         const toRemove = ["unique_id_regex", "translation_keys", "duration_unit"];
         const e = tileConfig as unknown as Record<string, unknown>;
         for (const key in e) {
-            if (e.hasOwnProperty(key) && toRemove.includes(key)) {
+            if (Object.prototype.hasOwnProperty.call(e, key) && toRemove.includes(key)) {
                 delete e[key];
             }
         }

@@ -136,7 +136,7 @@ describe("the run button", () => {
     });
 
     it("clears the selection only after Home Assistant accepted the call", async () => {
-        const { card, hass, toast } = await mount();
+        const { card, hass } = await mount();
         await clickRoom(card, "1");
 
         await runSelection(card);

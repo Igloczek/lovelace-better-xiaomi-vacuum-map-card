@@ -84,7 +84,7 @@ export class Room extends PredefinedMapObject {
         return !this._stale && super.defaultSelected();
     }
 
-    public restoreSelected(selected: boolean): void {
+    public override restoreSelected(selected: boolean): void {
         if (this._stale) return;
         super.restoreSelected(selected);
     }
@@ -125,8 +125,8 @@ export class Room extends PredefinedMapObject {
         const outlines: Array<{ points: Array<[number, number]>; image: boolean }> = this._segments.length
             ? this._segments.map(segment => ({
                   points: segment.imageOutline
-                      ? segment.imageOutline.map(p => this.realScaled2Point(p) as [number, number])
-                      : segment.outline.map(p => this.vacuumToScaledMap(p[0], p[1]) as [number, number]),
+                      ? segment.imageOutline.map(p => this.realScaled2Point(p))
+                      : segment.outline.map(p => this.vacuumToScaledMap(p[0], p[1])),
                   image: segment.imageOutline !== undefined,
               }))
             : [{ points: this._outlinePoints(), image: this._imageOutline !== undefined }];
@@ -165,7 +165,7 @@ export class Room extends PredefinedMapObject {
         const anchor = showPill ? (iconOnly ? this._iconBadgeAnchor() : this._pillAnchor()) : undefined;
         return svg`
             <g class="room-label-layer ${highlighted ? "selected" : ""} ${stale ? "room-stale" : ""} ${this._idClass()}">
-                ${pill && !keepIcon ? svg`` : this.renderIcon(this._config.icon, () => this.click(), "room-icon-wrapper", undefined, !stale)}
+                ${pill && !keepIcon ? svg`` : this.renderIcon(this._config.icon, () => void this.click(), "room-icon-wrapper", undefined, !stale)}
                 ${anchor ? this.renderPill(anchor.origin, anchor.offset, name, pill ? (order > 0 ? order : "check") : undefined, "room-label") : svg``}
                 ${this.renderStaleMarker(stale)}
             </g>
@@ -238,7 +238,7 @@ export class Room extends PredefinedMapObject {
     private _iconBadgeAnchor(): { origin: [number, number]; offset: [number, number] } | undefined {
         const icon = this._config.icon;
         if (!icon) return undefined;
-        const origin = this.vacuumToScaledMap(icon.x, icon.y) as [number, number];
+        const origin = this.vacuumToScaledMap(icon.x, icon.y);
         const raw = this.scaledCss("--map-card-internal-room-icon-wrapper-size");
         const size = Number.isFinite(raw) && raw > 0 ? raw : this.scaled(36);
         const shift = size * 0.44;
@@ -377,8 +377,8 @@ export class Room extends PredefinedMapObject {
     /** The configured or detected outline in scaled map coordinates. */
     private _outlinePoints(): Array<[number, number]> {
         return this._imageOutline
-            ? this._imageOutline.map(p => this.realScaled2Point(p) as [number, number])
-            : (this._config?.outline ?? []).map(p => this.vacuumToScaledMap(p[0], p[1]) as [number, number]);
+            ? this._imageOutline.map(p => this.realScaled2Point(p))
+            : (this._config?.outline ?? []).map(p => this.vacuumToScaledMap(p[0], p[1]));
     }
 
     /**
@@ -429,7 +429,7 @@ export class Room extends PredefinedMapObject {
         this.update();
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .room-wrapper {
             }

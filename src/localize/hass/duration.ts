@@ -14,12 +14,14 @@ export const UNIT_TO_MILLISECOND_CONVERT = {
 };
 
 export const formatDuration = (duration: string, units: string): string =>
-    millisecondsToDuration(parseFloat(duration) * UNIT_TO_MILLISECOND_CONVERT[units]) || "0";
+    millisecondsToDuration(
+        parseFloat(duration) * UNIT_TO_MILLISECOND_CONVERT[units as keyof typeof UNIT_TO_MILLISECOND_CONVERT],
+    ) || "0";
 
 const leftPad = (num: number, digits = 2) => {
     let paddedNum = "" + num;
     for (let i = 1; i < digits; i++) {
-        paddedNum = parseInt(paddedNum) < 10 ** i ? `0${paddedNum}` : paddedNum;
+        paddedNum = parseInt(paddedNum, 10) < 10 ** i ? `0${paddedNum}` : paddedNum;
     }
     return paddedNum;
 };

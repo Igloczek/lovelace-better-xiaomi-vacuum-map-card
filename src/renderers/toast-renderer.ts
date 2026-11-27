@@ -1,4 +1,5 @@
 import { css, CSSResultGroup, html, TemplateResult } from "lit";
+import type { TranslatableString } from "../types/types";
 import { delay } from "../utils";
 
 /** How long Home Assistant shows a message, in ms. A failure carries a reason worth reading. */
@@ -57,7 +58,7 @@ export class ToastRenderer {
      */
     public static showToast(
         host: HTMLElement,
-        localize: (TranslatableString) => string,
+        localize: (text: TranslatableString) => string,
         idPrefix: string,
         text: string,
         icon: string,
@@ -94,7 +95,7 @@ export class ToastRenderer {
             toastIcon.style.color = successful
                 ? "var(--map-card-internal-toast-successful-icon-color)"
                 : "var(--map-card-internal-toast-unsuccessful-icon-color)";
-            delay(timeout).then(() => (toast.className = toast.className.replace(" show", "")));
+            void delay(timeout).then(() => (toast.className = toast.className.replace(" show", "")));
         }
     }
 

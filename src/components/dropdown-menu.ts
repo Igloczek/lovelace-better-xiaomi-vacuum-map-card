@@ -30,7 +30,7 @@ export class DropdownMenu<T extends DropdownEntry> extends RootlessLitElement {
     @query(".dropdown-menu")
     private menu: HaDropdown | undefined;
 
-    public render(): TemplateResult {
+    public override render(): TemplateResult {
         const currentValue = this.values[this.currentIndex];
         return html`
             <ha-dropdown distance="-50" class="dropdown-menu ${this.additionalClasses.join(" ")}" fixed="true" activatable>
@@ -78,7 +78,7 @@ export class DropdownMenu<T extends DropdownEntry> extends RootlessLitElement {
         this.setValue(value);
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
           .dropdown-menu {
               --ha-space-1: 0;

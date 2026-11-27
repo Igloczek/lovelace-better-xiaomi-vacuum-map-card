@@ -70,7 +70,7 @@ export function getPreviousPresetIndex(card: XiaomiVacuumMapCard): number {
             i < card.presetIndex &&
             ((p.conditions?.length ?? 0) === 0 || areConditionsMet(p, card.internalVariables, card.hass)),
     );
-    if (previousPresets.length == 0) return -1;
+    if (previousPresets.length === 0) return -1;
     return allPresets.indexOf(previousPresets[previousPresets.length - 1]);
 }
 
@@ -81,7 +81,7 @@ export function getNextPresetIndex(card: XiaomiVacuumMapCard): number {
             i > card.presetIndex &&
             ((p.conditions?.length ?? 0) === 0 || areConditionsMet(p, card.internalVariables, card.hass)),
     );
-    if (previousPresets.length == 0) return -1;
+    if (previousPresets.length === 0) return -1;
     return allPresets.indexOf(previousPresets[0]);
 }
 
@@ -264,7 +264,7 @@ export function updateCalibration(card: XiaomiVacuumMapCard, config: CardPresetC
 }
 
 export function setInternalVariable(card: XiaomiVacuumMapCard, variable: string, value: ReplacedKey) {
-    const newValues = { ...card.internalVariables };
+    const newValues: Record<string, ReplacedKey> = { ...card.internalVariables };
     newValues[variable] = value;
     card.internalVariables = newValues;
     card.requestUpdate();

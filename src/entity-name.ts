@@ -43,7 +43,7 @@ export function computeEntityName(
     stateObj: HassEntity | undefined,
 ): string | undefined {
     if (!stateObj) return undefined;
-    const formatter = (hass as HassWithEntityNames | undefined)?.formatEntityName;
+    const formatter = hass?.formatEntityName;
     if (supportsEntityNames(hass) && typeof formatter === "function") {
         try {
             // Fork-only hardening: the version gate is a snapshot of today's signatures, so a future

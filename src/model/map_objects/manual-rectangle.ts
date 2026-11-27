@@ -31,7 +31,6 @@ enum DragMode {
 export class ManualRectangle extends MapObject {
     public _id: string;
 
-    private _selectedTarget!: EventTarget | null;
     private _selectedElement!: SVGGraphicsElement | null;
     private _dragMode: DragMode;
 
@@ -100,7 +99,7 @@ export class ManualRectangle extends MapObject {
             .filter(p => !isNaN(p[0]) && !isNaN(p[1]))
             .map(p => p.join(", "))
             .join(" ");
-        if (points.length == 3) console.error(`Points: ${points}`);
+        if (points.length === 3) console.error(`Points: ${points}`);
         return points;
     }
 
@@ -232,7 +231,7 @@ export class ManualRectangle extends MapObject {
     }
 
     private _startDrag(event: MouseEvent | TouchEvent): void {
-        if (window.TouchEvent && event instanceof TouchEvent && (event as TouchEvent).touches.length > 1) {
+        if (window.TouchEvent && event instanceof TouchEvent && event.touches.length > 1) {
             return;
         }
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -247,7 +246,6 @@ export class ManualRectangle extends MapObject {
             return;
         }
         stopEvent(event);
-        this._selectedTarget = event.target;
         const targetElement = event.target as SVGGraphicsElement;
         if (targetElement.classList.contains("movable")) {
             this._dragMode = DragMode.MOVE;
@@ -267,7 +265,7 @@ export class ManualRectangle extends MapObject {
     }
 
     private _drag(event: MouseEvent | TouchEvent): void {
-        if (window.TouchEvent && event instanceof TouchEvent && (event as TouchEvent).touches.length > 1) {
+        if (window.TouchEvent && event instanceof TouchEvent && event.touches.length > 1) {
             return;
         }
         if (this._selectedElement) {
@@ -316,9 +314,10 @@ export class ManualRectangle extends MapObject {
                             this._vacRect[1] = this._vacRectSnapshot[1] + diffY;
                         }
                         if (
-                            Math.sign(this._vacRect[0] - this._vacRect[2]) !=
+                            Math.sign(this._vacRect[0] - this._vacRect[2]) !==
                                 Math.sign(tmpSnapshot[0] - tmpSnapshot[2]) ||
-                            Math.sign(this._vacRect[1] - this._vacRect[3]) != Math.sign(tmpSnapshot[1] - tmpSnapshot[3])
+                            Math.sign(this._vacRect[1] - this._vacRect[3]) !==
+                                Math.sign(tmpSnapshot[1] - tmpSnapshot[3])
                         )
                             this._vacRect = tmpSnapshot;
                         this._setup(this._corners()[0]);
@@ -384,7 +383,6 @@ export class ManualRectangle extends MapObject {
     private _endDrag(event: MouseEvent | TouchEvent): void {
         stopEvent(event);
         this._selectedElement = null;
-        this._selectedTarget = null;
         this.update();
     }
 
@@ -400,7 +398,7 @@ export class ManualRectangle extends MapObject {
         }
     }
 
-    private _toVacuumFromDimensions(x, y, width, height): [number, number, number, number] {
+    private _toVacuumFromDimensions(x: number, y: number, width: number, height: number): ZoneType {
         const imageX = this.realScaled(x);
         const imageY = this.realScaled(y);
         const imageWidth = this.realScaled(width);
@@ -410,7 +408,7 @@ export class ManualRectangle extends MapObject {
         return orderedZone([vacuumStart[0], vacuumStart[1], vacuumEnd[0], vacuumEnd[1]]);
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .resizer {
                 cursor: nwse-resize;

@@ -99,7 +99,7 @@ export class ManualPath extends MapObject {
         this.points.pop();
     }
 
-    public static get styles(): CSSResultGroup {
+    public static override get styles(): CSSResultGroup {
         return css`
             .manual-path-wrapper {
                 --radius: calc(var(--map-card-internal-manual-path-point-radius) / var(--map-scale));

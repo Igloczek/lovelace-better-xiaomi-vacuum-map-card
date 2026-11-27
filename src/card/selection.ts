@@ -304,7 +304,7 @@ export function setCurrentMode(
     card.heldSelection = held;
     card.builtRoomIdsKey = getLiveRoomIdsKey(card, newMode);
     if (card.builtRoomIdsKey !== undefined) card.roomMetadataSeen = true;
-    if (card.selectedMode != newModeIndex && manual) forwardHaptic("selection");
+    if (card.selectedMode !== newModeIndex && manual) forwardHaptic("selection");
     card.selectedMode = newModeIndex;
     placeDefaultRectangle(card);
     selectionChanged(card);

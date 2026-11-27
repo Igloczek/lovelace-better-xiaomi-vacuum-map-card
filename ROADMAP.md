@@ -34,6 +34,14 @@ reviewed before release. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local wo
   a captured fixture before it can be tested.
 - **Ecovacs SVG viewbox handling.** Needs an Ecovacs SVG camera fixture.
 - **Delayed start.** An automation or script does this better than the card.
+- **Hand icon and tile actions to Home Assistant.** They run through `custom-card-helpers`'
+  `handleAction` (last released 2021), which knows no `assist` action and ignores an action-level
+  `entity` for `more-info`; the card already patches `perform-action` in. Firing Home Assistant's
+  `hass-action` event would support every current and future action type, but the card wraps
+  `callService` to show a failed call, so it needs a way to keep that feedback first.
+- **Drop `custom-card-helpers`.** Only its types, `fireEvent`, `forwardHaptic`, `hasAction` and
+  `handleAction` are used; small local helpers would remove a stale dependency whose types lag
+  Home Assistant's.
 
 ## Postponed, with unblock conditions
 
@@ -70,5 +78,9 @@ Accepted in the 1.0 line, each with what would fix it:
 - **Real-device coverage.** Camera request rates, map refresh timing and long-name layouts are
   proven on a local Home Assistant with a fixture camera. Firmware quirks that change snapshot
   timing or room metadata need a report with logs.
+- **Frontend internals.** The card relies on a few non-public frontend details: editor detection
+  walks `hui-card[preview]`, `hui-section[preview]` and `hui-card-preview`, configuration errors
+  render `hui-error-card`, the hold ripple is `ha-ripple`, and toasts use `hass-notification`. The
+  pinned end-to-end suite catches a rename when the image is bumped.
 - **Test environment drift.** The end-to-end suite pins Home Assistant 2026.11.0; new frontend
   releases can remove elements or change layouts, so re-run the suite when bumping the image.

@@ -72,7 +72,7 @@ export async function handleServiceCallGet(card: XiaomiVacuumMapCard): Promise<v
     const currentMode = card._getCurrentMode();
     if (refuseUnsendableRoomSelection(card, currentMode)) return;
     const { selection, variables } = card._getSelection(currentMode);
-    if ((selection as any[]).length == 0 || !currentMode) {
+    if ((selection as any[]).length === 0 || !currentMode) {
         card._showToast("popups.no_selection", "mdi:close", false);
         forwardHaptic("failure");
     } else {
@@ -107,7 +107,7 @@ export async function runSelection(card: XiaomiVacuumMapCard, debug: boolean): P
         return;
     }
     const { selection, variables } = card._getSelection(currentMode);
-    if ((selection as any[]).length == 0 || !currentMode) {
+    if ((selection as any[]).length === 0 || !currentMode) {
         card._showToast("popups.no_selection", "mdi:close", false);
         forwardHaptic("failure");
         setRunFeedback(card, "failure");
@@ -272,32 +272,35 @@ async function serviceErrorMessage(card: XiaomiVacuumMapCard, e: unknown): Promi
 }
 
 export function handleRunAction(card: XiaomiVacuumMapCard): ActionHandlerFunction {
-    return async (ev?: ActionHandlerEvent): Promise<void> => {
-        if (card.hass && ev?.detail?.action) {
-            switch (ev.detail.action) {
-                case "tap":
-                    await runSelection(card, false);
-                    break;
-                case "hold":
-                    await runSelection(card, true);
-                    break;
-                case "double_tap":
-                    console.log(
-                        JSON.stringify(
-                            {
-                                ...card._getCurrentPreset(),
-                                additional_presets: undefined,
-                                title: undefined,
-                                type: undefined,
-                            },
-                            null,
-                            2,
-                        ),
-                    );
-                    window.alert("Configuration available in browser's console");
-                    forwardHaptic("success");
-                    break;
-            }
+    // `runSelection` reports its own failures, so the action handler drops the promise.
+    return (ev?: ActionHandlerEvent): void => void runAction(card, ev);
+}
+
+async function runAction(card: XiaomiVacuumMapCard, ev?: ActionHandlerEvent): Promise<void> {
+    if (card.hass && ev?.detail?.action) {
+        switch (ev.detail.action) {
+            case "tap":
+                await runSelection(card, false);
+                break;
+            case "hold":
+                await runSelection(card, true);
+                break;
+            case "double_tap":
+                console.log(
+                    JSON.stringify(
+                        {
+                            ...card._getCurrentPreset(),
+                            additional_presets: undefined,
+                            title: undefined,
+                            type: undefined,
+                        },
+                        null,
+                        2,
+                    ),
+                );
+                window.alert("Configuration available in browser's console");
+                forwardHaptic("success");
+                break;
         }
-    };
+    }
 }
