@@ -1,13 +1,22 @@
 # Changelog
 
+## 1.16.1
+
+### Added
+
+- `room_names` hides one room's name with `false` (#133), for example `"23": false`. The room stays
+  selectable and shows like a room without a name.
+- A number is accepted as a room name in `room_names`, and renaming a configured room that has no
+  `label` now gives it one.
+
 ## 1.16.0
 
 ### Added
 
-- `room_names` on a `ROOM` mode renames a room, or hides its name with `""`, without configuring
-  the room (#133). It works for rooms from the map camera, rooms traced from the map colours, area
-  rooms and configured rooms alike; the room stays selectable and only the displayed name changes.
-  Useful when the map camera publishes placeholder names such as `房间1`.
+- `room_names` on a `ROOM` mode renames a room without configuring it (#133). It works for rooms
+  from the map camera, rooms traced from the map colours, area rooms and configured rooms alike;
+  only the displayed name changes. Useful when the map camera publishes placeholder names such as
+  `房间1`.
 
 ### Fixed
 
